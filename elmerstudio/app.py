@@ -12,6 +12,7 @@ def main(argv=None):
     ap.add_argument("--example", help="open an example model (busbar, heat_sink, cantilever, flow_cylinder, ...)")
     ap.add_argument("--elmer-home", help="Elmer installation folder (overrides the saved preference)")
     ap.add_argument("--no-new", action="store_true", help="do not show the New window at startup")
+    ap.add_argument("--quit-after", type=float, default=0, help=argparse.SUPPRESS)   # smoke-testing the entry point
     args = ap.parse_args(argv)
     if args.elmer_home:
         os.environ["ELMER_HOME"] = args.elmer_home
@@ -33,6 +34,16 @@ def main(argv=None):
     w.show()
     if args.example:
         w.open_example(args.example)
+    if args.quit_after:
+        from PySide6.QtCore import QTimer
+
+        def _quit():
+            print(f"OK title={w.windowTitle()!r} nodes={sum(1 for _ in w.model.root.walk())} "
+                  f"geometry={'built' if w.geo is not None else 'none'} elmer={w.inst.solver if w.inst else None}",
+                  flush=True)
+            w.dirty = False
+            app.quit()
+        QTimer.singleShot(int(args.quit_after * 1000), _quit)
     return app.exec()
 
 
