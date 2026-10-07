@@ -46,5 +46,18 @@ def main(only=()):
     print("failures:", fails)
 
 
+try:
+    import pytest
+
+    @pytest.mark.parametrize("key", list(EXAMPLES))
+    def test_example_solves(key, elmer):
+        m = EXAMPLES[key][1]()
+        folders = StudyRunner(m, m.studies()[0], tempfile.mkdtemp(prefix=f"es_ex_{key}_"), elmer).run()
+        sol = Solution(folders[-1])
+        assert sol.frames and np.isfinite(sol.evaluate("x", sol.frame_index("last"))).all()
+except ImportError:
+    pass
+
+
 if __name__ == "__main__":
     main(tuple(sys.argv[1:]))

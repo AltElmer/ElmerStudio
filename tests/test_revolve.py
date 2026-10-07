@@ -17,10 +17,10 @@ from elmerstudio.core.study_runner import StudyRunner  # noqa: E402
 from elmerstudio.ui.plots import build_scene  # noqa: E402
 
 
-def main():
+def test_revolve_plot(elmer):
     m = transient_sphere()
     st = m.studies()[0]
-    folders = StudyRunner(m, st, tempfile.mkdtemp(prefix="es_rev_"), find_elmer()).run()
+    folders = StudyRunner(m, st, tempfile.mkdtemp(prefix="es_rev_"), elmer or find_elmer()).run()
     B.default_plots(m, st, "time")
     pg = next(c for c in m.results.children if c.kind == "pg2d")
     pg.props["revolve"] = True
@@ -34,4 +34,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test_revolve_plot(find_elmer())

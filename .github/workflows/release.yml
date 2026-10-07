@@ -1,0 +1,118 @@
+name: Packages
+
+# Portable bundles + installers for Windows, macOS and Linux.
+# Push a tag  v1.2.3  to publish a GitHub Release; run manually to get workflow artifacts only.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    name: Bundle (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            os: windows-latest
+          - name: macos-arm64
+            os: macos-latest
+          - name: linux-x86_64
+            os: ubuntu-22.04          # older glibc -> AppImage/tarball run on more distributions
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libgl1 libglu1-mesa libegl1 libgl1-mesa-dri \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-image0 libxcb-render-util0 \
+            libxcb-xinerama0 libxcb-shape0 libxcb-randr0 libxcursor1 libxft2 libxinerama1 libfontconfig1 libdbus-1-3 \
+            file desktop-file-utils
+          curl -fsSL -o /usr/local/bin/appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /usr/local/bin/appimagetool
+
+      - name: Inno Setup (Windows installer compiler)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build, self-test and package (Windows / macOS)
+        if: runner.os != 'Linux'
+        run: python packaging/build.py
+
+      - name: Build, self-test and package (Linux)
+        if: runner.os == 'Linux'
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          QT_QPA_PLATFORM: xcb
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" python packaging/build.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ElmerStudio-${{ matrix.name }}
+          path: |
+            dist/ElmerStudio-*.zip
+            dist/ElmerStudio-*.exe
+            dist/ElmerStudio-*.dmg
+            dist/ElmerStudio-*.tar.gz
+            dist/ElmerStudio-*.AppImage
+          if-no-files-found: error
+          compression-level: 0
+
+  python-package:
+    name: Wheel and sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ElmerStudio-python
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [bundle, python-package]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l artifacts
+          gh release create "${GITHUB_REF_NAME}" artifacts/* --repo "${GITHUB_REPOSITORY}" \
+            --title "Elmer Studio ${GITHUB_REF_NAME}" --generate-notes \
+            --notes "Portable bundles and installers. Elmer itself is installed separately (see README)."

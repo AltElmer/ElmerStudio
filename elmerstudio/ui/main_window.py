@@ -1521,7 +1521,7 @@ class MainWindow(QMainWindow):
 
     # ================================================================== jobs
     def _start_job(self, fn, title, on_done, on_event=None, cancellable=False):
-        if self.job is not None and self.job.isRunning():
+        if self.job is not None:
             # queue it (a newer request with the same title replaces an older queued one)
             self._queue = [q for q in getattr(self, "_queue", []) if q[1] != title] + [(fn, title, on_done, on_event)]
             self.statusBar().showMessage(f"{title}: queued", 3000)
@@ -1549,12 +1549,13 @@ class MainWindow(QMainWindow):
 
     def _next_job(self):
         q = getattr(self, "_queue", [])
-        if q and (self.job is None or not self.job.isRunning()):
+        if q and self.job is None:
             fn, title, on_done, on_event = q.pop(0)
             self._start_job(fn, title, on_done, on_event)
 
     def busy(self) -> bool:
-        return (self.job is not None and self.job.isRunning()) or bool(getattr(self, "_queue", []))
+        # a job counts as busy until its done/failed handler has run on the GUI thread
+        return self.job is not None or bool(getattr(self, "_queue", []))
 
     def _on_job_event(self, kind, payload):
         cb = self._job_cb[2]

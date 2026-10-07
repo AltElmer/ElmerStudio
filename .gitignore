@@ -6,3 +6,5 @@ build/
 dist/
 *.esm.part
 tools/icon_sheet_*.png
+.venv-build/
+packaging/icons/

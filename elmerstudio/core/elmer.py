@@ -28,7 +28,9 @@ class ElmerInstall:
 
     def env(self) -> dict:
         env = dict(os.environ)
-        env["ELMER_HOME"] = self.home
+        # only point ELMER_HOME at self-contained installs; distro packages (/usr) use compiled-in paths
+        if os.path.isdir(os.path.join(self.home, "share", "elmersolver")) and self.home not in ("/usr", "/usr/local"):
+            env["ELMER_HOME"] = self.home
         sep = os.pathsep
         extra = [self.bin]
         lib = os.path.join(self.home, "lib")

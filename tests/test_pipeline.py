@@ -21,6 +21,12 @@ from elmerstudio.core.sif import build_sif  # noqa: E402
 
 INST = find_elmer()
 
+try:
+    import pytest
+    pytestmark = pytest.mark.skipif(INST is None, reason="Elmer (ElmerSolver) not installed")
+except ImportError:  # running as a plain script
+    pass
+
 
 def solve(model, step_index=0):
     st = model.studies()[0]

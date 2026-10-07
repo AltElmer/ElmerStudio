@@ -14,7 +14,11 @@ original icons and no COMSOL assets.
 | ![Eigenfrequencies](docs/screenshots/cantilever_5_results.png) | ![Laminar flow](docs/screenshots/flow_cylinder_5_results.png) |
 | ![Material contents](docs/screenshots/ui_materials_window.png) | ![Model Wizard](docs/screenshots/ui_wizard_2_physics.png) |
 
-## Run it
+## Download
+
+Prebuilt portable bundles and installers (Windows setup + portable zip, macOS .dmg, Linux AppImage + tarball) are attached to each [GitHub Release](https://github.com/AltElmer/ElmerStudio/releases); every build is self-tested by launching the frozen app (and solving/plotting when Elmer is present). The packages do **not** include Elmer itself — install it separately (below). macOS builds are unsigned: right-click > Open the first time.
+
+## Run it from source
 
 Requirements: Python 3.10+ and an Elmer installation (ElmerSolver). Nothing depends on a particular GPU or
 vendor library. The solver runs on the CPU, and graphics need any OpenGL 3.2 driver; see *Graphics without a GPU* below for the software fallback.

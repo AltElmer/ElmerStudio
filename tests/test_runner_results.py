@@ -16,8 +16,8 @@ from elmerstudio.core.results import Solution  # noqa: E402
 from elmerstudio.core.study_runner import StudyRunner  # noqa: E402
 
 
-def main():
-    inst = find_elmer()
+def test_runner_and_project(elmer):
+    inst = elmer or find_elmer()
     m = B.new_model("3D", ["ht"], "stationary")
     m.global_defs.child("params").props["table"] = [{"name": "Q", "expr": "1e6[W/m^3]", "descr": ""},
                                                       {"name": "L", "expr": "10[cm]", "descr": ""}]
@@ -57,4 +57,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test_runner_and_project(find_elmer())
