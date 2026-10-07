@@ -15,6 +15,23 @@ from PySide6.QtCore import QTimer  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 
+def redact_messages(w):
+    """Published screenshots must not show local user/organisation paths."""
+    import re
+    import tempfile
+    home = os.path.expanduser("~")
+    tmp = tempfile.gettempdir()
+    orig = w.messages.add
+
+    def add(text, kind="info"):
+        text = text.replace(tmp, "<tmp>").replace(home, "~")
+        text = re.sub(r"~[\\/][^\s]*?[\\/](bin[\\/]ElmerSolver(\.exe)?)", r"<ELMER_HOME>\\\1", text)
+        orig(text, kind)
+    w.messages.add = add
+    w.messages.clear()
+    w.messages.add("Elmer Studio 1.0.0")
+
+
 def main():
     import warnings
     warnings.filterwarnings("ignore")
@@ -26,6 +43,7 @@ def main():
     theme.apply(app)
     from elmerstudio.ui.main_window import MainWindow
     w = MainWindow(None, show_new=False)
+    redact_messages(w)
     w.resize(1600, 960)
     w.show()
     steps = []

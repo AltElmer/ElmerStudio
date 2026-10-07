@@ -48,6 +48,8 @@ def main():
     save(wz, "wizard_3_study")
     wz.close()
     w = MainWindow(None, show_new=False)
+    from screenshot_tour import redact_messages
+    redact_messages(w)
     w.resize(1600, 960)
     w.show()
 
