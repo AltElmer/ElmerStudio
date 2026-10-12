@@ -20,6 +20,38 @@ from .results import topology_to_npz, write_solution_meta
 from .sif import build_sif, parse_list
 
 
+def sweep_combinations(model: Model, sweep: Node | None) -> list[dict]:
+    """Parameter overrides (SI) for each run of a Parametric Sweep: [{}] without a sweep.
+
+    The first parameter comes from the node's own fields, further ones from its 'More parameters' table;
+    'specified' pairs the i-th values (lists must be equally long), 'all' takes every combination."""
+    if sweep is None or not str(sweep.get("pname", "")).strip():
+        return [{}]
+    known = dict(model.parameter_rows())
+    rows = [(sweep.get("pname"), sweep.get("pvalues", ""), sweep.get("punit", ""))]
+    rows += [(r.get("name", ""), r.get("values", ""), r.get("unit", "")) for r in (sweep.get("more") or [])
+             if str(r.get("name", "")).strip()]
+    lists = []
+    for name, vals, unit in rows:
+        name = str(name).strip()
+        if name not in known:
+            raise RuntimeError(f"Parametric Sweep: '{name}' is not a global parameter")
+        v = parse_list(vals, model.parameters())
+        if not v:
+            raise RuntimeError(f"Parametric Sweep: empty value list for '{name}'")
+        u = str(unit or "").strip()
+        lists.append((name, [units.to_si(x, u) if u else x for x in v]))
+    if sweep.get("stype", "specified") == "all":
+        combos = [{}]
+        for name, vals in lists:
+            combos = [{**c, name: v} for c in combos for v in vals]
+        return combos
+    n = len(lists[0][1])
+    if any(len(vals) != n for _nm, vals in lists):
+        raise RuntimeError("Parametric Sweep: specified combinations need value lists of equal length")
+    return [{name: vals[i] for name, vals in lists} for i in range(n)]
+
+
 class StudyCancelled(Exception):
     pass
 
@@ -62,17 +94,9 @@ class StudyRunner:
         if not steps:
             raise RuntimeError(f"{self.study.label} has no study steps")
         sweep = study_sweep(self.study)
-        values = [None]
-        pname = None
-        if sweep is not None and str(sweep.get("pname", "")).strip():
-            pname = str(sweep.get("pname")).strip()
-            if pname not in dict(self.model.parameter_rows()):
-                raise RuntimeError(f"Parametric Sweep: '{pname}' is not a global parameter")
-            vals = parse_list(sweep.get("pvalues", ""), self.model.parameters())
-            pu = str(sweep.get("punit", "")).strip()
-            values = [units.to_si(v, pu) if pu else v for v in vals]
-            if not values:
-                raise RuntimeError("Parametric Sweep: empty parameter value list")
+        combos = sweep_combinations(self.model, sweep)
+        pname = next(iter(combos[0]), None) if combos[0] else None
+        values = [c.get(pname) if pname else None for c in combos]
         sdir = self.study_dir()
         if os.path.isdir(sdir):
             shutil.rmtree(sdir, ignore_errors=True)
@@ -81,9 +105,10 @@ class StudyRunner:
         job = 0
         t_start = time.time()
         for vi, val in enumerate(values):
-            overrides = {pname: val} if pname else None
+            overrides = dict(combos[vi]) if combos[vi] else None
             if pname:
-                self.emit("message", f"Parametric sweep: {pname} = {val:g}  ({vi + 1}/{len(values)})")
+                desc = ", ".join(f"{k} = {v:g}" for k, v in combos[vi].items())
+                self.emit("message", f"Parametric sweep: {desc}  ({vi + 1}/{len(values)})")
             self.emit("progress", (job / total, "Meshing"))
             if self._stop.is_set():
                 raise StudyCancelled()
@@ -109,6 +134,7 @@ class StudyRunner:
                 rs = self._run_elmer(folder, step, job, total)
                 meta = dict(sif.meta)
                 meta.update({"eigen": rs.eigen, "sweep_param": pname, "sweep_value": val,
+                             "sweep_params": dict(combos[vi]) if combos[vi] else {},
                              "step_index": si, "sweep_index": vi, "tunit": step.get("tunit", "s"),
                              "returncode": getattr(rs, "returncode", None), "elapsed": time.time() - t_start})
                 if step.kind == "study.time":

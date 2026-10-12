@@ -62,6 +62,16 @@ class Job(QThread):
             self.failed.emit(str(exc), traceback.format_exc())
 
 
+def _caps_text(inst) -> str:
+    """One line on the optional Elmer features this installation has."""
+    from ..core.elmer import capabilities
+    c = capabilities(inst)
+    parts = [("diffusion current (multi-ion electrolytes)", c.get("diffusion_current")),
+             ("user solvers (Fortran compiler found)", c.get("user_solvers"))]
+    return "Features: " + ", ".join(f"{n}: {'yes' if v else 'no'}" for n, v in parts) + (
+        "  [from-source build tree]" if getattr(inst, "build_tree", False) else "")
+
+
 class MainWindow(QMainWindow):
     def __init__(self, open_path: str | None = None, show_new=True):
         super().__init__()
@@ -271,7 +281,8 @@ class MainWindow(QMainWindow):
         self.geo2d_actions = []
         for kinds, store in ((["geom.block", "geom.cone", "geom.cylinder", "geom.sphere", "geom.torus", "geom.ellipsoid"],
                               self.geo3d_actions),
-                             (["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon"], self.geo2d_actions)):
+                             (["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.paramcurve"],
+                              self.geo2d_actions)):
             for k in kinds:
                 nt = REGISTRY[k]
                 act = self._a(k, nt.title, nt.icon, (lambda kk=k: self.add_geom(kk)))
@@ -300,6 +311,9 @@ class MainWindow(QMainWindow):
         self.fc_actions = [self._a(k, REGISTRY[k].title, REGISTRY[k].icon, (lambda kk=k: self.add_geom(kk)))
                            for k in ("geom.fillet3d", "geom.chamfer3d")]
         g.add_small(self.fc_actions)
+        tos = self._a("geom.tosolid", "Convert\nto Solid", REGISTRY["geom.tosolid"].icon, lambda: self.add_geom("geom.tosolid"))
+        self.geo2d_actions.append(tos)
+        g.add_large(tos)
         g = t.add_group("Views")
         g.add_large(self.act["zoom_extents"])
 
@@ -334,7 +348,8 @@ class MainWindow(QMainWindow):
         g = t.add_group("Generators")
         g.add_large(self._a("mesh_ftet", "Free\nTetrahedral", "free_tet", lambda: self.add_mesh_node("mesh.ftet")))
         g.add_small([self._a("mesh_ftri", "Free Triangular", "free_tri", lambda: self.add_mesh_node("mesh.ftri")),
-                     self._a("mesh_fquad", "Free Quad", "free_tri", lambda: self.add_mesh_node("mesh.fquad"))])
+                     self._a("mesh_fquad", "Free Quad", "free_tri", lambda: self.add_mesh_node("mesh.fquad")),
+                     self._a("mesh_mapped", "Mapped", "free_tri", lambda: self.add_mesh_node("mesh.mapped"))])
         g = t.add_group("Attributes")
         g.add_small([self._a("mesh_sizen", "Size", "mesh_size", lambda: self.add_mesh_node("mesh.size")),
                      self._a("mesh_dist", "Distribution", "distribution", lambda: self.add_mesh_node("mesh.distribution"))])
@@ -2252,7 +2267,7 @@ class MainWindow(QMainWindow):
             inst = find_elmer(le.text().strip() or None)
             if inst:
                 le.setText(inst.home)
-                info.setText(elmer_version(inst) or inst.solver)
+                info.setText((elmer_version(inst) or inst.solver) + "\n" + _caps_text(inst))
             else:
                 info.setText("<span style='color:#c0392b'>ElmerSolver not found</span>")
         det.clicked.connect(detect)
@@ -2262,7 +2277,7 @@ class MainWindow(QMainWindow):
         w = QWidget()
         w.setLayout(row)
         row.setContentsMargins(0, 0, 0, 0)
-        f.addRow("Elmer installation folder (ELMER_HOME):", w)
+        f.addRow("Elmer installation or build folder:", w)
         f.addRow("", info)
         cb = QCheckBox("Save solutions in the model file")
         cb.setChecked(self.qs.value("save_solutions", True, bool))
@@ -2276,7 +2291,7 @@ class MainWindow(QMainWindow):
             if inst:
                 self.inst = inst
                 self.qs.setValue("elmer_home", inst.home)
-                self.messages.add(f"Elmer: {inst.solver} {elmer_version(inst)}")
+                self.messages.add(f"Elmer: {inst.solver} {elmer_version(inst)}; {_caps_text(inst)}")
             else:
                 QMessageBox.warning(self, APP_NAME, "ElmerSolver was not found in that folder.")
             self.qs.setValue("save_solutions", cb.isChecked())

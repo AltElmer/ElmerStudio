@@ -822,15 +822,19 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
             label, si = sol.describe(expr)
             if sweep:
                 fac = units.unit_info(sw_unit)[0] if sw_unit else 1.0
-                xs, ys = [], []
+                groups: dict = {}                    # one curve per combination of the other swept parameters
                 for val, s in sweep:
                     try:
                         y = _reduce(f, s, expr, s.frame_index("last"), model)
                     except Exception:
                         y = np.nan
-                    xs.append(val / fac)
-                    ys.append(y)
-                _plot(ax, f, xs, ys, lines, label)
+                    others = tuple((k, v) for k, v in (s.meta.get("sweep_params") or {}).items() if k != sw_label)
+                    groups.setdefault(others, []).append((val / fac, y))
+                for gi, (others, pts) in enumerate(groups.items()):
+                    pts.sort()
+                    tag = ", ".join(f"{k}={v:.4g}" for k, v in others)
+                    _plot(ax, f, [p[0] for p in pts], [p[1] for p in pts], lines, f"{label} ({tag})" if tag else label)
+                    lines += 1 if gi < len(groups) - 1 else 0
                 xlabel = xlabel or (f"{sw_label} ({pretty_unit(sw_unit)})" if sw_unit else str(sw_label))
             else:
                 xs, ys = [], []
@@ -1014,9 +1018,12 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities,
     entries = []
     if sweep and node.get("solnum", "last") == "all":
         fac = units.unit_info(sweep_unit)[0] if sweep_unit else 1.0
+        others = [k for k in (sweep[0][1].meta.get("sweep_params") or {}) if k != sweep_label]
         for val, s in sweep:
-            entries.append(([val / fac if val is not None else float("nan")], s, s.frame_index("last")))
-        cols = [f"{sweep_label} ({pretty_unit(sweep_unit)})" if sweep_unit else str(sweep_label)]
+            sp = s.meta.get("sweep_params") or {}
+            entries.append(([val / fac if val is not None else float("nan")] + [sp.get(k, float("nan")) for k in others],
+                            s, s.frame_index("last")))
+        cols = [f"{sweep_label} ({pretty_unit(sweep_unit)})" if sweep_unit else str(sweep_label)] + others
     else:
         frames = sel_frames if kind != "eval.global" or node.get("solnum", "all") != "all" else range(len(sol.frames))
         for fi in frames:

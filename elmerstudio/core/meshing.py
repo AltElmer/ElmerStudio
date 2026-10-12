@@ -24,11 +24,25 @@ SIZE_PRESETS = [  # label, hmax, hmin, hgrad, hcurve, hnarrow  (fractions of the
     ("Extremely coarse", 0.5, 0.1, 2.0, 1.0, 0.1),
 ]
 SIZE_CHOICES = [(str(i + 1), p[0]) for i, p in enumerate(SIZE_PRESETS)]
+
+
+def _distribution(n: int, ratio: float, method="geometric", symmetric=False, reverse=False):
+    """gmsh transfinite law for COMSOL's Distribution (n elements, last/first element ratio)."""
+    ratio = float(ratio) if ratio and ratio > 0 else 1.0
+    if reverse:
+        ratio = 1.0 / ratio
+    if abs(ratio - 1.0) < 1e-12 or n < 2:
+        return "Progression", 1.0
+    if symmetric:                                  # finest (or coarsest) at both ends: gmsh's Bump
+        return "Bump", 1.0 / ratio if ratio > 1 else ratio
+    if method == "arithmetic":                     # gmsh has no arithmetic law: equivalent geometric ratio
+        method = "geometric"
+    return "Progression", ratio ** (1.0 / (n - 1))
 NORMAL = "5"
 
 register(NodeType("mesh", "Mesh", "mesh", "mesh", deletable=False, can_disable=False,
                   children=lambda n: (["mesh.size", "mesh.ftet", "mesh.distribution"] if space_dim(n.ancestor("component")) == 3
-                                      else ["mesh.size", "mesh.ftri", "mesh.fquad", "mesh.distribution"])
+                                      else ["mesh.size", "mesh.ftri", "mesh.fquad", "mesh.mapped", "mesh.distribution"])
                   if n.get("sequence") == "user" else [],
                   props=[
                       Prop("sequence", "Sequence type:", "choice", "physics",
@@ -59,6 +73,8 @@ register(NodeType("mesh.size", "Size", "size", "mesh_size", selection="domain", 
          visible=lambda p: p.get("mode") == "custom"),
     Prop("hmin", "Minimum element size:", default="0.018", unit="LEN", section="Element Size Parameters",
          visible=lambda p: p.get("mode") == "custom"),
+    Prop("hgrad", "Maximum element growth rate:", default="1.3", section="Element Size Parameters",
+         visible=lambda p: p.get("mode") == "custom" and p.get("scope", "entire") == "entire"),
     Prop("hcurve", "Curvature factor:", default="0.6", section="Element Size Parameters",
          visible=lambda p: p.get("mode") == "custom"),
     Prop("hnarrow", "Resolution of narrow regions:", default="0.5", section="Element Size Parameters",
@@ -68,8 +84,17 @@ register(NodeType("mesh.size", "Size", "size", "mesh_size", selection="domain", 
 register(NodeType("mesh.ftet", "Free Tetrahedral", "ftet", "free_tet", selection="domain", selection_all=True, props=[]))
 register(NodeType("mesh.ftri", "Free Triangular", "ftri", "free_tri", selection="domain", selection_all=True, props=[]))
 register(NodeType("mesh.fquad", "Free Quad", "fq", "free_tri", selection="domain", selection_all=True, props=[]))
+register(NodeType("mesh.mapped", "Mapped", "map", "free_tri", selection="domain", selection_all=True,
+                  description="Structured quadrilateral mesh on four-sided domains; set the element counts and "
+                              "grading with Distribution on the boundaries (opposite sides must match).", props=[]))
 register(NodeType("mesh.distribution", "Distribution", "dis", "distribution", selection="boundary", props=[
-    Prop("n", "Number of elements:", "int", 10, section="Distribution")]))
+    Prop("n", "Number of elements:", "int", 10, section="Distribution"),
+    Prop("ratio", "Element ratio:", "string", "1", section="Distribution",
+         tip="Size of the last element over the first (COMSOL: Element ratio)"),
+    Prop("method", "Distribution method:", "choice", "geometric",
+         choices=[("geometric", "Geometric sequence"), ("arithmetic", "Arithmetic sequence")], section="Distribution"),
+    Prop("symmetric", "Symmetric distribution", "bool", False, section="Distribution"),
+    Prop("reverse", "Reverse direction", "bool", False, section="Distribution")]))
 
 
 @dataclass
@@ -168,7 +193,7 @@ class Mesher:
             order = physics_order(self.model) if order == "auto" else int(order)
             preset = _preset(mn.get("size", NORMAL))
             hmax, hmin, hcurve = preset[1] * L, preset[2] * L, preset[4]
-            hnarrow = preset[5]
+            hnarrow, hgrad = preset[5], preset[3]
             if mn.get("sequence") != "user" and self._has_flow():
                 # "Fluid dynamics" calibration of the physics-controlled mesh: about twice as fine
                 hmax, hmin, hcurve, hnarrow = hmax * 0.5, hmin * 0.5, hcurve * 0.6, min(1.0, hnarrow * 1.4)
@@ -184,6 +209,7 @@ class Mesher:
             local = []
             recombine = False
             dists = []
+            mapped = []
             if mn.get("sequence") == "user":
                 for ch in mn.children:
                     if not ch.enabled:
@@ -195,19 +221,22 @@ class Mesher:
                             hc = gb.N(ch, "hcurve")
                             if ch.get("scope", "entire") == "entire":
                                 hnarrow = gb.N(ch, "hnarrow") if "hnarrow" in ch.props else hnarrow
+                                hgrad = gb.N(ch, "hgrad") if "hgrad" in ch.props else hgrad
                         else:
                             p = _preset(ch.get("preset", NORMAL))
                             h1, h0, hc = p[1] * L, p[2] * L, p[4]
                         if ch.get("scope", "entire") == "entire":
                             hmax, hmin, hcurve = h1, h0, hc
                             if ch.get("mode") != "custom":
-                                hnarrow = _preset(ch.get("preset", NORMAL))[5]
+                                hnarrow, hgrad = _preset(ch.get("preset", NORMAL))[5], _preset(ch.get("preset", NORMAL))[3]
                         else:
                             local.append((ch.get("scope"), ch.selection, h1))
                     elif ch.kind == "mesh.fquad":
                         recombine = True
+                    elif ch.kind == "mesh.mapped":
+                        mapped.append(ch.selection)
                     elif ch.kind == "mesh.distribution":
-                        dists.append((ch.selection, int(ch.get("n", 10))))
+                        dists.append((ch.selection, int(ch.get("n", 10)), ch))
             gmsh.option.setNumber("Mesh.MeshSizeMax", hmax)
             gmsh.option.setNumber("Mesh.MeshSizeMin", hmin)
             gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", max(4.0, 2 * math.pi / max(hcurve, 0.05)))
@@ -237,6 +266,24 @@ class Mesher:
                             point_h[ptag] = min(point_h.get(ptag, hd), hd)
             for ptag, hp in point_h.items():
                 gmsh.model.mesh.setSize([(0, ptag)], hp)
+            growth = max(1.01, float(hgrad))
+            fields = []
+
+            def grow_from(dim, tags, h):
+                """COMSOL's maximum element growth rate: h(d) = h + (g - 1) d away from the sized entities."""
+                fd = gmsh.model.mesh.field.add("Distance")
+                key = {0: "PointsList", 1: "CurvesList", 2: "SurfacesList"}.get(dim)
+                if key is None:
+                    return
+                gmsh.model.mesh.field.setNumbers(fd, key, list(tags))
+                if dim > 0:
+                    gmsh.model.mesh.field.setNumber(fd, "Sampling", 200)
+                fm = gmsh.model.mesh.field.add("MathEval")
+                gmsh.model.mesh.field.setString(fm, "F", f"{h!r} + {growth - 1!r}*F{fd}")
+                fields.append(fm)
+
+            for ptag, hp in point_h.items():
+                grow_from(0, [ptag], hp)
             for scope, sel, h in local:
                 if sel is None:
                     continue
@@ -248,13 +295,36 @@ class Mesher:
                 dts = [(dim, geo.tag_of[level][n]) for n in nums]
                 pts = gmsh.model.getBoundary(dts, combined=False, oriented=False, recursive=True) if dim > 0 else dts
                 gmsh.model.mesh.setSize(list({p for p in pts if p[0] == 0}), h)
-            for sel, n in dists:
+                if dim == sd:                       # a domain: refine inside it, grow outward from its boundary
+                    bnd = gmsh.model.getBoundary(dts, combined=True, oriented=False)
+                    grow_from(sd - 1, [t for _d, t in bnd], h)
+                    fc = gmsh.model.mesh.field.add("Constant")
+                    gmsh.model.mesh.field.setNumber(fc, "VIn", h)
+                    gmsh.model.mesh.field.setNumber(fc, "VOut", 1e22)
+                    gmsh.model.mesh.field.setNumbers(fc, {2: "SurfacesList", 3: "VolumesList"}[sd], [t for _d, t in dts])
+                    fields.append(fc)
+                else:
+                    grow_from(dim, [t for _d, t in dts], h)
+            if fields:
+                fmin = gmsh.model.mesh.field.add("Min")
+                gmsh.model.mesh.field.setNumbers(fmin, "FieldsList", fields)
+                gmsh.model.mesh.field.setAsBackgroundMesh(fmin)
+                gmsh.option.setNumber("Mesh.MeshSizeExtendFromBoundary", 0)
+            for sel, n, dn in dists:
                 if sel is None:
                     continue
                 level = "edge" if sd == 3 else "boundary"
                 nums = sel.resolve(geo.numbers.get(level, []))
+                kind, coef = _distribution(n, gb.N(dn, "ratio") if str(dn.get("ratio", "1")).strip() else 1.0,
+                                           dn.get("method", "geometric"), dn.get("symmetric", False), dn.get("reverse", False))
                 for num in nums:
-                    gmsh.model.mesh.setTransfiniteCurve(geo.tag_of[level][num], n + 1)
+                    gmsh.model.mesh.setTransfiniteCurve(geo.tag_of[level][num], n + 1, kind, coef)
+            for sel in mapped:
+                doms = sel.resolve(geo.numbers["domain"]) if sel is not None else geo.numbers["domain"]
+                for num in doms:
+                    tag = geo.tag_of["domain"][num]
+                    gmsh.model.mesh.setTransfiniteSurface(tag)
+                    gmsh.model.mesh.setRecombine(2, tag)
             if recombine and sd == 2:
                 for num, tag in geo.tag_of["domain"].items():
                     gmsh.model.mesh.setRecombine(2, tag)

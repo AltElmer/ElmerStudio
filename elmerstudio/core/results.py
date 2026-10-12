@@ -65,11 +65,19 @@ CATALOG = [
     ("acpr.absp", "pressure wave", "mag", "Absolute pressure amplitude", "Pa", "scalar"),
     ("acpr.Lp", "pressure wave", "spl", "Sound pressure level", "dB", "scalar"),
     ("c", "concentration", None, "Concentration", "mol/m^3", "scalar"),
+    ("cd.phil", "phil", None, "Electrolyte potential", "V", "scalar"),
+    ("cd.Il", "phil flux", "vec", "Electrolyte current density vector", "A/m^2", "vector"),
+    ("cd.IlMag", "phil flux", "mag", "Electrolyte current density magnitude", "A/m^2", "scalar"),
+    ("cd.Ilx", "phil flux", 0, "Electrolyte current density, x component", "A/m^2", "scalar"),
+    ("cd.Ily", "phil flux", 1, "Electrolyte current density, y component", "A/m^2", "scalar"),
+    ("cd.Ilz", "phil flux", 2, "Electrolyte current density, z component", "A/m^2", "scalar"),
+    ("cd.iloc", "phil loads", "bflux", "Local current density into the electrolyte (from the reaction)", "A/m^2", "scalar"),
+    ("cd.nIl", "phil loads", "-bflux", "Normal electrolyte current density (outward)", "A/m^2", "scalar"),
 ]
 # short aliases accepted in expressions (and used by default plots)
 SHORT = {"mises": "solid.mises", "disp": "solid.disp", "normE": "es.normE", "normJ": "ec.normJ",
          "normB": "mf.normB", "U": "spf.U", "p_re": "acpr.p_t", "Lp": "acpr.Lp", "abs_p": "acpr.absp",
-         "Qrh": "ec.Qrh", "tflux": "ht.tfluxMag"}
+         "Qrh": "ec.Qrh", "tflux": "ht.tfluxMag", "phil": "cd.phil"}
 UNIT_FAMILIES = [
     ["K", "degC", "degF"], ["Pa", "kPa", "MPa", "GPa", "bar", "psi"], ["m", "cm", "mm", "um", "nm"],
     ["V", "mV", "kV"], ["V/m", "kV/m", "V/mm", "kV/mm"], ["m/s", "mm/s", "cm/s", "km/h"],
@@ -342,6 +350,12 @@ class Solution:
                     v = np.column_stack([v, np.zeros(len(v))])
             elif comp == "mag":
                 v = np.linalg.norm(a, axis=1) if a.ndim == 2 else np.abs(a)
+            elif comp in ("bflux", "-bflux"):       # reaction (Loads) -> boundary flux density
+                A = self.boundary_lumped()
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    v = np.where(A > 0, (a if a.ndim == 1 else a[:, 0]) / np.where(A > 0, A, 1.0), np.nan)
+                if comp == "-bflux":
+                    v = -v
             elif comp == "spl":
                 pabs = np.linalg.norm(a, axis=1) if a.ndim == 2 else np.abs(a)
                 v = 20 * np.log10(np.maximum(pabs / math.sqrt(2), 1e-30) / 20e-6)
@@ -363,6 +377,14 @@ class Solution:
                 names["z"] = P[:, 1]
         if self.kind == "study.freq" and 0 <= i < len(self.frames):
             names["freq"] = self.frames[i].value
+        n = len(self.topo.nodes)
+        for gname, (src, ents, factor) in self.globals.items():     # e.g. cd.es1.Itot = sum of reaction loads
+            a = arr.get(src)
+            if a is None:
+                continue
+            mask = self._node_mask("boundary", ents)
+            tot = float(np.sum((a if a.ndim == 1 else a[:, 0])[mask])) * factor if mask is not None else float("nan")
+            names[gname.replace(".", "_")] = np.full(n, tot)
         for s, full in SHORT.items():
             fk = full.replace(".", "_")
             if fk in names:
@@ -373,6 +395,43 @@ class Solution:
     # Definitions variables, all set by the model so result expressions read like COMSOL's
     operators: dict = {}
     efc: dict = {}             # exterior field calculations {efc1: acoustics.ExteriorField}
+    globals: dict = {}         # {name: (array, boundary numbers, factor)}: sums of nodal reactions (electrode currents)
+    flux_boundaries: set = set()   # boundaries where a reaction flux exists (others are insulating)
+
+    def boundary_lumped(self):
+        """Lumped boundary measure per node (HRZ), with the r weight on axisymmetric models -- the measure that
+        turns Elmer's nodal reaction loads into a boundary flux density.  Zero on interior nodes."""
+        if getattr(self, "_blump", None) is not None:
+            return self._blump
+        g = self.boundary_grid()
+        P = np.asarray(self.topo.nodes, float) * self.scale
+        A = np.zeros(len(P))
+        axi = self.sdim == 2 and self.meta.get("axi")
+        if self.flux_boundaries and g.n_cells and "bnd" in g.cell_data:     # only boundaries carrying a reaction,
+            keep = np.where(np.isin(np.asarray(g.cell_data["bnd"]), sorted(self.flux_boundaries)))[0]
+            g = g.extract_cells(keep) if len(keep) else g                     # so corners are not diluted
+            if "vtkOriginalPointIds" in g.point_data:
+                P = P[np.asarray(g.point_data["vtkOriginalPointIds"])]
+        ids = np.asarray(g.point_data["vtkOriginalPointIds"]) if "vtkOriginalPointIds" in g.point_data else None
+        for ct, conn in (g.cells_dict.items() if g.n_cells else []):
+            fr = HRZ.get(int(ct))
+            if fr is None or conn.shape[1] != len(fr):
+                continue
+            X = P[conn]
+            if ct in (3, 21):                       # line (end, end[, mid])
+                meas = np.linalg.norm(X[:, 1] - X[:, 0], axis=1) if ct == 3 else \
+                    np.linalg.norm(X[:, 2] - X[:, 0], axis=1) + np.linalg.norm(X[:, 1] - X[:, 2], axis=1)
+            elif ct in (5, 22):                     # triangle: area from the corners
+                meas = 0.5 * np.linalg.norm(np.cross(X[:, 1] - X[:, 0], X[:, 2] - X[:, 0]), axis=1)
+            else:                                   # quadrilateral: two triangles over the corners
+                meas = 0.5 * (np.linalg.norm(np.cross(X[:, 1] - X[:, 0], X[:, 2] - X[:, 0]), axis=1)
+                              + np.linalg.norm(np.cross(X[:, 2] - X[:, 0], X[:, 3] - X[:, 0]), axis=1))
+            w = fr[None, :] * meas[:, None]
+            if axi:
+                w = w * np.abs(P[conn, 0])
+            np.add.at(A, (ids[conn] if ids is not None else conn).ravel(), w.ravel())
+        self._blump = A
+        return A
     params: dict = {}
     variables: dict = {}
 
@@ -586,11 +645,36 @@ def _probe(g, P):
     return out
 
 
-_DOTTED = re.compile(r"\b(ht|solid|es|ec|mf|spf|acpr|tds|pde)\.(\w+)")
+_DOTTED = re.compile(r"\b(ht|solid|es|ec|mf|spf|acpr|tds|pde|cd|tcd)((?:\.\w+)+)")
 
 
 def _dotted(expr: str) -> str:
-    return _DOTTED.sub(lambda m: f"{m.group(1)}_{m.group(2)}", expr)
+    return _DOTTED.sub(lambda m: m.group(1) + m.group(2).replace(".", "_"), expr)
+
+
+def _hrz_fractions():
+    """Lumped (HRZ) boundary mass fractions per VTK cell type: the share of a cell's measure each node carries.
+    Dividing a nodal reaction (Loads) by this lumped measure gives the boundary flux density."""
+    g = np.array([-0.861136311594053, -0.339981043584856, 0.339981043584856, 0.861136311594053])
+    w = np.array([0.347854845137454, 0.652145154862546, 0.652145154862546, 0.347854845137454])
+    X, Y = np.meshgrid(g, g, indexing="ij")
+    W = np.outer(w, w)
+    corners = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+    mids = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+    q8 = []
+    for xi, yi in corners:
+        q8.append(0.25 * (1 + X * xi) * (1 + Y * yi) * (X * xi + Y * yi - 1))
+    for xi, yi in mids:
+        q8.append(0.5 * (1 - X ** 2) * (1 + Y * yi) if xi == 0 else 0.5 * (1 + X * xi) * (1 - Y ** 2))
+    d8 = np.array([np.sum(W * n * n) for n in q8])
+    l3 = np.array([1 / 6, 1 / 6, 2 / 3])
+    q9 = np.array([l3[a] * l3[b] for a, b in ((0, 0), (1, 0), (1, 1), (0, 1), (2, 0), (1, 2), (2, 1), (0, 2))] + [4 / 9])
+    tri6 = np.array([6, 6, 6, 32, 32, 32], float)
+    return {3: np.array([0.5, 0.5]), 21: l3, 5: np.full(3, 1 / 3), 22: tri6 / tri6.sum(),
+            9: np.full(4, 0.25), 23: d8 / d8.sum(), 28: q9 / q9.sum()}
+
+
+HRZ = _hrz_fractions()
 
 
 def write_solution_meta(folder: str, meta: dict):

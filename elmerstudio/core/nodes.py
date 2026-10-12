@@ -72,12 +72,19 @@ def bind_results(model, sol, geo=None):
         params = {}
     if sol.meta.get("sweep_param") and sol.meta.get("sweep_value") is not None:
         params[sol.meta["sweep_param"]] = sol.meta["sweep_value"]
+    params.update(sol.meta.get("sweep_params") or {})          # every swept parameter of this run
     sol.params = params
     comp = model.component
     defs = comp.child("definitions") if comp else None
     sol.variables = {str(r["name"]).strip(): r.get("expr", "0") for n in (defs.children if defs else [])
                      if n.kind == "variables" and n.enabled for r in (n.props.get("table") or [])
                      if str(r.get("name", "")).strip()}
+    from .electrochem import electrode_results
+    gl, var, flux = electrode_results(model, sol, params)
+    sol.globals = gl
+    if flux != sol.flux_boundaries:
+        sol.flux_boundaries, sol._blump = flux, None
+    sol.variables.update(var)
     if sol.kind == "study.freq":
         from .acoustics import efc_operators, incident_variables
         try:
@@ -125,9 +132,14 @@ register(NodeType("study.freq", "Frequency Domain", "freq", "frequency_domain", 
          tip="A single value, a list, or range(start,step,stop)"),
     _phys_tbl]))
 register(NodeType("study.sweep", "Parametric Sweep", "param", "parametric_sweep", props=[
+    Prop("stype", "Sweep type:", "choice", "specified",
+         choices=[("specified", "Specified combinations"), ("all", "All combinations")], section="Study Settings",
+         tip="Specified: the i-th values of every parameter go together; All: every combination"),
     Prop("pname", "Parameter name:", "string", "", section="Study Settings"),
     Prop("pvalues", "Parameter value list:", "string", "range(1,1,3)", section="Study Settings"),
     Prop("punit", "Parameter unit:", "string", "", section="Study Settings"),
+    Prop("more", "More parameters:", "table", [], section="Study Settings",
+         columns=[("name", "Parameter name"), ("values", "Parameter value list"), ("unit", "Parameter unit")]),
 ]))
 register(NodeType("study.solvers", "Solver Configurations", "sols", "solver_config", label="Solver Configurations",
                   numbered=False, deletable=True, can_disable=False, children=["study.solver"]))

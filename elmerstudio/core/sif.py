@@ -288,6 +288,35 @@ class SifContext:
                     m = pat.search(s)
             if not changed:
                 break
+        return self._inline_interp(s)
+
+    def _inline_interp(self, s: str) -> str:
+        """Interpolation functions used inside a larger expression become piecewise-linear expressions
+        (constant extrapolation), built from comparisons so that MATC can evaluate them."""
+        for name, pts in self.interp.items():
+            pat = re.compile(rf"(?<![\w.]){re.escape(name)}\(")
+            m = pat.search(s)
+            while m and len(pts) >= 2:
+                start = m.end()
+                depth, i = 1, start
+                while i < len(s) and depth:
+                    depth += s[i] == "("
+                    depth -= s[i] == ")"
+                    i += 1
+                a = f"({s[start:i - 1]})"
+                xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+                N = lambda v: f"({fmt_num(v)})"  # noqa: E731
+                terms = [N(ys[0])]
+                for k in range(len(xs) - 1):
+                    x0, x1 = xs[k], xs[k + 1]
+                    if x1 <= x0:
+                        continue
+                    slope = (ys[k + 1] - ys[k]) / (x1 - x0)
+                    lo = f"({a}*({a}>{N(x0)})+{N(x0)}*({a}<={N(x0)}))"          # max(a, x0)
+                    cl = f"({lo}*({lo}<{N(x1)})+{N(x1)}*({lo}>={N(x1)}))"       # min(., x1)
+                    terms.append(f"{N(slope)}*({cl}-{N(x0)})")
+                s = s[:m.start()] + "(" + "+".join(terms) + ")" + s[i:]
+                m = pat.search(s)
         return s
 
     def _mark_dep(self, variables):

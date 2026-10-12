@@ -78,6 +78,36 @@ From the Essentials guide (*vented loudspeaker enclosure*) and the blog post *Ho
 
 Added for these: Spherical Wave Radiation (with an optional incident plane wave), Exterior Field Calculation (Kirchhoff–Helmholtz integral of the scattered field; ∂p/∂n taken from the boundary condition where it is known), `freq` in boundary expressions (also over a frequency sweep), Grid 2D/3D and Parametric Curve 3D datasets, plots with their own dataset inside a plot group, Radiation Pattern and Directivity plots, filled level legends for contours and isosurfaces, the acoustics calibration of the physics-controlled mesh (at most λ/5 at the highest frequency), complex functions `real`, `imag`, `arg`, `conj` in result expressions. Elmer's HelmholtzSolver uses the e^(iωt) convention, as COMSOL does.
 
+### Electrochemistry: primary and secondary current distribution
+
+*Secondary Current Distribution* (`cd`), as in COMSOL's Electrochemistry Module (`tests/test_electrochemistry.py`):
+
+- **Electrolyte** (conductivity from the material or any expression) and **Current Source**.
+- **Electrode Surface**: electrode phase potential φs,ext and equilibrium potential, with kinetics *primary*, *Butler–Volmer*, *linearized*, *anodic/cathodic Tafel*, *Butler–Volmer with limiting current*, or *user-defined i(η)*. User-defined kinetics accept an Interpolation function of tabulated polarization data.
+- **Electrolyte Potential**, **Electrolyte Current Density**, **Insulation** and **Symmetry**.
+- **Results** use COMSOL's names:
+  - `cd.phil`, `cd.Il`/`cd.IlMag`;
+  - `cd.iloc` and `cd.nIl`, the local current density recovered from Elmer's reaction loads;
+  - per electrode `cd.es1.Itot` (total current: the sum of nodal reactions, exactly conservative, ×2π in axisymmetry), `cd.es1.eta`, `cd.es1.iloc` and `cd.es1.vdis` (dissolution rate M·i/(nFρ)).
+- **Elmer solvers**: kinetics are written in Newton–Robin form. *Primary* electrodes run on StatCurrentSolve. Robin kinetics run on HeatSolve, or on ModelPDE when a Heat Transfer interface already uses HeatSolve.
+
+| check | result |
+|---|---|
+| 1D cell, every kinetics type, vs i = i_loc(V − iL/σ) | exact to 1e-9 (current and nodal local current density, corners included) |
+| tabulated i(η) through an Interpolation function | 1e-6 |
+| polarization sweep (V–I curve) | exact at every voltage |
+| Newman's disc electrode, axisymmetric, R = 1/(4σa) (with the far-field term) | 0.03 % |
+| sinusoidal anode (Parametric Curve + Convert to Solid, Mapped mesh): current modulation a·k·coth(kL) | 0.02 % |
+
+Added with it:
+- *Parametric Curve*, Polygon as open or closed curve, and *Convert to Solid*;
+- *Mapped* meshes with graded *Distribution* (element ratio, geometric sequence, symmetric, reverse direction);
+- COMSOL's *maximum element growth rate*, which grades local mesh sizes into the domain (without it a refined electrode edge was surrounded by coarse elements, and the disc resistance was off by 6–46 %);
+- Parametric Sweep over several parameters (*All* or *Specified combinations*);
+- Interpolation functions inside any expression in physics settings;
+- comparison operators in exported expressions;
+- from-source Elmer build trees as the Elmer installation, with a capability probe (diffusion-current term, Fortran compiler) shown in *Preferences*.
+
 ## What is there
 
 | COMSOL concept | Elmer Studio | Elmer back end |

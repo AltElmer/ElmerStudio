@@ -59,10 +59,12 @@ GEOM3D = ["geom.block", "geom.sphere", "geom.cylinder", "geom.cone", "geom.torus
           "geom.workplane", "geom.extrude", "geom.revolve", "geom.union", "geom.difference",
           "geom.intersection", "geom.move", "geom.rotate", "geom.scale", "geom.mirror", "geom.array",
           "geom.copy", "geom.import", "geom.fillet3d", "geom.chamfer3d"]
-GEOM2D = ["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.union", "geom.difference",
+GEOM2D = ["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.paramcurve", "geom.tosolid",
+          "geom.union", "geom.difference",
           "geom.intersection", "geom.move", "geom.rotate", "geom.scale", "geom.mirror", "geom.array",
           "geom.copy", "geom.import", "geom.fillet2d", "geom.chamfer2d"]
-WP_KINDS = ["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.union", "geom.difference",
+WP_KINDS = ["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.paramcurve", "geom.tosolid",
+            "geom.union", "geom.difference",
             "geom.intersection", "geom.move", "geom.rotate", "geom.copy", "geom.array", "geom.fillet2d",
             "geom.chamfer2d"]
 
@@ -132,8 +134,25 @@ register(NodeType("geom.ellipse", "Ellipse", "e", "ellipse", dims=(2, 3), props=
     Prop("b", "b-semiaxis:", default="0.5", unit="LEN", section="Size and Shape"),
     *_pos2(), *_rot()]))
 register(NodeType("geom.polygon", "Polygon", "pol", "polygon", dims=(2, 3), props=[
+    Prop("ptype", "Type:", "choice", "solid", choices=[("solid", "Solid"), ("closed", "Closed curve"), ("open", "Open curve")],
+         section="Object Type"),
     Prop("xs", "x:", "string", "0 1 1 0", section="Coordinates", tip="Space- or comma-separated x coordinates"),
     Prop("ys", "y:", "string", "0 0 1 1", section="Coordinates", tip="Space- or comma-separated y coordinates")]))
+register(NodeType("geom.paramcurve", "Parametric Curve", "pc", "parametric_curve", dims=(2, 3), props=[
+    Prop("par", "Parameter name:", "string", "s", section="Parameter"),
+    Prop("smin", "Minimum:", "string", "0", section="Parameter"),
+    Prop("smax", "Maximum:", "string", "1", section="Parameter"),
+    Prop("xexpr", "x:", "string", "s", section="Expressions", tip="In the geometry length unit; may use parameters"),
+    Prop("yexpr", "y:", "string", "0.1*cos(2*pi*s)", section="Expressions"),
+    Prop("npts", "Number of interpolation points:", "int", 60, section="Expressions",
+         tip="The curve is a spline through this many points (an exact polyline for 2)"),
+    Prop("ctype", "Curve type:", "choice", "spline", choices=[("spline", "Interpolating spline"), ("polyline", "Polyline")],
+         section="Expressions")],
+    description="A curve x(s), y(s); combine curves into a domain with Convert to Solid."))
+register(NodeType("geom.tosolid", "Convert to Solid", "csol", "union", dims=(2, 3), props=[
+    Prop("input", "Input objects:", "objects", [], section="Input"),
+    Prop("keep", "Keep input objects", "bool", False, section="Input")],
+    description="Curves (and the boundaries of solids) that together close a region become one solid domain."))
 
 # ---- work plane, extrude, revolve
 WP_PLANES = {   # plane: (xw, yw, n) in global axes; offset is the coordinate along |n|
@@ -565,6 +584,10 @@ class GeometryBuilder:
             self.objects[f.tag] = dt
         elif k in ("geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon"):
             self.objects[f.tag] = self._prim2d(occ, f, z=0.0)
+        elif k == "geom.paramcurve":
+            self.objects[f.tag] = self._paramcurve(occ, f, z=0.0)
+        elif k == "geom.tosolid":
+            self.objects[f.tag] = self._tosolid(occ, f)
             if sd == 3 and f.parent is self.geom:
                 raise GeometryError(f"{f.label}: 2D primitives must be placed in a Work Plane in 3D")
         elif k == "geom.workplane":
@@ -746,8 +769,14 @@ class GeometryBuilder:
             ys = [float(np.real(units.evaluate(v, self.params))) for v in re.split(r"[\s,;]+", str(f.get("ys", "")).strip()) if v]
             if len(xs) != len(ys) or len(xs) < 3:
                 raise GeometryError(f"{f.label}: need at least 3 points with matching x and y counts")
+            ptype = f.get("ptype", "solid")
+            if len(xs) != len(ys) or len(xs) < (2 if ptype == "open" else 3):
+                raise GeometryError(f"{f.label}: need {'2' if ptype == 'open' else '3'} or more points with matching x and y counts")
             pts = [occ.addPoint(xx, yy, z) for xx, yy in zip(xs, ys)]
-            lines = [occ.addLine(pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))]
+            nseg = len(pts) - 1 if ptype == "open" else len(pts)
+            lines = [occ.addLine(pts[i], pts[(i + 1) % len(pts)]) for i in range(nseg)]
+            if ptype != "solid":                # curves: Convert to Solid turns closed sets of curves into domains
+                return [(1, ln) for ln in lines]
             loop = occ.addCurveLoop(lines)
             t = occ.addPlaneSurface([loop])
             x0, y0 = xs[0], ys[0]
@@ -757,6 +786,79 @@ class GeometryBuilder:
             if rot:
                 occ.rotate(dt, x0, y0, z, 0, 0, 1, rot)
         return dt
+
+    def _paramcurve(self, occ, f: Node, z=0.0):
+        """Parametric Curve: a spline (or polyline) through x(s), y(s) sampled at npts parameter values."""
+        par = str(f.get("par", "s")).strip() or "s"
+        s0, s1 = self.N(f, "smin"), self.N(f, "smax")
+        n = max(2, int(f.get("npts", 60) or 60))
+        s = np.linspace(s0, s1, n)
+        names = {**self.params, par: s}
+        xs = np.broadcast_to(np.real(units.evaluate(str(f.get("xexpr", "s")), names)), s.shape)
+        ys = np.broadcast_to(np.real(units.evaluate(str(f.get("yexpr", "0")), names)), s.shape)
+        pts = [occ.addPoint(float(x), float(y), z) for x, y in zip(xs, ys)]
+        closed = np.hypot(xs[0] - xs[-1], ys[0] - ys[-1]) < 1e-12 * max(np.ptp(xs) + np.ptp(ys), 1e-300)
+        if closed:
+            pts[-1] = pts[0]
+        if f.get("ctype", "spline") == "polyline" or n == 2:
+            return [(1, occ.addLine(pts[i], pts[i + 1])) for i in range(len(pts) - 1)]
+        sp = occ.addSpline(pts)
+        inner = [(0, p) for p in pts[1:-1] if p != pts[0]]
+        if inner:                                    # interpolation points are construction aids, not vertices
+            occ.remove(inner)
+        return [(1, sp)]
+
+    def _tosolid(self, occ, f: Node):
+        """Convert to Solid: the input curves (and solids' boundaries) are split at their crossings and every
+        closed loop they form becomes a planar face."""
+        _names, dts = self._input(f, keep=bool(f.get("keep", False)))
+        curves = [t for d, t in dts if d == 1]
+        faces = [(d, t) for d, t in dts if d == 2]
+        if faces:
+            occ.synchronize()
+            import gmsh
+            for d, t in faces:
+                curves += [ct for _cd, ct in gmsh.model.getBoundary([(d, t)], combined=False, oriented=False)]
+        if not curves:
+            raise GeometryError(f"{f.label}: no curves to convert")
+        if faces and not f.get("keep", False):
+            occ.remove(faces, recursive=False)
+        # split a larger rectangle with the curves: every closed region becomes a face; the one touching the
+        # rectangle's own edges is the outside and is discarded
+        import gmsh
+        occ.synchronize()
+        bb = np.array([gmsh.model.getBoundingBox(1, c) for c in curves])
+        lo, hi = bb[:, :3].min(axis=0), bb[:, 3:].max(axis=0)
+        span = float(np.max(hi - lo)) or 1.0
+        pad = 0.1 * span
+        z = float(lo[2])
+        rect = occ.addRectangle(lo[0] - pad, lo[1] - pad, z, hi[0] - lo[0] + 2 * pad, hi[1] - lo[1] + 2 * pad)
+        out, _m = occ.fragment([(2, rect)], [(1, c) for c in curves])
+        occ.synchronize()
+        tol = 1e-6 * span
+        outer_bb = (lo[0] - pad, lo[1] - pad, hi[0] + pad, hi[1] + pad)
+        keep, drop = [], []
+        for d, t in out:
+            if d != 2:
+                continue
+            b = gmsh.model.getBoundingBox(2, t)
+            touches = any(abs(b[i] - outer_bb[j]) < tol + 2 * OCC_PAD for i, j in ((0, 0), (1, 1), (3, 2), (4, 3)))
+            (drop if touches else keep).append((2, t))
+        if not keep:
+            occ.remove(out, recursive=True)
+            raise GeometryError(f"{f.label}: the curves do not close a region")
+        drop_curves = {t for _d, t in gmsh.model.getBoundary(drop, combined=False, oriented=False)} if drop else set()
+        occ.remove(drop, recursive=False)
+        occ.synchronize()
+        used = {t for d, t in gmsh.model.getBoundary(keep, combined=False, oriented=False)}
+        used_pts = {t for d, t in gmsh.model.getBoundary(keep, combined=False, oriented=False, recursive=True) if d == 0}
+        loose = [(1, t) for t in ({t for d, t in out if d == 1} | drop_curves) if t not in used]
+        if loose:
+            pts = {t for d, t in gmsh.model.getBoundary(loose, combined=False, oriented=False) if d == 0}
+            occ.remove(loose, recursive=False)
+            occ.remove([(0, p) for p in pts if p not in used_pts], recursive=False)
+        occ.removeAllDuplicates()
+        return keep
 
     # ---- work planes
     # ---- 2D fillet / chamfer on numbered vertices

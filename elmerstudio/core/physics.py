@@ -456,6 +456,232 @@ define_physics(PhysicsDef(
     equation=r"$-\nabla\cdot(\sigma\nabla V) = Q_{j,v}$"))
 
 
+# =========================================================================== Current Distribution (electrochemistry)
+# Electrolyte potential phil in the electrolyte, sigma_l * laplace(phil) = -Q.  Ionic current il = -sigma_l grad phil.
+# At an Electrode Surface the local current density i_loc(eta), eta = phis_ext - Eeq - phil, ENTERS the electrolyte
+# (anodic positive), i.e. -n.il = i_loc.  Kinetics other than primary are written as a Robin condition in Newton
+# form, -n.il = h (phil_ext - phil) with h = di/deta and phil_ext = phil + i/h, which Elmer can only express through
+# HeatSolve (Heat Transfer Coefficient / External Temperature) or ModelPDE (Robin Coefficient / External Field).
+F_CONST, R_CONST = 96485.33212, 8.314462618
+
+CD_KINETICS = [("primary", "Primary condition (thermodynamic equilibrium)"), ("bv", "Butler-Volmer"),
+               ("linear", "Linearized Butler-Volmer"), ("tafel_a", "Anodic Tafel equation"),
+               ("tafel_c", "Cathodic Tafel equation"), ("lim", "Butler-Volmer with limiting current"),
+               ("expr", "User defined i(eta)")]
+
+
+def cd_kinetics(n):
+    """(i(eta), di/deta) expressions of an Electrode Surface in the overpotential symbol `eta` (strings)."""
+    k = n.get("kin", "bv")
+    i0, aa, ac = f"({n.get('i0', '1[A/m^2]')})", f"({n.get('aa', '0.5')})", f"({n.get('ac', '0.5')})"
+    f = f"({F_CONST!r}/({R_CONST!r}*({n.get('T', '298.15[K]')})))"
+    ea, ec = f"exp({aa}*{f}*eta)", f"exp(-{ac}*{f}*eta)"
+    if k == "bv":
+        return f"{i0}*({ea}-{ec})", f"{i0}*({aa}*{f}*{ea}+{ac}*{f}*{ec})"
+    if k == "linear":
+        return f"{i0}*({aa}+{ac})*{f}*eta", f"{i0}*({aa}+{ac})*{f}"
+    if k == "tafel_a":
+        A = f"({n.get('Aa', '0.118[V]')})"
+        return f"{i0}*10^(eta/{A})", f"{i0}*10^(eta/{A})*2.302585092994046/{A}"
+    if k == "tafel_c":
+        A = f"({n.get('Ac', '0.118[V]')})"
+        return f"-{i0}*10^(-eta/{A})", f"{i0}*10^(-eta/{A})*2.302585092994046/{A}"
+    if k == "lim":
+        il = f"({n.get('ilim', '100[A/m^2]')})"
+        ia, ic = f"({i0}*{ea})", f"({i0}*{ec})"
+        return (f"{ia}/(1+{ia}/{il})-{ic}/(1+{ic}/{il})",
+                f"{aa}*{f}*{ia}/(1+{ia}/{il})^2+{ac}*{f}*{ic}/(1+{ic}/{il})^2")
+    if k == "expr":
+        e = f"({n.get('iexpr', 'i0_user*eta')})"
+        d = "1e-4"           # central difference for the Newton slope; |slope| keeps the Robin coefficient positive
+        return e, f"(abs(({e.replace('eta', f'(eta+{d})')})-({e.replace('eta', f'(eta-{d})')}))/(2*{d})+1e-12)"
+    return "0", "0"
+
+
+def cd_eta(n):
+    return f"(({n.get('phis', '0[V]')})-({n.get('Eeq', '0[V]')})-phil)"
+
+
+def _cd_backend(ph, ctx=None):
+    b = ph.get("backend", "auto")
+    if b != "auto":
+        return b
+    robin = any(f.enabled and f.kind == "cd.es" and f.get("kin", "bv") != "primary" for f in ph.children)
+    if ph.get("dist", "secondary") == "primary":
+        robin = False
+    if not robin:
+        return "statcurrent"
+    comp = ph.ancestor("component")
+    ht_on = any(c.enabled and c.kind == "physics.ht" for c in (comp.children if comp else []))
+    return "modelpde" if ht_on else "heat"
+
+
+def _cd_cond_key(ph):
+    return {"statcurrent": "Electric Conductivity", "heat": "Heat Conductivity",
+            "modelpde": "Diffusion Coefficient"}[_cd_backend(ph)]
+
+
+def _cd_elyte(n, ctx, d):
+    ph = n.parent
+    out = {_cd_cond_key(ph): ctx.matval(n, "sigma", d)}
+    if _cd_backend(ph) == "heat":
+        out.update({"Density": 1.0, "Heat Capacity": 1.0})
+    return out
+
+
+def _cd_eq(n, ctx, d):
+    return {"Convection": "None"} if _cd_backend(n.parent if n.kind != "physics.cd" else n) == "heat" else {}
+
+
+feature("cd.elyte", "Electrolyte", "ice", "feature_domain", "domain", "material", _cd_elyte, default=True,
+        props=matprop_props(["sigma"], "Electrolyte Charge Conservation"),
+        equation=r"$\nabla\cdot\mathbf{i}_l = Q_l,\quad \mathbf{i}_l = -\sigma_l\nabla\phi_l$")
+FEATURES["cd.elyte.eq"] = Feature("cd.elyte", "equation", _cd_eq)
+feature("cd.init", "Initial Values", "init", "initial_values", "domain", "ic",
+        lambda n, ctx, d: {"phil": ctx.value(n.get("phil0", "0"))}, default=True,
+        props=[Prop("phil0", "Electrolyte potential:", default="0", unit="V", section="Initial Values", symbol="φ_l")])
+
+
+def _cd_source(n, ctx, d):
+    key = {"statcurrent": "Current Source", "heat": "Heat Source", "modelpde": "Field Source"}[_cd_backend(n.parent)]
+    return {key: ctx.value(n.get("Ql", "0"))}      # HeatSolve scales the source by Density = 1
+
+
+feature("cd.source", "Current Source", "src", "feature_domain", "domain", "bodyforce", _cd_source,
+        props=[Prop("Ql", "Current source:", default="0", unit="A/m^3", section="Current Source", symbol="Q_l")],
+        equation=r"$\nabla\cdot\mathbf{i}_l = Q_l$")
+feature("cd.ins", "Insulation", "ins", "default_feature", "boundary", "bc", None, default=True,
+        equation=r"$-\mathbf{n}\cdot\mathbf{i}_l = 0$")
+feature("cd.sym", "Symmetry", "sym", "feature_boundary", "boundary", "bc", None,
+        equation=r"$-\mathbf{n}\cdot\mathbf{i}_l = 0$")
+feature("cd.pot", "Electrolyte Potential", "pot", "feature_boundary", "boundary", "bc",
+        lambda n, ctx, d=None: {"phil": ctx.value(n.get("phil0", "0"))},
+        props=[Prop("phil0", "Electrolyte potential:", default="0[V]", unit="V", section="Electrolyte Potential", symbol="φ_l,bnd")],
+        equation=r"$\phi_l = \phi_{l,bnd}$")
+
+
+def _cd_ncd(n, ctx, d=None):
+    key = {"statcurrent": "Current Density", "heat": "Heat Flux", "modelpde": "Field Flux"}[_cd_backend(n.parent)]
+    out = {key: ctx.value(n.get("in", "0"))}
+    if key == "Current Density":
+        out["Current Density BC"] = True
+    return out
+
+
+feature("cd.ncd", "Electrolyte Current Density", "ecd", "feature_boundary", "boundary", "bc", _cd_ncd,
+        props=[Prop("in", "Inward electrolyte current density:", default="0[A/m^2]", unit="A/m^2",
+                    section="Electrolyte Current Density", symbol="i_n")],
+        equation=r"$-\mathbf{n}\cdot\mathbf{i}_l = i_n$")
+
+
+def _cd_es(n, ctx, d=None):
+    ph = n.parent
+    back = _cd_backend(ph)
+    kin = "primary" if ph.get("dist", "secondary") == "primary" else n.get("kin", "bv")
+    if kin == "primary":
+        return {"phil": ctx.value(f"({n.get('phis', '0[V]')})-({n.get('Eeq', '0[V]')})")}
+    if back == "statcurrent":
+        from .sif import SifError
+        raise SifError(f"{n.label}: electrode kinetics need the HeatSolve or ModelPDE back end")
+    i, di = cd_kinetics(n)
+    eta = cd_eta(n)
+    h = di.replace("eta", eta)
+    ext = f"phil+({i.replace('eta', eta)})/({h})"
+    if kin == "linear":                       # constant Robin: h = 1/R_ct, external potential phis - Eeq
+        ext = f"({n.get('phis', '0[V]')})-({n.get('Eeq', '0[V]')})"
+    keys = ("Heat Transfer Coefficient", "External Temperature") if back == "heat" else ("Robin Coefficient", "External Field")
+    return {keys[0]: ctx.value(h), keys[1]: ctx.value(ext)}
+
+
+feature("cd.es", "Electrode Surface", "es", "feature_boundary", "boundary", "bc", _cd_es,
+        props=[Prop("phis", "Electric potential (of the electrode):", default="0[V]", unit="V", section="Electrode Phase Potential Condition",
+                    symbol="φ_s,ext", tip="Sweep it with a parameter for a polarization curve"),
+               Prop("kin", "Kinetics expression type:", "choice", "bv", choices=CD_KINETICS, section="Electrode Kinetics"),
+               Prop("Eeq", "Equilibrium potential:", default="0[V]", unit="V", section="Equilibrium Potential", symbol="E_eq"),
+               Prop("i0", "Exchange current density:", default="1[A/m^2]", unit="A/m^2", section="Electrode Kinetics", symbol="i₀",
+                    visible=lambda p: p.get("kin", "bv") not in ("primary", "expr")),
+               Prop("aa", "Anodic transfer coefficient:", default="0.5", unit="1", section="Electrode Kinetics", symbol="α_a",
+                    visible=lambda p: p.get("kin", "bv") in ("bv", "linear", "lim")),
+               Prop("ac", "Cathodic transfer coefficient:", default="0.5", unit="1", section="Electrode Kinetics", symbol="α_c",
+                    visible=lambda p: p.get("kin", "bv") in ("bv", "linear", "lim")),
+               Prop("Aa", "Anodic Tafel slope:", default="0.118[V]", unit="V", section="Electrode Kinetics", symbol="A_a",
+                    visible=lambda p: p.get("kin") == "tafel_a"),
+               Prop("Ac", "Cathodic Tafel slope:", default="0.118[V]", unit="V", section="Electrode Kinetics", symbol="A_c",
+                    visible=lambda p: p.get("kin") == "tafel_c"),
+               Prop("ilim", "Limiting current density:", default="100[A/m^2]", unit="A/m^2", section="Electrode Kinetics",
+                    symbol="i_lim", visible=lambda p: p.get("kin") == "lim"),
+               Prop("iexpr", "Local current density i(eta):", "string", "1[A/m^2]*sinh(eta/0.05[V])", section="Electrode Kinetics",
+                    visible=lambda p: p.get("kin") == "expr",
+                    tip="Any expression of the overpotential eta (V), parameters and functions, e.g. an Interpolation "
+                        "function of tabulated polarization data: pol(eta)"),
+               Prop("T", "Temperature:", default="298.15[K]", unit="K", section="Electrode Kinetics", symbol="T",
+                    visible=lambda p: p.get("kin", "bv") in ("bv", "linear", "lim")),
+               Prop("M", "Molar mass (dissolving metal):", default="55.845[g/mol]", unit="kg/mol", section="Dissolution",
+                    symbol="M", tip="Used by the Electrode Dissolution study and the dissolution-rate variable"),
+               Prop("nel", "Number of participating electrons:", default="2", unit="1", section="Dissolution", symbol="n"),
+               Prop("rhom", "Metal density:", default="7870[kg/m^3]", unit="kg/m^3", section="Dissolution", symbol="ρ_m")],
+        description="Electrode reaction at the electrolyte boundary: overpotential eta = phis_ext - Eeq - phil, local current "
+                    "density i_loc(eta) entering the electrolyte (anodic positive).",
+        equation=r"$-\mathbf{n}\cdot\mathbf{i}_l = i_{loc}(\eta),\quad \eta = \phi_{s,ext}-E_{eq}-\phi_l$")
+
+
+def _cd_solvers(ph, ctx):
+    back = _cd_backend(ph)
+    maxit = 1
+    if back != "statcurrent" and any(f.enabled and f.kind == "cd.es" and f.get("kin", "bv") not in ("primary", "linear")
+                                     for f in ph.children):
+        maxit = int(ph.get("nl_maxit", 200) or 200)
+    nl = nonlin(maxit=maxit, tol=1e-10, relax=float(ph.get("nl_relax", "0.5") or 0.5) if maxit > 1 else 1.0)
+    if back == "statcurrent":
+        s = {"Equation": "Current Distribution", "Procedure": ("StatCurrentSolve", "StatCurrentSolver"), "Variable": "phil",
+             "Variable DOFs": 1, "Calculate Volume Current": True, "Calculate Joule Heating": True, "Calculate Loads": True}
+        cond = "Electric Conductivity"
+    elif back == "heat":
+        s = {"Equation": "Current Distribution", "Procedure": ("HeatSolve", "HeatSolver"), "Variable": "phil",
+             "Calculate Loads": True}
+        cond = "Heat Conductivity"
+    else:
+        s = {"Equation": "Current Distribution", "Procedure": ("ModelPDE", "AdvDiffSolver"), "Variable": "phil",
+             "Calculate Loads": True}
+        cond = "Diffusion Coefficient"
+    s.update(ctx.solver_settings(ph, nl))
+    flux = {"Equation": "Electrolyte Current", "Procedure": ("FluxSolver", "FluxSolver"), "Calculate Flux": True,
+            "Flux Variable": "phil", "Flux Coefficient": cond, **linsys("iterative", "CG", "Diagonal", 1e-10, 500),
+            "__post__": True}
+    return [s, flux]
+
+
+def _cd_plots(ph, sd, st):
+    return [{"label": "Electrolyte Potential (cd)", "type": "surface" if sd == 2 else "multislice", "expr": "cd.phil",
+             "cmap": "RainbowLight", "dims": sd},
+            {"label": "Electrolyte Current Density (cd)", "type": "surface" if sd == 2 else "multislice",
+             "expr": "cd.IlMag", "cmap": "RainbowLight", "dims": sd}]
+
+
+define_physics(PhysicsDef(
+    "cd", "Secondary Current Distribution", "physics_ec", "Electrochemistry", "Primary and Secondary Current Distribution",
+    studies=("stationary", "time"),
+    depvars={"phil": ("phil", "Electrolyte potential", "V")},
+    defaults=[("cd.elyte", "domain"), ("cd.init", "domain"), ("cd.ins", "boundary")],
+    domain=["cd.elyte", "cd.source", "cd.init"],
+    boundary=["cd.es", "cd.pot", "cd.ncd", "cd.ins", "cd.sym"],
+    mat_props=["sigma"], solvers=_cd_solvers, plots=_cd_plots,
+    description="Current distribution in an electrolyte with electrode kinetics (primary: equilibrium electrodes; "
+                "secondary: Butler-Volmer, Tafel, linearized or user-defined kinetics).",
+    equation=r"$\nabla\cdot\mathbf{i}_l = Q_l,\quad \mathbf{i}_l=-\sigma_l\nabla\phi_l,\quad "
+             r"-\mathbf{n}\cdot\mathbf{i}_l = i_{loc}(\phi_{s,ext}-E_{eq}-\phi_l)$"),
+    extra_props=[Prop("dist", "Current distribution type:", "choice", "secondary",
+                      choices=[("primary", "Primary"), ("secondary", "Secondary")], section="Physics Model"),
+                 Prop("backend", "Elmer solver:", "choice", "auto",
+                      choices=[("auto", "Automatic"), ("statcurrent", "StatCurrentSolve (no kinetics)"),
+                               ("heat", "HeatSolve (Robin form)"), ("modelpde", "ModelPDE (Robin form)")],
+                      section="Elmer Solver",
+                      tip="Automatic: StatCurrentSolve for primary electrodes, HeatSolve when kinetics need a Robin "
+                          "condition, ModelPDE when a Heat Transfer interface already uses HeatSolve"),
+                 Prop("nl_maxit", "Maximum Newton iterations (kinetics):", "int", 200, section="Elmer Solver"),
+                 Prop("nl_relax", "Newton damping factor:", "string", "0.5", section="Elmer Solver")])
+
+
 # =========================================================================== Magnetic Fields (2D / axisymmetric)
 feature("mf.al", "Ampere's Law", "al", "feature_domain", "domain", "material",
         lambda n, ctx, d: {"Relative Permeability": ctx.matval(n, "mur", d), "Electric Conductivity": ctx.matval(n, "sigma", d)},
@@ -884,6 +1110,7 @@ WIZARD_TREE = [
     ("AC/DC", [("Electric Fields and Currents", ["es", "ec"]), ("Electromagnetic Fields", ["mf"])]),
     ("Acoustics", [("Pressure Acoustics", ["acpr"])]),
     ("Chemical Species Transport", [("", ["tds"])]),
+    ("Electrochemistry", [("Primary and Secondary Current Distribution", ["cd"])]),
     ("Fluid Flow", [("Single-Phase Flow", ["spf"])]),
     ("Heat Transfer", [("", ["ht"]), ("Electromagnetic Heating", ["@jh"]), ("Thermal-Structure Interaction", ["@te"])]),
     ("Structural Mechanics", [("", ["solid"])]),

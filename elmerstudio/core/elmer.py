@@ -25,9 +25,27 @@ class ElmerInstall:
     solver_mpi: str | None = None
     mpiexec: str | None = None
     version: str = ""
+    build_tree: bool = False          # a CMake build directory of elmerfem (from-source Elmer)
 
     def env(self) -> dict:
         env = dict(os.environ)
+        if self.build_tree:
+            # an elmerfem build tree: the solver, its modules and three runtime libraries live in five places
+            h = self.home
+            dirs = [os.path.join(h, *p) for p in (("fem", "src"), ("fem", "src", "modules"), ("fhutiter", "src"),
+                                                    ("matc", "src"), ("mathlibs", "src", "arpack"))]
+            rt = os.environ.get("MSYS2_UCRT_BIN", r"C:\msys64\ucrt64\bin" if os.name == "nt" else "")
+            if rt and os.path.isdir(rt):
+                dirs.append(rt)
+            env["ELMER_HOME"] = dirs[0]
+            env["ELMER_LIB"] = dirs[1]
+            env["PATH"] = os.pathsep.join(dirs + [env.get("PATH", "")])
+            if platform.system() == "Linux":
+                env["LD_LIBRARY_PATH"] = os.pathsep.join(dirs + [env.get("LD_LIBRARY_PATH", "")])
+            elif platform.system() == "Darwin":
+                env["DYLD_LIBRARY_PATH"] = os.pathsep.join(dirs + [env.get("DYLD_LIBRARY_PATH", "")])
+            env.setdefault("OMP_NUM_THREADS", "1")
+            return env
         # only point ELMER_HOME at self-contained installs; distro packages (/usr) use compiled-in paths
         if os.path.isdir(os.path.join(self.home, "share", "elmersolver")) and self.home not in ("/usr", "/usr/local"):
             env["ELMER_HOME"] = self.home
@@ -84,6 +102,11 @@ def find_elmer(preferred: str | None = None) -> ElmerInstall | None:
     for h in homes:
         if not h or not os.path.isdir(h):
             continue
+        bt = os.path.join(h, "fem", "src", "ElmerSolver" + EXE)
+        if os.path.isfile(bt):                      # CMake build tree of elmerfem
+            grid = os.path.join(h, "elmergrid", "src", "ElmerGrid" + EXE)
+            return ElmerInstall(h, os.path.dirname(bt), bt, grid if os.path.isfile(grid) else None,
+                                build_tree=True)
         for b in (os.path.join(h, "bin"), h):
             solver = os.path.join(b, "ElmerSolver" + EXE)
             solver_mpi = os.path.join(b, "ElmerSolver_mpi" + EXE)
@@ -112,6 +135,65 @@ def elmer_version(inst: ElmerInstall, timeout=20) -> str:
         return v
     except Exception:
         return ""
+
+
+_CAPS: dict = {}
+
+
+def module_dir(inst: ElmerInstall) -> str | None:
+    """Folder holding the solver module libraries (StatCurrentSolve.dll/.so, ...)."""
+    cands = [os.path.join(inst.home, "fem", "src", "modules")] if inst.build_tree else []
+    cands += [os.path.join(inst.home, "share", "elmersolver", "lib"), os.path.join(inst.home, "lib", "elmersolver"),
+              os.path.join(inst.home, "lib")]
+    for c in cands:
+        if glob.glob(os.path.join(c, "StatCurrentSolve*")):
+            return c
+    return None
+
+
+def capabilities(inst: ElmerInstall | None) -> dict:
+    """What this Elmer can do beyond the 9.0 release, detected from its module binaries (cached):
+
+    diffusion_current -- StatCurrentSolve adds F*sum z_i D_i grad c_i (multi-ion electrolytes; ElmerCSC #871)
+    advdiff_migration -- AdvectionDiffusion has the ion-migration keywords
+    user_solvers      -- a Fortran compiler can build user solvers against this Elmer
+    """
+    if inst is None:
+        return {"diffusion_current": False, "advdiff_migration": False, "user_solvers": False}
+    key = (inst.home, inst.solver)
+    if key in _CAPS:
+        return _CAPS[key]
+
+    def has(module, *needles):
+        d = module_dir(inst)
+        for f in glob.glob(os.path.join(d, module + ".*")) if d else []:
+            try:
+                with open(f, "rb") as fh:
+                    blob = fh.read().lower()
+                if all(n.lower().encode() in blob for n in needles):
+                    return True
+            except OSError:
+                continue
+        return False
+
+    caps = {"diffusion_current": has("StatCurrentSolve", "diffusion current"),
+            "advdiff_migration": has("AdvectionDiffusion", "migration"),
+            "user_solvers": bool(fortran_compiler(inst))}
+    _CAPS[key] = caps
+    return caps
+
+
+def fortran_compiler(inst: ElmerInstall) -> str | None:
+    """elmerf90 of an installed Elmer, or gfortran next to a build tree (MSYS2 UCRT64 on Windows)."""
+    if not inst.build_tree:
+        f = os.path.join(inst.bin, "elmerf90" + (".bat" if os.name == "nt" else ""))
+        if os.path.isfile(f):
+            return f
+    rt = os.environ.get("MSYS2_UCRT_BIN", r"C:\msys64\ucrt64\bin" if os.name == "nt" else "")
+    g = os.path.join(rt, "gfortran" + EXE) if rt else ""
+    if g and os.path.isfile(g):
+        return g
+    return shutil.which("gfortran")
 
 
 # --------------------------------------------------------------------------- log parsing
