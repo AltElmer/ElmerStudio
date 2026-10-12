@@ -162,7 +162,8 @@ class StudyRunner:
                 with open(os.path.join(folder, "solver.log"), "w", errors="replace") as f:
                     f.write("\n".join(rs.lines))
                 if getattr(rs, "returncode", 0) != 0 or not result_files(folder):
-                    err = rs.errors[-1] if rs.errors else f"ElmerSolver exited with code {getattr(rs, 'returncode', '?')}"
+                    said = [e for e in rs.errors if "ERROR::" in e]           # Elmer's message, not the backtrace
+                    err = (said or rs.errors or [f"ElmerSolver exited with code {getattr(rs, 'returncode', '?')}"])[-1]
                     raise RuntimeError(f"{step.label}: {err}")
                 self.folders.append(folder)
                 job += 1
