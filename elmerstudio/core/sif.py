@@ -147,6 +147,23 @@ class SifContext:
         self.fields = self._fields()
         self.funcs, self.interp = self._functions()
         self.variables = self._variables()
+        self.freq_expr = self._freq_expr()
+
+    def _freq_expr(self) -> str | None:
+        """COMSOL's `freq` in physics expressions: the study frequency; in a frequency sweep (Elmer Scanning,
+        Time = 1, 2, ...) a piecewise function of Time."""
+        if self.step.kind != "study.freq":
+            return None
+        try:
+            ffac = units.unit_info(self.step.get("funit", "Hz"))[0]
+            freqs = [f * ffac for f in parse_list(self.step.get("freqs", "500"), self.params)]
+        except Exception:
+            return None
+        if not freqs:
+            return None
+        if len(freqs) == 1:
+            return fmt_num(freqs[0])
+        return "(" + "+".join(f"{fmt_num(f)}*(t>{i + 0.5})*(t<{i + 1.5})" for i, f in enumerate(freqs)) + ")"
 
     # -- active physics
     def _active_physics(self) -> list[Node]:
@@ -229,6 +246,8 @@ class SifContext:
         if isinstance(expr, (int, float)):
             return SifValue(f"Real {fmt_num(float(expr))}")
         s = self._expand(str(expr).strip() or "0")
+        if self.freq_expr is not None:
+            s = re.sub(r"(?<![\w.])freq(?![\w(])", self.freq_expr, s)
         m = re.fullmatch(r"\s*(\w+)\(\s*(\w+)\s*\)\s*", s)
         if m and m.group(1) in self.interp and m.group(2) in self.fields:
             var = self.fields[m.group(2)]
@@ -459,6 +478,8 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
         exterior = {b for b in pb if len(set(geo.adj_up["boundary"].get(b, [])) & pdom) == 1}
         per: dict[int, dict] = {}
         for f in _features(ph, "boundary"):
+            if f.kind in FEATURES and FEATURES[f.kind].section == "post":
+                continue                      # results-only features (e.g. Exterior Field Calculation)
             fns = _feature_fns(f.kind, "bc")
             kws = {}
             for fn in fns:
@@ -484,7 +505,8 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     transient = skind == "study.time"
     eigen = skind == "study.eigen"
     freq = skind == "study.freq"
-    meta = {"kind": skind, "times": [], "freqs": [], "neig": 0, "warnings": ctx.warnings, "physics": [p.tag for p in ctx.active]}
+    meta = {"kind": skind, "times": [], "freqs": [], "neig": 0, "warnings": ctx.warnings, "physics": [p.tag for p in ctx.active],
+            "axi": bool(ctx.axi)}
     if eigen:
         neig = int(step.get("neig", 6))
         meta["neig"] = neig

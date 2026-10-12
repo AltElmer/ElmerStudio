@@ -628,6 +628,74 @@ feature("acpr.pwr", "Plane Wave Radiation", "pwr", "feature_boundary", "boundary
         equation=r"$-\mathbf{n}\cdot\left(-\frac{1}{\rho}\nabla p\right) + \frac{i k}{\rho}p = 0$")
 
 
+def _acpr_swr(n, ctx, d=None):
+    """Spherical (3D, axisymmetric) or cylindrical (2D) wave radiation as an equivalent impedance:
+    dp/dn = -(ik + b/r) p  <=>  Z/rho = c (k^2 r^2 + i b k r) / (b^2 + k^2 r^2), b = 1 or 1/2."""
+    if ctx.freq_expr is None:
+        from .sif import SifError
+        raise SifError(f"{n.label}: wave radiation needs a Frequency Domain study step")
+    c = ctx.matnum(n, "c", None, boundary=True)
+    if ctx.axi:
+        r, b = f"sqrt(r^2+(z-({n.get('z0', '0')}))^2)", "1"
+    elif ctx.sdim == 3:
+        r, b = f"sqrt((x-({n.get('x0', '0')}))^2+(y-({n.get('y0', '0')}))^2+(z-({n.get('z0', '0')}))^2)", "1"
+    else:
+        r, b = f"sqrt((x-({n.get('x0', '0')}))^2+(y-({n.get('y0', '0')}))^2)", "0.5"
+    kr = f"(2*pi*freq/({c})*{r})"
+    den = f"(({b})^2+{kr}^2)"
+    out = {"Wave Impedance 1": ctx.value(f"({c})*{kr}^2/{den}"),
+           "Wave Impedance 2": ctx.value(f"({c})*({b})*{kr}/{den}")}
+    if n.get("incident", "none") == "plane":
+        # total-field formulation: the scattered part p - p_i radiates, p_i = p0 exp(-i k d.x) enters.
+        # dp/dn = -(ik + b/r) p + g,  g = p_i (i k (1 - d.n) + b/r),  n = (x - x0)/r
+        d = INCIDENT_DIRS.get(n.get("dir", "+z"), (0, 0, 1))
+        if ctx.axi:
+            coords, ctr = ("0", "0", "z"), ("0", "0", n.get("z0", "0"))
+            xyz = ("r", "0", "z")
+        else:
+            coords = ("x", "y", "z") if ctx.sdim == 3 else ("x", "y", "0")
+            ctr = (n.get("x0", "0"), n.get("y0", "0"), n.get("z0", "0") if ctx.sdim == 3 else "0")
+            xyz = coords
+        k = f"(2*pi*freq/({c}))"
+        phase = f"({k}*({'+'.join(f'({di})*({xi})' for di, xi in zip(d, xyz))}))"
+        dn = "(" + "+".join(f"({di})*(({xi})-({ci}))" for di, xi, ci in zip(d, xyz, ctr)) + f")/{r}"
+        a, bb = f"({b})/{r}", f"{k}*(1-{dn})"
+        p0 = f"({n.get('p0', '1[Pa]')})"
+        out["Wave Flux 1"] = ctx.value(f"{p0}*(cos({phase})*{a}+sin({phase})*{bb})")
+        out["Wave Flux 2"] = ctx.value(f"{p0}*(cos({phase})*{bb}-sin({phase})*{a})")
+    return out
+
+
+INCIDENT_DIRS = {"+x": (1, 0, 0), "-x": (-1, 0, 0), "+y": (0, 1, 0), "-y": (0, -1, 0), "+z": (0, 0, 1), "-z": (0, 0, -1)}
+
+
+feature("acpr.swr", "Spherical Wave Radiation", "swr", "feature_boundary", "boundary", "bc", _acpr_swr,
+        props=[Prop("x0", "Source location, x:", default="0", unit="m", section="Wave Source",
+                    visible=lambda p: not p.get("__axi", False)),
+               Prop("y0", "Source location, y:", default="0", unit="m", section="Wave Source",
+                    visible=lambda p: not p.get("__axi", False)),
+               Prop("z0", "Source location, z:", default="0", unit="m", section="Wave Source",
+                    visible=lambda p: p.get("__sdim", 3) == 3 or p.get("__axi", False)),
+               Prop("incident", "Incident pressure field:", "choice", "none",
+                    choices=[("none", "None"), ("plane", "Plane wave")], section="Incident Pressure Field"),
+               Prop("p0", "Pressure amplitude:", default="1[Pa]", unit="Pa", section="Incident Pressure Field",
+                    symbol="p₀", visible=lambda p: p.get("incident") == "plane"),
+               Prop("dir", "Wave direction:", "choice", "+z",
+                    choices=[(k, f"{k} direction") for k in ("+x", "-x", "+y", "-y", "+z", "-z")],
+                    section="Incident Pressure Field", visible=lambda p: p.get("incident") == "plane",
+                    tip="Axisymmetric models: along the symmetry axis (+z or -z)")],
+        description="Outgoing spherical (3D, axisymmetric) or cylindrical (2D) waves from the source location; "
+                    "optionally an incident plane wave p_i = p0 exp(-i k d.x) for scattering (total-field formulation).",
+        equation=r"$-\mathbf{n}\cdot\left(-\frac{1}{\rho}\nabla p\right) + \frac{1}{\rho}\left(ik+\frac{1}{r}\right)p = 0$")
+
+
+feature("acpr.efc", "Exterior Field Calculation", "efc", "far_field", "boundary", "post", None,
+        description="Kirchhoff-Helmholtz integral over the selected closed surface: the pressure anywhere outside it "
+                    "(acpr.efc1.pext, acpr.efc1.Lp_pext) for grids, radiation patterns and directivity plots.",
+        equation=r"$p_{ext}(\mathbf{x}) = \oint_S \left(p\,\frac{\partial G}{\partial n} - G\,\frac{\partial p}{\partial n}\right) dS,"
+                 r"\quad G = \frac{e^{-ikR}}{4\pi R}$")
+
+
 def _acpr_solvers(ph, ctx):
     s = {"Equation": "Helmholtz Equation", "Procedure": ("HelmholtzSolve", "HelmholtzSolver"),
          "Variable": "-dofs 2 Pressure Wave"}
@@ -640,7 +708,7 @@ define_physics(PhysicsDef(
     studies=("freq",),
     depvars={"p": ("Pressure Wave 1", "Pressure (real part)", "Pa")},
     defaults=[("acpr.pam", "domain"), ("acpr.init", "domain"), ("acpr.hard", "boundary")],
-    domain=["acpr.pam", "acpr.init"], boundary=["acpr.hard", "acpr.soft", "acpr.pressure", "acpr.nacc", "acpr.imp", "acpr.pwr"],
+    domain=["acpr.pam", "acpr.init"], boundary=["acpr.hard", "acpr.soft", "acpr.pressure", "acpr.nacc", "acpr.imp", "acpr.pwr", "acpr.swr", "acpr.efc"],
     mat_props=["c", "rho"], solvers=_acpr_solvers,
     plots=lambda ph, sd, st: [
         {"label": "Acoustic Pressure (acpr)", "type": "surface", "expr": "p_re", "cmap": "Wave", "dims": sd, "symmetric": True},

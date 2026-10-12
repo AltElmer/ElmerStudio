@@ -289,6 +289,12 @@ class Solution:
             for k in list(out.keys()):
                 if k.endswith(suffix):
                     out[k[: -len(suffix)]] = out[k]
+        for k in [k for k in out if k.endswith(" 1")]:      # split components "name 1", "name 2" -> "name"
+            base = k[:-2]
+            if base not in out and f"{base} 2" in out:
+                cols = [out[f"{base} {j}"] for j in (1, 2, 3) if f"{base} {j}" in out]
+                if all(np.ndim(c) == 1 for c in cols):
+                    out[base] = np.column_stack(cols + [np.zeros(n)] * (3 - len(cols)))
         comps = ("xx", "yy", "zz", "xy", "yz", "xz")
         if "stress" not in out and "stress_xx" in out:       # ResultOutputSolve writes tensor components apart
             out["stress"] = np.column_stack([out.get(f"stress_{c}", np.zeros(n)) for c in comps])
@@ -353,6 +359,10 @@ class Solution:
         names["x"], names["y"], names["z"] = P[:, 0], P[:, 1], P[:, 2]
         if self.sdim == 2:
             names["r"] = P[:, 0]
+            if self.meta.get("axi"):              # 2D axisymmetric: (r, z) coordinates
+                names["z"] = P[:, 1]
+        if self.kind == "study.freq" and 0 <= i < len(self.frames):
+            names["freq"] = self.frames[i].value
         for s, full in SHORT.items():
             fk = full.replace(".", "_")
             if fk in names:
@@ -362,6 +372,7 @@ class Solution:
     # component coupling operators (aveop1(T), intop1(...), maxop1, minop1), global parameters and
     # Definitions variables, all set by the model so result expressions read like COMSOL's
     operators: dict = {}
+    efc: dict = {}             # exterior field calculations {efc1: acoustics.ExteriorField}
     params: dict = {}
     variables: dict = {}
 
@@ -450,6 +461,15 @@ class Solution:
         e = SHORT.get(expr.strip(), expr.strip())
         for alias, src, comp, label, unit, kind in CATALOG:
             if alias == e or alias.replace(".", "_") == e:
+                return label, unit
+        from .acoustics import EFC_LABELS, EFC_NAME, INCIDENT_LABELS
+        m = EFC_NAME.fullmatch(e)
+        if m:
+            for name, label, unit in EFC_LABELS:
+                if m.group(2) in (name, name.replace("pext", "p_ext")):
+                    return label, unit
+        for alias, label, unit in INCIDENT_LABELS:
+            if alias == e:
                 return label, unit
         return expr, ""
 

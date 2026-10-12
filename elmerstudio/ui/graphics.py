@@ -519,7 +519,7 @@ class GraphicsView(QWidget):
                                                    max(bounds[3], b[3]), min(bounds[4], b[4]), max(bounds[5], b[5]))
         for i, lg in enumerate(scene.legends[:3]):
             self._legend(lg["cmap"], lg["clim"], lg.get("title", ""), index=i, n_labels=lg.get("n_labels", 6),
-                         maxmin=lg.get("maxmin", True))
+                         maxmin=lg.get("maxmin", True), bins=lg.get("bins"))
         pts = [t for t in scene.texts if len(t) >= 2]
         if pts:      # annotations / contour level labels: (xyz, text[, show point])
             import pyvista as pv
@@ -547,7 +547,7 @@ class GraphicsView(QWidget):
         self._update_grid()
         p.render()
 
-    def _legend(self, cmap, clim, title, index=0, n_labels=6, maxmin=True):
+    def _legend(self, cmap, clim, title, index=0, n_labels=6, maxmin=True, bins=None):
         """COMSOL-style color legend: bar with nice ticks, x10^n multiplier, max/min markers."""
         import math
 
@@ -561,10 +561,11 @@ class GraphicsView(QWidget):
         exp = exp if (exp >= 4 or exp <= -3) else 0
         sc = 10.0 ** (-exp)
         lut = vtk.vtkLookupTable()
-        lut.SetNumberOfTableValues(256)
+        nt = int(bins) if bins else 256              # discrete blocks for contour/isosurface level legends
+        lut.SetNumberOfTableValues(nt)
         lut.SetRange(lo * sc, hi * sc)
-        for i in range(256):
-            r, g, b, _a = cmap(i / 255.0)
+        for i in range(nt):
+            r, g, b, _a = cmap(i / max(nt - 1, 1))
             lut.SetTableValue(i, r, g, b, 1.0)
         lut.Build()
         sb = vtk.vtkScalarBarActor()

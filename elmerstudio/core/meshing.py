@@ -172,6 +172,15 @@ class Mesher:
             if mn.get("sequence") != "user" and self._has_flow():
                 # "Fluid dynamics" calibration of the physics-controlled mesh: about twice as fine
                 hmax, hmin, hcurve, hnarrow = hmax * 0.5, hmin * 0.5, hcurve * 0.6, min(1.0, hnarrow * 1.4)
+            if mn.get("sequence") != "user":
+                # acoustics calibration (as COMSOL): at most a fifth of the shortest wavelength
+                from .acoustics import acoustic_hmax
+                hw = acoustic_hmax(self.model)
+                if hw:
+                    from . import units as _u
+                    hw /= _u.unit_info(self.geom_node.get("unit", "m"))[0]
+                    if hw < hmax:
+                        hmax, hmin = hw, min(hmin, hw / 4)
             local = []
             recombine = False
             dists = []

@@ -14,7 +14,8 @@ from .settings import pretty_unit
 
 PLOT_NAMES = {"plot.surface": "Surface", "plot.volume": "Volume", "plot.slice": "Slice", "plot.multislice": "Multislice",
               "plot.isosurface": "Isosurface", "plot.contour": "Contour", "plot.arrow": "Arrow Volume",
-              "plot.streamline": "Streamline", "plot.mesh": "Mesh", "plot.line": "Line", "plot.annotation": "Annotation"}
+              "plot.streamline": "Streamline", "plot.mesh": "Mesh", "plot.line": "Line", "plot.annotation": "Annotation",
+              "plot.radiation": "Radiation Pattern"}
 COLORS = {"black": (0, 0, 0), "white": (1, 1, 1), "gray": (0.5, 0.5, 0.5), "red": (0.85, 0.1, 0.1),
           "green": (0.1, 0.6, 0.15), "blue": (0.1, 0.25, 0.85), "cyan": (0.0, 0.7, 0.8), "magenta": (0.8, 0.1, 0.7),
           "yellow": (0.95, 0.85, 0.1), "orange": (1.0, 0.55, 0.0)}
@@ -56,6 +57,131 @@ def _num(text, default=0.0):
         return float(units.evaluate(str(text)))
     except Exception:
         return default
+
+
+# --------------------------------------------------------------------------- far field (exterior field) plots
+PLANES = {"xz": ((1, 0, 0), (0, 0, 1)), "xy": ((1, 0, 0), (0, 1, 0)), "yz": ((0, 1, 0), (0, 0, 1))}
+
+
+def _len(text, model, scale):
+    """A length entry in the geometry unit; an explicit unit (``1[m]``) is converted."""
+    params = model.parameters() if model is not None else {}
+    v = float(units.evaluate(str(text), params))
+    return v / scale if "[" in str(text) else v
+
+
+def _root(view):
+    while not isinstance(view, Solution) and hasattr(view, "base"):
+        view = view.base
+    return view
+
+
+def _eval_points(root, X3):
+    """3D Cartesian points (SI) -> evaluation coordinates of *root* ((r, z) on axisymmetric models)."""
+    if root.sdim == 2:
+        if root.meta.get("axi"):
+            return np.column_stack([np.hypot(X3[:, 0], X3[:, 1]), X3[:, 2]])
+        return X3[:, :2]
+    return X3
+
+
+def far_values(f, view, fi, model, X3):
+    """(values, label, unit) of a far-field plot's expression at 3D points *X3* (SI)."""
+    from ..core.acoustics import point_values
+    root = _root(view)
+    expr = (f.get("expr") or "").strip() or "acpr.efc1.Lp_pext"
+    v = point_values(root, expr, fi, _eval_points(root, X3))
+    label, si = root.describe(expr)
+    unit = f.get("unit") or si
+    if unit and si and unit != si:
+        v = units.from_si(v, unit)
+    return np.asarray(v, float), label, unit
+
+
+def _center(f, model, root):
+    sc = root.scale
+    c = [_len(f.get("xc", "0"), model, sc), _len(f.get("yc", "0"), model, sc), _len(f.get("zc", "0"), model, sc)]
+    if root.sdim == 2 and root.meta.get("axi"):
+        c = [0.0, 0.0, _len(f.get("zc", "0"), model, sc)]       # on the symmetry axis
+    return np.array(c) * sc
+
+
+def radiation_points(f, view, model, thetas):
+    """Points (SI, 3D) of a polar radiation pattern: center + R (cos t e1 + sin t e2)."""
+    root = _root(view)
+    R = _len(f.get("radius", "1[m]"), model, root.scale) * root.scale
+    if root.sdim == 2 and root.meta.get("axi"):
+        e1, e2 = np.array([1.0, 0, 0]), np.array([0, 0, 1.0])     # the rz half plane
+    else:
+        e1, e2 = (np.array(v, float) for v in PLANES.get(f.get("plane", "xz"), PLANES["xz"]))
+    return _center(f, model, root) + R * (np.cos(thetas)[:, None] * e1 + np.sin(thetas)[:, None] * e2)
+
+
+def radiation_polar(f, view, fi, model):
+    """(angles, values, label, unit) of a polar Radiation Pattern."""
+    a0, a1 = (math.radians(_num(f.get(k, d))) for k, d in (("a0", "-90"), ("a1", "90")))
+    th = np.linspace(a0, a1, max(3, int(f.get("npts", 181))))
+    v, label, unit = far_values(f, view, fi, model, radiation_points(f, view, model, th))
+    if f.get("normalize", "none") == "max":
+        v = v - np.nanmax(v) if unit == "dB" else v / (np.nanmax(np.abs(v)) or 1.0)
+    return th, v, label, unit
+
+
+def radiation_3d(f, view, fi, model, pg):
+    """3D far-field pattern: a sphere of directions, radius ~ level within the dynamic range, colored by value."""
+    import pyvista as pv
+    root = _root(view)
+    n = max(8, int(f.get("npts", 181)) // 4)
+    th, ph = np.linspace(0, math.pi, n + 1), np.linspace(0, 2 * math.pi, 2 * n + 1)
+    TH, PH = np.meshgrid(th, ph, indexing="ij")
+    D = np.stack([np.sin(TH) * np.cos(PH), np.sin(TH) * np.sin(PH), np.cos(TH)], axis=-1).reshape(-1, 3)
+    R = _len(f.get("radius", "1[m]"), model, root.scale) * root.scale
+    c = _center(f, model, root)
+    v, label, unit = far_values(f, view, fi, model, c + R * D)
+    rng = _num(f.get("range", "40"), 40.0)
+    if unit == "dB":
+        rad = np.clip((v - (np.nanmax(v) - rng)) / rng, 0.02, 1.0)
+    else:
+        rad = np.clip(np.abs(v) / (np.nanmax(np.abs(v)) or 1.0), 0.02, 1.0)
+    size = float(np.linalg.norm(np.ptp(np.asarray(root.topo.nodes, float), axis=0))) or 1.0
+    P = c / root.scale + 0.6 * size * rad[:, None] * D
+    grid = pv.StructuredGrid(*(P[:, j].reshape(TH.shape) for j in range(3)))
+    grid.point_data["f"] = np.nan_to_num(v.reshape(TH.shape).ravel(order="F"), nan=float(np.nanmin(v)))
+    cmap = colormap(f.get("cmap", "RainbowLight") if f.get("cmap") else "RainbowLight")
+    clim = (float(np.nanmax(v) - rng), float(np.nanmax(v))) if unit == "dB" else (float(np.nanmin(v)), float(np.nanmax(v)))
+    surf = grid.extract_surface()
+    item = (surf, dict(scalars="f", cmap=cmap, clim=clim, smooth_shading=True, lighting=True))
+    legend = {"cmap": cmap, "clim": clim, "title": pretty_unit(unit), "maxmin": pg.get("maxmin", True)} \
+        if pg.get("legend", True) else None
+    return item, legend, f"Radiation Pattern: {label}" + (f" ({pretty_unit(unit)})" if unit else "")
+
+
+def directivity_map(f, view, model):
+    """(frequencies, angles deg, level matrix [angle, freq], label) of a Directivity plot."""
+    root = _root(view)
+    a0, a1 = _num(f.get("a0", "-90")), _num(f.get("a1", "90"))
+    th = np.radians(np.linspace(a0, a1, max(3, int(f.get("npts", 181)))))
+    ax = {"z": np.array([0, 0, 1.0]), "x": np.array([1.0, 0, 0]), "y": np.array([0, 1.0, 0])}[f.get("axis", "z")]
+    perp = {"z": np.array([1.0, 0, 0]), "x": np.array([0, 0, 1.0]), "y": np.array([0, 0, 1.0])}[f.get("axis", "z")]
+    if root.sdim == 3:
+        e1, e2 = (np.array(v, float) for v in PLANES.get(f.get("plane", "xz"), PLANES["xz"]))
+        cand = [e for e in (e1, e2) if abs(e @ ax) < 0.5]
+        perp = cand[0] if cand else perp
+    R = _len(f.get("radius", "1[m]"), model, root.scale) * root.scale
+    X = _center(f, model, root) + R * (np.cos(th)[:, None] * ax + np.sin(th)[:, None] * perp)
+    freqs, cols = [], []
+    label, unit = "", ""
+    for i, fr in enumerate(root.frames):
+        v, label, unit = far_values(f, view, i, model, X)
+        how = f.get("normalize", "axis")
+        if how == "axis":
+            j0 = int(np.argmin(np.abs(th)))
+            v = v - v[j0] if unit == "dB" else v / (v[j0] or 1.0)
+        elif how == "max":
+            v = v - np.nanmax(v) if unit == "dB" else v / (np.nanmax(np.abs(v)) or 1.0)
+        freqs.append(fr.value)
+        cols.append(v)
+    return np.array(freqs), np.degrees(th), np.array(cols).T, label, unit
 
 
 def _clim(node, v):
@@ -143,17 +269,30 @@ def _surface_kw(f, cmap, clim, sdim, edges):
     return kw
 
 
-def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None) -> Scene:
+def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, views=None, model=None) -> Scene:
+    """Scene for a 2D/3D plot group. *views*: {plot tag: dataset view} for plots with their own dataset."""
     import pyvista as pv
     sc = Scene()
     sc.sdim = sdim
     fr_label = sol.frames[fi].label if 0 <= fi < len(sol.frames) else ""
     titles = []
     edge_source = None
+    group_sol = sol
     for f in pg.children:
         if not f.enabled or f.kind not in PLOT_NAMES:
             continue
+        sol = (views or {}).get(f.tag) or group_sol
         k = f.kind
+        if k == "plot.radiation":
+            try:
+                item, legend, title = radiation_3d(f, sol, fi, model, pg)
+                sc.items.append(item)
+                if legend:
+                    sc.legends.append(legend)
+                titles.append(title)
+            except Exception as exc:
+                titles.append(f"Radiation Pattern: error ({exc})")
+            continue
         disp, dscale, dexpr = _deform(sol, f, fi)
         nodes = np.asarray(sol.topo.nodes, float).copy()
         if disp is not None:
@@ -222,7 +361,13 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None) -
                 lv = max(1, int(f.get("levels", 5)))
                 iso_vals = np.linspace(clim[0], clim[1], lv + 2)[1:-1]
                 try:
-                    iso = g.contour(isosurfaces=list(iso_vals), scalars="f")
+                    gt = g
+                    if any(ct not in (10, 12, 13, 14) for ct in set(np.asarray(getattr(g, "celltypes", [10])).tolist())):
+                        try:                       # quadratic cells: contour the curved interpolant, not the corners
+                            gt = g.tessellate(max_n_subdivide=1)
+                        except Exception:
+                            gt = g
+                    iso = gt.contour(isosurfaces=list(iso_vals), scalars="f")
                     kw = dict(scalars="f", cmap=cmap, clim=clim, smooth_shading=True, opacity=0.85)
                     if uniform:
                         kw = dict(color=COLORS.get(f.get("ucolor", "black")), smooth_shading=True, opacity=0.85)
@@ -265,6 +410,9 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None) -
                 edge_source = nodes if edge_source is None else edge_source
             if not uniform:
                 _legend(sc, pg, f, cmap, clim, unit)
+                if k in ("plot.contour", "plot.isosurface") and sc.legends and f.get("legendtype", "filled") == "filled":
+                    lv = max(1, int(f.get("levels", 20 if k == "plot.contour" else 5)))
+                    sc.legends[-1]["bins"] = lv + 1          # COMSOL: one color block per level band
             titles.append(f"{PLOT_NAMES[k]}: {label} ({pretty_unit(unit)})" if unit else f"{PLOT_NAMES[k]}: {label}")
         elif k == "plot.arrow":
             expr = (f.get("expr") or "").strip() or default_vector(sol)
@@ -430,8 +578,9 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None) -
                     titles.append(f"Line: error in '{expr}' ({exc})")
                     expr = ""
             g = _restrict(g, f)
-            ed = g if sdim == 2 else g.extract_surface().extract_feature_edges(30, boundary_edges=True,
-                                                                               non_manifold_edges=True, manifold_edges=False)
+            is_curve = isinstance(g, pv.PolyData) and g.n_cells and g.n_lines == g.n_cells      # curve datasets
+            ed = g if (sdim == 2 or is_curve) else g.extract_surface().extract_feature_edges(
+                30, boundary_edges=True, non_manifold_edges=True, manifold_edges=False)
             if f.get("ltype", "line") == "tube" and ed.n_points:
                 ed = ed.extract_surface() if not isinstance(ed, pv.PolyData) else ed
                 ed = ed.tube(radius=_num(f.get("radius", "0.003"), 0.003) * size)
@@ -450,6 +599,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None) -
                              bool(f.get("point", True))))
         if dscale is not None and titles:
             titles[-1] = titles[-1] + f"   Deformation: {sol.describe(dexpr)[0] if dexpr not in ('disp', 'u') else 'Displacement field'}"
+    sol = group_sol
     # dataset edges (COMSOL plots draw the geometry edges)
     if edge_source is not None and pg.get("edges", True):
         try:
@@ -590,8 +740,47 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
     lines = 0
     ylabels = []
     xlabel = None
+    dir_title = ""
     for f in pg.children:
         if not f.enabled:
+            continue
+        if f.kind == "plot.directivity":
+            ds = model.by_tag(f.get("data") or pg.get("data") or "")
+            sol, _fi, _ = get_solution(ds, "last")
+            if sol is None:
+                continue
+            fr, ang, M, label, unit = directivity_map(f, sol, model)
+            levels = max(3, int(f.get("levels", 13)))
+            cm = colormap(f.get("cmap", "RainbowLight"))
+            if len(fr) > 1:
+                cs = ax.contourf(fr, ang, M, levels=levels, cmap=cm)
+                ax.contour(fr, ang, M, levels=levels, colors="k", linewidths=0.4)
+                cb = fig.colorbar(cs, ax=ax)
+                cb.set_label(f"{label} ({pretty_unit(unit)})" if unit else label, fontsize=8)
+            else:
+                ax.plot(ang, M[:, 0], lw=1.6)
+            if f.get("flog", True) and len(fr) > 1 and min(fr) > 0:
+                ax.set_xscale("log")
+            xlabel = xlabel or "freq (Hz)"
+            ylabels.append("Angle (deg)")
+            dir_title = f"{label} ({pretty_unit(unit)})" if unit else label
+            continue
+        if f.kind == "plot.linegraph" and (model.by_tag(f.get("data") or pg.get("data") or "") or Node("x")).kind \
+                == "dset.paramcurve":
+            ds = model.by_tag(f.get("data") or pg.get("data") or "")
+            sol, fi, _ = get_solution(ds, frame_sel)
+            if sol is None:
+                continue
+            expr = (f.get("expr") or "").strip() or "acpr.efc1.Lp_pext"
+            val = sol.evaluate(expr, fi)
+            label, si = sol.describe(expr)
+            unit = f.get("unit") or si
+            if unit and si and unit != si:
+                val = units.from_si(val, unit)
+            _plot(ax, f, sol.s, val, lines, label)
+            xlabel = xlabel or str(ds.get("par", "s"))
+            ylabels.append(f"{label} ({pretty_unit(unit)})" if unit else label)
+            lines += 1
             continue
         if f.kind == "plot.linegraph":
             ds = model.by_tag(f.get("data") or pg.get("data") or "")
@@ -724,8 +913,10 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
         ax.set_title(pg.get("title", ""), fontsize=10)
     elif tt == "auto":
         kinds = {c.kind for c in pg.children if c.enabled}
+        if kinds == {"plot.directivity"} and dir_title:
+            ylabels = [dir_title] + ylabels
         head = {frozenset({"plot.globalgraph"}): "Global: ", frozenset({"plot.pointgraph"}): "Point Graph: ",
-                frozenset({"plot.tablegraph"}): "Table Graph: "}.get(frozenset(kinds), "Line Graph: ")
+                frozenset({"plot.tablegraph"}): "Table Graph: ", frozenset({"plot.directivity"}): "Directivity: "}.get(frozenset(kinds), "Line Graph: ")
         ax.set_title(head + (ylabels[0] if ylabels else ""), fontsize=10)
     fig.tight_layout()
 
@@ -752,11 +943,25 @@ def draw_polar(fig, pg: Node, model, get_solution):
     ax.set_theta_zero_location(pg.get("zero", "E"))
     ylabels, lines = [], 0
     for f in pg.children:
-        if not f.enabled or f.kind != "plot.polar":
+        if not f.enabled or f.kind not in ("plot.polar", "plot.radiation"):
             continue
-        ds = model.by_tag(f.get("data") or pg.get("data") or "")
+        tag = f.get("data") or ""
+        ds = model.by_tag(pg.get("data") or "" if tag in ("", "fromparent") else tag)
         sol, fi, _ = get_solution(ds, "last")
         if sol is None:
+            continue
+        if f.kind == "plot.radiation":
+            idx = [int(t) - 1 for t in re.split(r"[\s,;]+", str(f.get("params", "")).strip()) if t.strip().isdigit()]
+            idx = [i for i in idx if 0 <= i < len(sol.frames)] or [fi]
+            label = unit = ""
+            for i in idx:
+                th, v, label, unit = radiation_polar(f, sol, i, model)
+                _plot(ax, f, th, v, lines, sol.frames[i].label or label)
+                lines += 1
+            ylabels.append(f"{label} ({pretty_unit(unit)})" if unit else label)
+            if unit == "dB":
+                lo = np.nanmax(v) - _num(f.get("range", "40"), 40.0)
+                ax.set_rmin(lo)
             continue
         expr = (f.get("expr") or "").strip() or default_expr(sol)
         label, si = sol.describe(expr)
@@ -775,7 +980,9 @@ def draw_polar(fig, pg: Node, model, get_solution):
     if tt == "manual":
         ax.set_title(pg.get("title", ""), fontsize=10)
     elif tt == "auto":
-        ax.set_title("Line Graph: " + (ylabels[0] if ylabels else ""), fontsize=10)
+        kinds = {c.kind for c in pg.children if c.enabled}
+        head = "Radiation Pattern: " if kinds == {"plot.radiation"} else "Line Graph: "
+        ax.set_title(head + (ylabels[0] if ylabels else ""), fontsize=10)
     fig.tight_layout()
 
 

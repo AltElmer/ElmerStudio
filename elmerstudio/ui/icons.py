@@ -876,6 +876,20 @@ def _build() -> dict[str, str]:  # noqa: C901 - a flat catalogue of drawings
                  (pc["C"][0], pc["C"][1] + half), (pc["UL"][0], pc["UL"][1] + half)],
                 BLUE, BLUE_D, 1.2, 'fill-opacity="0.8"'))
     S["cut_point"] = _doc(_fcube(16, 16, 12.5) + _circle(16, 21, 3.6, BLUE, WHITE, 1.3))
+    # grid dataset: a lattice of points over a box outline
+    S["grid_dataset"] = _doc(
+        _rect(4, 4, 24, 24, "#f1f3f5", F_S, 1.4, rx=1)
+        + "".join(_circle(8 + 5.33 * i, 8 + 5.33 * j, 1.35, BLUE) for i in range(4) for j in range(4)))
+    # parametric curve: a spiral with its two end points
+    S["parametric_curve"] = _doc(
+        _path("M5 27C5 15 27 21 27 11C27 4 15 3 13 9C11.5 14 19 16 20 11", "none", BLUE, 2.4)
+        + _circle(5, 27, 2.4, BLUE, WHITE, 1) + _circle(20, 11, 2.4, BLUE, WHITE, 1))
+    # far field / radiation pattern: a lobed pattern on polar axes
+    S["far_field"] = _doc(
+        _circle(16, 16, 12.5, "none", "#8a9099", 1.1) + _circle(16, 16, 7, "none", "#b8bec6", 1)
+        + _line(3.5, 16, 28.5, 16, "#8a9099", 1) + _line(16, 3.5, 16, 28.5, "#8a9099", 1)
+        + _path("M16 16C19 9 28 12 27.5 16C28 20 19 23 16 16C14.5 13 11 13 10.5 16C11 19 14.5 19 16 16Z",
+                "#f7b2a8", "#d9480f", 1.6))
     S["plot"] = _doc(
         _path("M5 27.5V18C10 8 15 22 20 12S26.5 8 28.5 8V27.5Z", "url(#pl)", extra='fill-opacity="0.9"')
         + _path("M5 18C10 8 15 22 20 12S26.5 8 28.5 8", "none", INK, 1.4)

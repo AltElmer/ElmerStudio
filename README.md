@@ -66,13 +66,25 @@ The guide's own models are COMSOL files, so stand-ins carry the same workflow (`
 | **Revolution and polar plots** (2D axisymmetric coil) | Revolution 2D dataset (start −90°, 225°, layers) with a domain Selection subnode; Polar Plot Group with a Line Graph (Polar) on an evaluation circle | polar values of a field linear in x reproduce `cos θ` exactly |
 
 Added for these: datasets Cut Plane, Parametric Extrusion 2D, Revolution 2D and Mirror (chainable, e.g. a mirrored cut plane); Point Graph, Table Graph, Polar Plot Group, Annotation with `eval(expr, unit)`; Selection and Color Expression subnodes; surface uniform coloring and wireframe; symmetric color ranges; slice planes by coordinates with shift; filled/line/tube contours with level labels; arrow placement on a grid with normalized lengths; streamline tubes/ribbons and start-point control; colored and tube line plots; line styles and markers for 1D graphs; legends with optional max/min; derived values named after the space dimension (*Surface Maximum* in 2D); circles built from four arcs with vertices at 0°, 90°, 180° and 270°, as in COMSOL; parameters and Definitions variables usable in result expressions.
+### Acoustics: loudspeaker isosurfaces, BEM-style postprocessing, spherical scatterer
+
+From the Essentials guide (*vented loudspeaker enclosure*) and the blog post *How to Use the Boundary Element Method in Acoustics Modeling* (`tests/test_tutorial_acoustics.py`, GUI walkthrough `tools/screenshot_acoustics.py`, screenshots `docs/screenshots/tutorial_acoustics_*.png`; both models are in the Application Libraries):
+
+| Walkthrough | Workflow in Elmer Studio | Checked |
+|---|---|---|
+| **Pulsating sphere** (verification) | Normal Acceleration on the sphere, **Spherical Wave Radiation** on the outer boundary, **Exterior Field Calculation** | in-mesh pressure within 0.2 % of ρc·u·ika/(1+ika)·(a/r)·e^(−ik(r−a)); exterior field 5× beyond the mesh within 1.5 % (axisymmetric) and 2 % (3D, λ/5 mesh) |
+| **Spherical scatterer** (BEM benchmark) | rigid sphere, incident plane wave entering through Spherical Wave Radiation (total-field formulation), result variables `acpr.p_s`, `acpr.Lp_s`; Revolution 2D plot; polar Radiation Pattern of the scattered field | scattered field within 5 % of the analytic series at ka = 2.3 and 6.4; scattered SPL at 3 m within 0.8 dB |
+| **Loudspeaker radiation** (3D) | piston on a closed box in air; isosurfaces of the pressure with a filled level legend; **Grid 3D** dataset reaching beyond the mesh with a Multislice of `acpr.efc1.Lp_pext`; **Parametric Curve 3D** spiral with a tube line plot; **Radiation Pattern** (polar, several frequencies, and 3D); **Directivity** plot (angle vs. frequency, normalized on axis) | no jump between mesh and exterior field at the edge of the mesh; −6 dB per distance doubling far away; front louder than back |
+
+Added for these: Spherical Wave Radiation (with an optional incident plane wave), Exterior Field Calculation (Kirchhoff–Helmholtz integral of the scattered field; ∂p/∂n taken from the boundary condition where it is known), `freq` in boundary expressions (also over a frequency sweep), Grid 2D/3D and Parametric Curve 3D datasets, plots with their own dataset inside a plot group, Radiation Pattern and Directivity plots, filled level legends for contours and isosurfaces, the acoustics calibration of the physics-controlled mesh (at most λ/5 at the highest frequency), complex functions `real`, `imag`, `arg`, `conj` in result expressions. Elmer's HelmholtzSolver uses the e^(iωt) convention, as COMSOL does.
+
 ## What is there
 
 | COMSOL concept | Elmer Studio | Elmer back end |
 |---|---|---|
 | Model Builder / Settings / Graphics / Messages, Progress, Log, Table | same windows, dockable, *Reset Desktop* | — |
 | Ribbon: Home, Definitions, Geometry, Materials, Physics, Mesh, Study, Results, Developer | same tabs and groups, Quick Access Toolbar, File menu | — |
-| Model Wizard (space dimension → physics → study), Blank Model, Application Libraries | yes; 7 example models | — |
+| Model Wizard (space dimension → physics → study), Blank Model, Application Libraries | yes; 9 example models | — |
 | Parameters with units (`10[mm]`, `20[degC]`), Variables, Analytic and Interpolation functions | yes, unit-aware evaluation, parameter table Load/Save | MATC expressions, tables |
 | Geometry: Block, Sphere, Cylinder, Cone, Torus, Ellipsoid, Rectangle, Circle, Ellipse, Polygon, Work Plane + Extrude/Revolve, Union/Difference/Intersection, Move/Copy/Rotate/Scale/Mirror/Array, Fillet/Chamfer, STEP/IGES/BREP import, Form Union | yes, with length units, Build Selected (F7) / Build All (F8) | gmsh / OpenCASCADE |
 | Domain/boundary/edge/point numbering and click-selection with hover highlight | yes (position-based numbering, blue selection, red hover) | — |
@@ -96,7 +108,7 @@ Added for these: datasets Cut Plane, Parametric Extrusion 2D, Revolution 2D and 
 | Electric Currents (ec) | Current Conservation, Ground, Electric Potential, Normal Current Density, Electric Insulation | StatCurrentSolver |
 | Magnetic Fields (mf), 2D and 2D axisymmetric | Ampère's Law, External Current Density, Magnetic Insulation, Magnetic Potential, Perfect Magnetic Conductor | MagnetoDynamics2D + CalcFields |
 | Laminar Flow (spf) | Fluid Properties, Volume Force, Gravity, Wall (no slip/slip), Inlet (velocity/pressure), Outlet, Symmetry, Open Boundary; Stokes option | FlowSolve (stabilized P1-P1) |
-| Pressure Acoustics, Frequency Domain (acpr) | Sound Hard/Soft, Pressure, Normal Acceleration, Impedance, Plane Wave Radiation; SPL | HelmholtzSolver |
+| Pressure Acoustics, Frequency Domain (acpr) | Sound Hard/Soft, Pressure, Normal Acceleration, Impedance, Plane Wave Radiation, Spherical Wave Radiation (with incident plane wave), Exterior Field Calculation; SPL | HelmholtzSolver |
 | Transport of Diluted Species (tds) | Transport Properties (diffusion + convection, or spf velocity), Reactions, Concentration, Flux, mass transfer, No Flux | ModelPDE |
 | Coefficient Form PDE (pde) | c, a, f, d_a, β coefficients; Dirichlet, Flux/Source, Zero Flux | ModelPDE |
 | Multiphysics | Electromagnetic Heating (Joule), Thermal Expansion, Nonisothermal Flow (with Boussinesq buoyancy) | coupled Elmer solvers |
@@ -123,7 +135,7 @@ Each interface has an *Additional Elmer solver keywords* box for anything not ex
 
 Other test suites:
 
-- `tests/test_examples.py` solves all 7 examples.
+- `tests/test_examples.py` solves all 9 examples.
 - `tests/test_runner_results.py` covers the parametric sweep, integrals, point/line evaluation and the save/load round trip.
 - `tests/test_gui_smoke.py` drives the real main window through nearly every command and fails on any exception or error message.
 - `tools/screenshot_tour.py` regenerates the screenshots in `docs/screenshots/`.
@@ -179,7 +191,8 @@ These are deliberately listed, so nobody assumes they exist:
   - named selections;
   - probes;
   - animations;
-  - far-field calculations (the acoustic radiation polar plots of the guide's horn use near-field values here);
+  - boundary elements (BEM) and perfectly matched layers: open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;
+  - exterior field calculation in 2D planar models (needs Hankel functions);
   - result filters, data-set joins and Combined/Array datasets;
   - adaptive meshing;
   - LiveLink-style CAD sync;
@@ -188,7 +201,8 @@ These are deliberately listed, so nobody assumes they exist:
   - mesh element growth rate is not exposed;
   - boundary-layer meshing is not exposed;
   - materials are constant (20 °C) unless you enter an expression;
-  - the physics-controlled mesh does not refine automatically for physics, apart from the fluid calibration.
+  - the physics-controlled mesh does not refine automatically for physics, apart from the fluid and acoustics calibrations;
+  - with an incident plane wave the solution is the total field, so the exterior field is most accurate when integrated over the scatterer's surface (on the outer boundary the incident wave's dispersion error remains).
 - **Approximations:**
   - integrals over quadratic elements use VTK's linearized cells (≈0.1 % on smooth fields);
   - unit expressions are converted to SI, but dimensional consistency is not checked.

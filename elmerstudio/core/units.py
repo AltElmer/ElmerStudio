@@ -104,6 +104,7 @@ MATH_FUNCS = {
     "atan2": np.arctan2, "sinh": np.sinh, "cosh": np.cosh, "tanh": np.tanh, "exp": np.exp, "log": np.log,
     "log10": np.log10, "sqrt": np.sqrt, "abs": np.abs, "min": np.minimum, "max": np.maximum,
     "sign": np.sign, "floor": np.floor, "ceil": np.ceil, "round": np.round, "pow": np.power,
+    "real": np.real, "imag": np.imag, "arg": np.angle, "conj": np.conj,
 }
 CONSTANTS = {"pi": math.pi, "e_const": math.e, "g_const": 9.80665, "epsilon0_const": 8.8541878128e-12,
              "mu0_const": 1.25663706212e-6, "sigma_const": 5.670374419e-8, "R_const": 8.314462618,
@@ -301,6 +302,11 @@ def to_matc(expr: str, params: dict, fields: dict[str, str]):
             return f"({emit(n.left)}{op}{emit(n.right)})"
         if isinstance(n, ast.UnaryOp) and isinstance(n.op, (ast.USub, ast.UAdd)):
             return ("-" if isinstance(n.op, ast.USub) else "") + f"({emit(n.operand)})"
+        if isinstance(n, ast.Compare) and len(n.ops) == 1:      # MATC relational operators give 0/1
+            op = {ast.Lt: "<", ast.Gt: ">", ast.LtE: "<=", ast.GtE: ">=", ast.Eq: "==", ast.NotEq: "<>"}.get(type(n.ops[0]))
+            if op is None:
+                raise ExprError("Comparison not supported in MATC export")
+            return f"({emit(n.left)}{op}{emit(n.comparators[0])})"
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name):
             name = n.func.id
             args = [emit(a) for a in n.args]

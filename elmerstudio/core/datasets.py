@@ -48,12 +48,32 @@ def _linear_triangles(grid):
     return ids[tri]
 
 
-def _surface(grid, **kw):
-    """extract_surface with original point ids (quiet on recent pyvista, compatible with 0.43)."""
+def _surface(grid, nonlinear_subdivision=1):
+    """Linear surface of *grid* whose point data 'vtkOriginalPointIds' really indexes *grid*'s points.
+
+    VTK's own ids are unreliable for 2D quadratic cells, so points are matched by coordinates
+    (subdivision level 1 of quadratic cells reuses the existing nodes); unmatched points get -1.
+    """
     try:
-        return grid.extract_surface(pass_pointid=True, algorithm="dataset_surface", **kw)
+        s = grid.extract_surface(nonlinear_subdivision=nonlinear_subdivision, algorithm="dataset_surface")
     except TypeError:
-        return grid.extract_surface(pass_pointid=True, **kw)
+        s = grid.extract_surface(nonlinear_subdivision=nonlinear_subdivision)
+    s.point_data["vtkOriginalPointIds"] = match_points(grid, np.asarray(s.points, float))
+    return s
+
+
+def match_points(grid, Q, rtol=1e-5):
+    """Index of the *grid* point at each query point (-1 when none lies within rtol x model size)."""
+    import vtk
+    X = np.asarray(grid.points, float)
+    tol = rtol * (float(np.linalg.norm(np.ptp(X, axis=0))) or 1.0)
+    loc = vtk.vtkStaticPointLocator()
+    loc.SetDataSet(grid)
+    loc.BuildLocator()
+    ids = np.fromiter((loc.FindClosestPoint(q) for q in Q), dtype=np.int64, count=len(Q))
+    bad = np.linalg.norm(X[ids] - Q, axis=1) > tol
+    ids[bad] = -1
+    return ids
 
 
 def _boundary_lines(tri, n_points):
@@ -373,6 +393,151 @@ def resolve(model, dset, load, sweep=None, base=None, _depth=0):
         return CutPlane(view, o, nrm), post
     if k == "dset.mirror":
         return Mirror(view, dset.get("axis", "x")), post
+    if k in ("dset.grid3d", "dset.grid2d"):
+        root = _root(view)
+        X = np.asarray(root.topo.nodes, float)
+        lo, hi = X.min(axis=0), X.max(axis=0)
+        d = 3 if k == "dset.grid3d" else 2
+        if d == 3 and root.sdim == 2:          # 3D grid around an axisymmetric model: revolve its extent
+            rmax = float(np.max(np.abs(X[:, 0])))
+            lo, hi = np.array([-rmax, -rmax, lo[1]]), np.array([rmax, rmax, hi[1]])
+        lo_, hi_ = [], []
+        for j, a in enumerate("xyz"[:d]):
+            lo_.append(num(f"{a}min") if str(dset.get(f"{a}min", "")).strip() else float(lo[j]))
+            hi_.append(num(f"{a}max") if str(dset.get(f"{a}max", "")).strip() else float(hi[j]))
+        res = [int(dset.get(f"{a}res", 40) or 40) for a in "xyz"[:d]]
+        return GridView(view, lo_, hi_, res), post
+    if k == "dset.paramcurve":
+        P, s = curve_points(model, dset)
+        return CurveView(view, P, s), post
     if k == "dset.revolution":
         return view, {"start": num("start", "-90"), "angle": num("angle", "225"), "layers": int(dset.get("layers", 60))}
     return view, post
+
+
+# --------------------------------------------------------------------------- grids and curves (no mesh needed)
+def _root(view):
+    while not isinstance(view, Solution) and hasattr(view, "base"):
+        view = view.base
+    return view
+
+
+class _PointView(_View):
+    """A dataset of free points: values are interpolated from the mesh and, for exterior-field variables
+    (acpr.efc1.pext, ...), taken from the Kirchhoff-Helmholtz integral where there is no mesh."""
+
+    def _points_for_eval(self):
+        """Evaluation points (SI) in the root solution's coordinates."""
+        P = np.asarray(self.topo.nodes, float) * self.scale
+        root = _root(self.base)
+        if root.sdim == 2:
+            if self.sdim == 3:                                # a 3D curve on an axisymmetric model: (r, z)
+                return np.column_stack([np.hypot(P[:, 0], P[:, 1]), P[:, 2]])
+            return P[:, :2]
+        return P
+
+    def evaluate(self, expr, i=None):
+        from .acoustics import point_values
+        root = _root(self.base)
+        i = root.frame_index(i)
+        key = ("e", expr, i)
+        if key not in self._cache:
+            v = point_values(root, expr, i, self._points_for_eval())
+            self._cache[key] = np.asarray(v, float)
+        return self._cache[key]
+
+    def evaluate_vector(self, expr, i=None):
+        root = _root(self.base)
+        i = root.frame_index(i)
+        vec = np.asarray(root.evaluate_vector(expr, i), float)
+        g = root.bulk_grid().copy()
+        P = self._points_for_eval()
+        out = []
+        for k in range(3):
+            g.point_data["f"] = vec[:, k]
+            from .results import _probe
+            Q = P / root.scale
+            if Q.shape[1] == 2:
+                Q = np.column_stack([Q, np.zeros(len(Q))])
+            out.append(_probe(g, Q))
+        V = np.column_stack(out)
+        if root.sdim == 2 and self.sdim == 3:            # (r, z) components back to (x, y, z)
+            Pc = np.asarray(self.topo.nodes, float)
+            phi = np.arctan2(Pc[:, 1], Pc[:, 0])
+            V = np.column_stack([V[:, 0] * np.cos(phi), V[:, 0] * np.sin(phi), V[:, 1]])
+        return V
+
+
+class GridView(_PointView):
+    """Grid 2D / Grid 3D dataset: a regular grid of points over a box (geometry units)."""
+
+    def __init__(self, base, lo, hi, res):
+        super().__init__(base)
+        import pyvista as pv
+        root = _root(base)
+        self.sdim = 3 if len(lo) == 3 else 2
+        dims = [max(2, int(r)) for r in res] + ([1] if self.sdim == 2 else [])
+        lo3 = list(lo) + ([0.0] if self.sdim == 2 else [])
+        hi3 = list(hi) + ([0.0] if self.sdim == 2 else [])
+        sp = [(h - l) / (d - 1) if d > 1 else 1.0 for l, h, d in zip(lo3, hi3, dims)]
+        img = pv.ImageData(dimensions=dims, spacing=sp, origin=lo3)
+        self._bulk = img.cast_to_unstructured_grid()
+        self.topo = _Topo(np.asarray(self._bulk.points, float).copy())
+        if self.sdim == 3:
+            surf = _surface(self._bulk)
+            ids = np.asarray(surf.point_data["vtkOriginalPointIds"])
+            faces = surf.faces.reshape(-1, 5)[:, 1:]          # quads
+            self._bnd = pv.PolyData(self.topo.nodes.copy(), np.hstack([np.full((len(faces), 1), 4), ids[faces]]).ravel())
+        else:
+            tri = self._bulk.extract_surface().triangulate()
+            t = tri.faces.reshape(-1, 4)[:, 1:]
+            bl = _boundary_lines(t, len(self.topo.nodes))
+            self._bnd = pv.PolyData(self.topo.nodes.copy(), lines=np.hstack([np.full((len(bl), 1), 2), bl]).ravel())
+        self._bnd.cell_data["bnd"] = np.zeros(self._bnd.n_cells, int)
+        self._bulk.cell_data["dom"] = np.zeros(self._bulk.n_cells, int)
+        self.frames = root.frames
+
+    def bulk_grid(self):
+        return self._bulk
+
+    def boundary_grid(self):
+        return self._bnd
+
+
+class CurveView(_PointView):
+    """Parametric Curve 3D/2D dataset: points x(s), y(s)[, z(s)] (geometry units)."""
+
+    def __init__(self, base, points, s):
+        super().__init__(base)
+        import pyvista as pv
+        P = np.atleast_2d(np.asarray(points, float))
+        if P.shape[1] == 2:
+            P = np.column_stack([P, np.zeros(len(P))])
+        self.sdim = 3
+        self.s = np.asarray(s, float)
+        self.topo = _Topo(P)
+        line = pv.PolyData(P.copy(), lines=np.hstack([[len(P)], np.arange(len(P))]))
+        self._bulk = line
+        self._bnd = line.copy()
+        self._bnd.cell_data["bnd"] = np.zeros(1, int)
+        self.frames = _root(base).frames
+
+    def bulk_grid(self):
+        return self._bulk
+
+    def boundary_grid(self):
+        return self._bnd
+
+
+def curve_points(model, dset):
+    """(points (N,3) geometry units, parameter values) of a Parametric Curve dataset."""
+    from . import units
+    params = dict(model.parameters())
+    name = str(dset.get("par", "s")).strip() or "s"
+    s0 = float(units.evaluate(str(dset.get("smin", "0")), params))
+    s1 = float(units.evaluate(str(dset.get("smax", "1")), params))
+    s = np.linspace(s0, s1, max(2, int(dset.get("npts", 400))))
+    names = {**params, name: s}
+    cols = [np.broadcast_to(np.asarray(units.evaluate(str(dset.get(k, "0")), names), float), s.shape)
+            for k in ("xexpr", "yexpr", "zexpr")]
+    return np.column_stack(cols), s

@@ -153,6 +153,69 @@ def transient_sphere():
     return m
 
 
+AIR_C, AIR_RHO = 343.0, 1.2
+
+
+def _air(m):
+    B.add_material(m, "Air", all_domains=True)
+    mat = m.component.child("materials").children[0]
+    mat.props.setdefault("values", {}).update({"c": str(AIR_C), "rho": str(AIR_RHO)})
+
+
+def sphere_shell_setup(a=0.1, R=0.6, freqs="250 500 1000", mesh=None):
+    """2D axisymmetric air between a sphere (radius a) and an outer sphere (R) -> (model, geo, inner, outer)."""
+    m = B.new_model("2Daxi", ["acpr"], "freq")
+    m.root.label = "sphere_in_air"
+    g = m.component.child("geometry")
+    o = m.create("geom.circle", g, index=0, r=str(R), sector="180", rot="-90")
+    s = m.create("geom.circle", g, index=1, r=str(a))
+    m.create("geom.difference", g, index=2, input=[o.tag], tools=[s.tag])
+    _air(m)
+    geo = build_geometry(m, display=False)
+    bb = geo.bbox_of["boundary"]
+    inner = [b for b in geo.numbers["boundary"] if max(abs(v) for v in bb[b][:2] + bb[b][3:5]) < a * 1.01]
+    outer = [b for b in geo.numbers["boundary"] if bb[b][3] > R * 0.9]
+    B.study_steps(m.studies()[0])[0].props["freqs"] = freqs
+    if mesh:
+        m.component.child("mesh").props["size"] = mesh
+    return m, geo, inner, outer
+
+
+def scatterer_setup(a=0.25, R=1.0, freqs="500 1400"):
+    """COMSOL 'Spherical Scatterer' benchmark: rigid sphere in a plane wave along +z (total-field formulation)."""
+    m, geo, inner, outer = sphere_shell_setup(a, R, freqs)
+    m.root.label = "spherical_scatterer"
+    _params(m, [("a_s", f"{a}[m]", "Sphere radius"), ("R_air", f"{R}[m]", "Air domain radius")])
+    ac = m.component.child("physics.acpr")
+    B.add_feature(m, ac, "acpr.swr", outer, incident="plane", p0="1[Pa]", dir="+z")
+    B.add_feature(m, ac, "acpr.efc", inner)
+    return m, geo, inner, outer
+
+
+def loudspeaker_setup(freqs="200 400 700 1000", Rs=0.5):
+    """Loudspeaker stand-in: a 6 cm piston on a closed 20 x 20 x 30 cm box radiating into a sphere of air."""
+    m = B.new_model("3D", ["acpr"], "freq")
+    m.root.label = "loudspeaker_radiation"
+    _params(m, [("Rs", f"{Rs}[m]", "Radius of the air domain"), ("rp", "6[cm]", "Piston radius"),
+                ("a0", "1[m/s^2]", "Piston acceleration")])
+    g = m.component.child("geometry")
+    air = m.create("geom.sphere", g, index=0, r="Rs")
+    box = m.create("geom.block", g, index=1, w="0.2", d="0.2", h="0.3", x="-0.1", y="-0.1", z="-0.2")
+    drv = m.create("geom.cylinder", g, index=2, r="rp", h="0.01", x="0", y="0", z="0.1", axis="z")
+    m.create("geom.difference", g, index=3, input=[air.tag], tools=[box.tag, drv.tag])
+    _air(m)
+    geo = build_geometry(m, display=False)
+    bb = geo.bbox_of["boundary"]
+    piston = [b for b in geo.numbers["boundary"] if bb[b][2] > 0.11 - 1e-3 and bb[b][5] < 0.11 + 1e-3]
+    outer = [b for b in geo.numbers["boundary"] if bb[b][3] - bb[b][0] > 0.5 * Rs]
+    ac = m.component.child("physics.acpr")
+    B.add_feature(m, ac, "acpr.nacc", piston, an="a0")
+    B.add_feature(m, ac, "acpr.swr", outer)
+    B.add_feature(m, ac, "acpr.efc", outer)
+    B.study_steps(m.studies()[0])[0].props["freqs"] = freqs
+    return m, geo, piston, outer
+
+
 EXAMPLES = {
     "busbar": ("Busbar - Joule heating (electric currents + heat transfer)", busbar),
     "heat_sink": ("Heat sink - conduction with convective cooling", heat_sink),
@@ -161,4 +224,7 @@ EXAMPLES = {
     "capacitor": ("Parallel-plate capacitor - fringing fields (2D electrostatics)", capacitor),
     "coil": ("Coil with iron core - 2D axisymmetric magnetic fields", coil_axi),
     "sphere": ("Sphere quenching - 2D axisymmetric transient heat transfer", transient_sphere),
+    "loudspeaker": ("Loudspeaker radiation - 3D acoustics, exterior field and radiation patterns",
+                    lambda: loudspeaker_setup()[0]),
+    "scatterer": ("Spherical scatterer - acoustic scattering benchmark (2D axisymmetric)", lambda: scatterer_setup()[0]),
 }

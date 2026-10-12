@@ -371,13 +371,15 @@ class MainWindow(QMainWindow):
         plots = [self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon, (lambda kk=k: self.add_plot(kk)))
                  for k in ("plot.surface", "plot.volume", "plot.slice", "plot.isosurface", "plot.contour", "plot.arrow",
                            "plot.streamline", "plot.mesh", "plot.line", "plot.linegraph", "plot.globalgraph",
-                           "plot.pointgraph", "plot.tablegraph", "plot.annotation", "plot.multislice")]
+                           "plot.pointgraph", "plot.tablegraph", "plot.annotation", "plot.multislice",
+                           "plot.radiation", "plot.directivity")]
         g.add_large(plots[0])
         g.add_small(plots[1:4])
         g.add_small(plots[4:7])
         g.add_small(plots[7:9] + [plots[14]])
         g.add_small(plots[9:12])
         g.add_small(plots[12:14])
+        g.add_small(plots[15:17])
         g = t.add_group("Attributes")
         g.add_large(self._a("r_def", "Deformation", "deformation", lambda: self.add_plot("plot.deform")))
         g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon, (lambda kk=k: self.add_plot(kk)))
@@ -389,6 +391,9 @@ class MainWindow(QMainWindow):
         g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon,
                              (lambda kk=k: self.add_results_child("results.datasets", kk)))
                      for k in ("dset.parext", "dset.revolution", "dset.mirror")])
+        g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon,
+                             (lambda kk=k: self.add_results_child("results.datasets", kk)))
+                     for k in ("dset.grid3d", "dset.grid2d", "dset.paramcurve")])
         g = t.add_group("Evaluation")
         g.add_large(self._a("r_glob", "Global\nEvaluation", "global_evaluation",
                             lambda: self.add_results_child("results.derived", "eval.global")))
@@ -867,6 +872,10 @@ class MainWindow(QMainWindow):
             ds = [d for d in self.datasets() if d.kind == "dset.solution" and d is not n]
             if ds and "data" in n.props:
                 n.props["data"] = ds[-1].tag
+        if kind == "plot.directivity":
+            ds = [d for d in self.datasets() if d.kind == "dset.solution"]
+            if ds:
+                n.props["data"] = ds[-1].tag
         if kind == "plot.pointgraph":
             cp = [d for d in self.datasets() if d.kind == "dset.cutpoint"]
             if cp:
@@ -1157,7 +1166,7 @@ class MainWindow(QMainWindow):
                 return None
         sol = self.sol_cache[folder]
         from ..core.nodes import bind_results
-        return bind_results(self.model, sol)
+        return bind_results(self.model, sol, self.geo if not self.geo_stale else None)
 
     def sweep_info(self, dset: Node | None):
         """(parameter name, unit) of the dataset study's parametric sweep."""
@@ -1212,6 +1221,15 @@ class MainWindow(QMainWindow):
         if sol is None:
             return []
         av = sol.available()
+        if not vector:
+            from ..core.acoustics import EFC_LABELS, INCIDENT_LABELS
+            root = sol
+            while not isinstance(root, Solution) and hasattr(root, "base"):
+                root = root.base
+            for tag in sorted(getattr(root, "efc", {}) or {}):          # exterior field (acpr.efc1.Lp_pext, ...)
+                av = av + [(f"acpr.{tag}.{nm}", lbl, u, "scalar") for nm, lbl, u in EFC_LABELS]
+            if any(nm in (getattr(root, "variables", {}) or {}) for nm, _l, _u in INCIDENT_LABELS):
+                av = av + [(a, lbl, u, "scalar") for a, lbl, u in INCIDENT_LABELS]
         return [v for v in av if (v[3] == "vector") == vector]
 
     def result_units(self, node):
@@ -1639,7 +1657,7 @@ class MainWindow(QMainWindow):
             else:
                 self.create_node(kind, pg)
             return
-        if kind in ("plot.linegraph", "plot.globalgraph", "plot.pointgraph", "plot.tablegraph"):
+        if kind in ("plot.linegraph", "plot.globalgraph", "plot.pointgraph", "plot.tablegraph", "plot.directivity"):
             if pg is None or pg.kind != "pg1d":
                 self.add_plot_group("pg1d")
                 pg = self.tree.current()
@@ -2004,8 +2022,15 @@ class MainWindow(QMainWindow):
                 self.graphics.show_geometry(self.geo)
             return
         fi = sol.frame_index(pg.get("solnum", "last"))
+        views = {}
+        for f in pg.children:                      # plots with their own dataset (grid, curve, ...)
+            tag = f.props.get("data", "fromparent")
+            if f.enabled and tag not in ("", "fromparent", None) and (ds is None or tag != ds.tag):
+                v = self.solution_of(self.model.by_tag(tag))
+                if v is not None:
+                    views[f.tag] = v
         try:
-            scene = build_scene(pg, sol, fi, sol.sdim, self.is_axi(), revolution=rev)
+            scene = build_scene(pg, sol, fi, sol.sdim, self.is_axi(), revolution=rev, views=views, model=self.model)
         except Exception as exc:
             self.messages.add(f"{pg.label}: {exc}", "error")
             traceback.print_exc()

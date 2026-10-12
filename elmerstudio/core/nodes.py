@@ -62,7 +62,7 @@ def coupling_operators(model) -> dict:
     return out
 
 
-def bind_results(model, sol):
+def bind_results(model, sol, geo=None):
     """Make a Solution's result expressions read like COMSOL's: coupling operators, global parameters (with the
     sweep value it was computed for) and Definitions > Variables."""
     sol.operators = coupling_operators(model)
@@ -78,6 +78,13 @@ def bind_results(model, sol):
     sol.variables = {str(r["name"]).strip(): r.get("expr", "0") for n in (defs.children if defs else [])
                      if n.kind == "variables" and n.enabled for r in (n.props.get("table") or [])
                      if str(r.get("name", "")).strip()}
+    if sol.kind == "study.freq":
+        from .acoustics import efc_operators, incident_variables
+        try:
+            sol.efc = efc_operators(model, sol, geo)
+        except Exception:
+            sol.efc = {}
+        sol.variables.update(incident_variables(model, sol))
     return sol
 register(NodeType("variables", "Variables", "var", "variables", props=[
     Prop("table", "", "table", [], section="Variables",
@@ -157,7 +164,8 @@ register(NodeType("results", "Results", "results", "results", label="Results", n
                                                "results.tables", "results.export"]))
 register(NodeType("results.datasets", "Datasets", "dsets", "dataset", label="Datasets", numbered=False, deletable=False,
                   can_disable=False, children=["dset.solution", "dset.cutline", "dset.cutpoint", "dset.cutplane",
-                                               "dset.parext", "dset.revolution", "dset.mirror"]))
+                                               "dset.parext", "dset.revolution", "dset.mirror", "dset.grid3d",
+                                               "dset.grid2d", "dset.paramcurve"]))
 register(NodeType("results.derived", "Derived Values", "dvals", "derived_values", label="Derived Values", numbered=False,
                   deletable=False, can_disable=False,
                   children=["eval.point", "eval.volint", "eval.surfint", "eval.avg", "eval.max", "eval.min",
@@ -214,6 +222,27 @@ register(NodeType("dset.revolution", "Revolution 2D", "rev", "revolve", props=[
     Prop("angle", "Revolution angle:", default="225", unit="deg", section="Revolution Layers"),
     Prop("layers", "Number of layers:", "int", 60, section="Revolution Layers"),
 ]))
+for _k, _t, _d in (("dset.grid3d", "Grid 3D", 3), ("dset.grid2d", "Grid 2D", 2)):
+    register(NodeType(_k, _t, "grid", "grid_dataset",
+                      description="Regular grid of points: mesh values inside the mesh, exterior-field variables "
+                                  "(acpr.efc1.pext, acpr.efc1.Lp_pext) everywhere.", props=[
+        Prop("data", "Dataset:", "dataset", "", section="Data"),
+        *[p for a in "xyz"[:_d] for p in (
+            Prop(f"{a}min", f"{a} minimum (empty = dataset bounds):", "string", "", section="Parameter Bounds"),
+            Prop(f"{a}max", f"{a} maximum:", "string", "", section="Parameter Bounds"),
+            Prop(f"{a}res", f"{a} resolution (points):", "int", 40 if _d == 3 else 120, section="Grid"))]]))
+register(NodeType("dset.paramcurve", "Parametric Curve 3D", "pc", "parametric_curve",
+                  description="A curve x(s), y(s), z(s) in the geometry length unit, e.g. a spiral around a loudspeaker.",
+                  props=[
+    Prop("data", "Dataset:", "dataset", "", section="Data"),
+    Prop("par", "Parameter name:", "string", "s", section="Parameter"),
+    Prop("smin", "Minimum:", "string", "0", section="Parameter"),
+    Prop("smax", "Maximum:", "string", "1", section="Parameter"),
+    Prop("npts", "Resolution (points):", "int", 400, section="Parameter"),
+    Prop("xexpr", "x:", "string", "cos(2*pi*s)", section="Expressions"),
+    Prop("yexpr", "y:", "string", "sin(2*pi*s)", section="Expressions"),
+    Prop("zexpr", "z:", "string", "s", section="Expressions"),
+]))
 register(NodeType("dset.mirror", "Mirror", "mir", "mirror", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
     Prop("axis", "Plane/line of reflection:", "choice", "x",
@@ -265,7 +294,7 @@ _LEGEND = [Prop("legend", "Show legends", "bool", True, section="Color Legend"),
                 section="Color Legend")]
 _PG_SETTINGS = [Prop("edges", "Plot dataset edges", "bool", True, section="Plot Settings")]
 _PLOTS_3D = ["plot.surface", "plot.volume", "plot.slice", "plot.multislice", "plot.isosurface", "plot.contour",
-             "plot.arrow", "plot.streamline", "plot.mesh", "plot.line", "plot.annotation"]
+             "plot.arrow", "plot.streamline", "plot.mesh", "plot.line", "plot.annotation", "plot.radiation"]
 _PLOTS_2D = ["plot.surface", "plot.contour", "plot.arrow", "plot.streamline", "plot.mesh", "plot.line", "plot.annotation"]
 register(NodeType("pg3d", "3D Plot Group", "pg", "plot_group_3d", children=_PLOTS_3D, props=[
     _dataset, _solsel, *_TITLE, *_LEGEND, *_PG_SETTINGS,
@@ -277,7 +306,8 @@ register(NodeType("pg2d", "2D Plot Group", "pg", "plot_group_2d", children=_PLOT
          visible=lambda p: p.get("__axi", False)),
 ]))
 register(NodeType("pg1d", "1D Plot Group", "pg", "plot_group_1d",
-                  children=["plot.linegraph", "plot.globalgraph", "plot.pointgraph", "plot.tablegraph"], props=[
+                  children=["plot.linegraph", "plot.globalgraph", "plot.pointgraph", "plot.tablegraph",
+                            "plot.directivity"], props=[
     _dataset, _solsel, *_TITLE,
     Prop("xlabel", "x-axis label:", "string", "", section="Axis"),
     Prop("ylabel", "y-axis label:", "string", "", section="Axis"),
@@ -289,7 +319,7 @@ register(NodeType("pg1d", "1D Plot Group", "pg", "plot_group_1d",
          choices=[(v, v.capitalize()) for v in ("upper right", "upper left", "lower right", "lower left", "center right",
                                                 "center left", "upper center", "lower center", "best")], section="Legend"),
 ]))
-register(NodeType("pgpolar", "Polar Plot Group", "pg", "plot_group_1d", children=["plot.polar"], props=[
+register(NodeType("pgpolar", "Polar Plot Group", "pg", "plot_group_1d", children=["plot.polar", "plot.radiation"], props=[
     _dataset, *_TITLE,
     Prop("legend", "Show legends", "bool", True, section="Legend"),
     Prop("zero", "Zero angle:", "choice", "E", choices=[("E", "Right (0 deg = +x)"), ("N", "Top (0 deg = +y)")],
@@ -344,12 +374,16 @@ register(NodeType("plot.multislice", "Multislice", "mslc", "slice_plot", childre
     Prop("ny", "y-planes:", "int", 1, section="Multiplane Data"),
     Prop("nz", "z-planes:", "int", 1, section="Multiplane Data")])))
 register(NodeType("plot.isosurface", "Isosurface", "iso", "isosurface", children=_PLOT_CHILD, props=_plot_props([
-    Prop("levels", "Total levels:", "int", 5, section="Levels")])))
+    Prop("levels", "Total levels:", "int", 5, section="Levels"),
+    Prop("legendtype", "Legend type:", "choice", "filled", choices=[("filled", "Filled"), ("continuous", "Continuous")],
+         section="Coloring and Style")])))
 register(NodeType("plot.contour", "Contour", "con", "contour", children=_PLOT_CHILD, props=_plot_props([
     Prop("levels", "Total levels:", "int", 20, section="Levels"),
     Prop("ctype", "Contour type:", "choice", "lines", choices=[("lines", "Lines"), ("filled", "Filled"), ("tubes", "Tubes")],
          section="Coloring and Style"),
     Prop("labels", "Level labels", "bool", False, section="Coloring and Style"),
+    Prop("legendtype", "Legend type:", "choice", "filled", choices=[("filled", "Filled"), ("continuous", "Continuous")],
+         section="Coloring and Style"),
     Prop("filled", "Filled", "bool", False, section="Coloring and Style", visible=lambda p: False)])))
 register(NodeType("plot.arrow", "Arrow Volume", "arwv", "arrow_plot", children=_VEC_CHILD, props=[
     Prop("data", "Dataset:", "dataset", "fromparent", section="Data"),
@@ -452,6 +486,49 @@ register(NodeType("plot.tablegraph", "Table Graph", "tblg", "table", props=[
     Prop("xcol", "x-axis data (column, 1-based; 0 = row index):", "int", 1, section="Data"),
     Prop("ycols", "Plot columns (comma-separated, empty = all others):", "string", "", section="Data"),
     *_LINESTYLE]))
+_RADIATION_GEOM = [
+    Prop("xc", "Center, x:", default="0", unit="LEN", section="Evaluation"),
+    Prop("yc", "Center, y:", default="0", unit="LEN", section="Evaluation", visible=lambda p: not p.get("__axi", False)),
+    Prop("zc", "Center, z:", default="0", unit="LEN", section="Evaluation",
+         visible=lambda p: p.get("__sdim", 3) == 3 or p.get("__axi", False)),
+    Prop("radius", "Evaluation distance:", default="1[m]", unit="LEN", section="Evaluation",
+         tip="Distance from the center (COMSOL: Evaluation distance from origin)"),
+    Prop("plane", "Plane:", "choice", "xz",
+         choices=[("xz", "xz-plane (angle from x toward z)"), ("xy", "xy-plane (angle from x toward y)"),
+                  ("yz", "yz-plane (angle from y toward z)")], section="Evaluation",
+         visible=lambda p: p.get("__sdim", 3) == 3, tip="Axisymmetric models: the rz half plane"),
+    Prop("npts", "Number of angles:", "int", 181, section="Evaluation"),
+]
+register(NodeType("plot.radiation", "Radiation Pattern", "rp", "far_field",
+                  description="Exterior-field quantity on a circle (polar plot group) or a sphere (3D plot group).",
+                  props=[
+    Prop("data", "Dataset:", "dataset", "fromparent", section="Data"),
+    Prop("expr", "Expression:", "rexpr", "acpr.efc1.Lp_pext", section="Expression"),
+    Prop("unit", "Unit:", "runit", "", section="Expression"),
+    *_RADIATION_GEOM,
+    Prop("a0", "Start angle:", default="-90", unit="deg", section="Evaluation"),
+    Prop("a1", "End angle:", default="90", unit="deg", section="Evaluation"),
+    Prop("normalize", "Normalization:", "choice", "none",
+         choices=[("none", "None"), ("max", "Maximum = 0 dB (or 1)")], section="Evaluation"),
+    Prop("range", "Dynamic range (3D pattern):", "string", "40", section="Evaluation",
+         tip="Values more than this below the maximum are drawn at the center"),
+    Prop("params", "Parameter values (indices from 1, empty = current):", "string", "", section="Data"),
+    *_LINESTYLE]))
+register(NodeType("plot.directivity", "Directivity", "dir", "far_field",
+                  description="Exterior-field level versus angle and frequency, normalized to the on-axis value.",
+                  props=[
+    Prop("data", "Dataset:", "dataset", "", section="Data"),
+    Prop("expr", "Expression:", "rexpr", "acpr.efc1.Lp_pext", section="Expression"),
+    *_RADIATION_GEOM,
+    Prop("a0", "Start angle (from the axis):", default="-90", unit="deg", section="Evaluation"),
+    Prop("a1", "End angle:", default="90", unit="deg", section="Evaluation"),
+    Prop("axis", "Reference axis:", "choice", "z", choices=[("z", "+z"), ("x", "+x"), ("y", "+y")], section="Evaluation",
+         tip="Angle 0 points along this axis"),
+    Prop("normalize", "Normalization:", "choice", "axis",
+         choices=[("axis", "On-axis value = 0 dB"), ("max", "Maximum = 0 dB"), ("none", "None")], section="Evaluation"),
+    Prop("levels", "Contour levels:", "int", 13, section="Coloring and Style"),
+    Prop("cmap", "Color table:", "choice", "RainbowLight", choices=CMAPS, section="Coloring and Style"),
+    Prop("flog", "Logarithmic frequency axis", "bool", True, section="Coloring and Style")]))
 register(NodeType("plot.polar", "Line Graph (Polar)", "plgr", "line_graph", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
     Prop("expr", "Radius expression:", "rexpr", "", section="r-Axis Data"),
