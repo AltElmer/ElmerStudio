@@ -106,7 +106,7 @@ class Selection:
 
     def resolve(self, available: Iterable[int]) -> list[int]:
         avail = sorted(set(available))
-        if self.all:
+        if self.all and not self.named:          # a named (geometry) selection is never "all"
             return avail
         s = set(avail)
         return [e for e in self.entities if e in s]

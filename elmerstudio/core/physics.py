@@ -665,7 +665,8 @@ def _cd_solvers(ph, ctx):
         cond = "Diffusion Coefficient"
     s.update(ctx.solver_settings(ph, nl))
     flux = {"Equation": "Electrolyte Current", "Procedure": ("FluxSolver", "FluxSolver"), "Calculate Flux": True,
-            "Flux Variable": "phil", "Flux Coefficient": cond, **linsys("iterative", "CG", "Diagonal", 1e-10, 500),
+            "Flux Variable": "phil", "Flux Coefficient": cond, **linsys("iterative", "CG", "ILU0", 1e-10, 500),
+            "Exec Solver": "After Timestep",        # once, on the converged (coupled) solution
             "__post__": True}
     return [s, flux]
 
@@ -1017,6 +1018,31 @@ feature("tds.flux", "Flux", "fl", "feature_boundary", "boundary", "bc",
                Prop("cb", "Bulk concentration:", default="1", unit="mol/m^3", section="Inward Flux", symbol="c_b",
                     visible=lambda p: p.get("type") == "mt")],
         equation=r"$-\mathbf{n}\cdot\mathbf{J} = J_0 + k_c(c_b - c)$")
+def _tds_esc(n, ctx, d=None):
+    """Electrode Surface Coupling: the species flux of an Electrode Surface's reaction, N = nu i_loc / (n F)."""
+    from .sif import SifError
+    tag = str(n.get("es", "")).strip()
+    es = ctx.model.root.find(kind="cd.es", tag=tag) if tag else None
+    if es is None:
+        raise SifError(f"{n.label}: choose the Electrode Surface (Current Distribution) whose reaction it couples")
+    if es.parent.get("dist", "secondary") == "primary" or es.get("kin", "bv") == "primary":
+        raise SifError(f"{n.label}: {es.label} has no kinetics (primary condition); give it an electrode kinetics "
+                       "expression so the reaction current is known on the boundary")
+    i, _di = cd_kinetics(es)
+    flux = f"({n.get('nu', '1')})*({sub_eta(i, cd_eta(es))})/(({n.get('nel', '1')})*{F_CONST!r})"
+    return {"Field Flux": ctx.value(flux)}
+
+
+feature("tds.esc", "Electrode Surface Coupling", "esc", "feature_boundary", "boundary", "bc", _tds_esc,
+        props=[Prop("es", "Electrode surface (name of a Current Distribution feature):", "string", "es1",
+                    section="Electrode Surface", tip="e.g. es1; its kinetics give the local current density i_loc"),
+               Prop("nu", "Stoichiometric coefficient:", default="1", unit="1", section="Stoichiometry", symbol="ν",
+                    tip="Moles of this species released into the electrolyte per mole of reaction in the anodic "
+                        "direction (negative if consumed)"),
+               Prop("nel", "Number of participating electrons:", default="2", unit="1", section="Stoichiometry",
+                    symbol="n")],
+        description="Species flux from the electrode reaction of a Current Distribution interface: Faraday's law.",
+        equation=r"$-\mathbf{n}\cdot\mathbf{J} = \frac{\nu\, i_{loc}}{n F}$")
 feature("tds.sym", "Symmetry", "sym", "feature_boundary", "boundary", "bc", None, equation=r"$-\mathbf{n}\cdot\mathbf{J} = 0$")
 feature("tds.outflow", "Outflow", "out", "feature_boundary", "boundary", "bc", None,
         equation=r"$-\mathbf{n}\cdot D\nabla c = 0$")
@@ -1032,7 +1058,8 @@ define_physics(PhysicsDef(
     "tds", "Transport of Diluted Species", "physics_tds", "Chemical Species Transport",
     depvars={"c": ("Concentration", "Concentration", "mol/m^3")},
     defaults=[("tds.tp", "domain"), ("tds.init", "domain"), ("tds.nf", "boundary")],
-    domain=["tds.tp", "tds.reac", "tds.init"], boundary=["tds.conc", "tds.flux", "tds.nf", "tds.sym", "tds.outflow"],
+    domain=["tds.tp", "tds.reac", "tds.init"],
+    boundary=["tds.conc", "tds.flux", "tds.esc", "tds.nf", "tds.sym", "tds.outflow"],
     solvers=_tds_solvers,
     plots=lambda ph, sd, st: [{"label": "Concentration (tds)", "type": "surface", "expr": "c", "cmap": "RainbowLight", "dims": sd}],
     description="Diffusion, convection and first-order reactions of a dilute species. Elmer ModelPDE.",

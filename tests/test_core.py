@@ -128,3 +128,25 @@ def test_examples_build_and_generate_sif(key):
     st = m.studies()[0]
     sif = build_sif(m, st, B.study_steps(st)[0], geo, 1000).text
     assert "Solver 1" in sif and "Boundary Condition 1" in sif
+
+
+def test_coordinates_with_units_follow_the_geometry_unit():
+    """COMSOL semantics for dataset/plot coordinates: a plain number is in the geometry unit, a value with units
+    (directly or through a parameter defined with units) is converted -- a Cut Line to x = lam = 100[um] on a
+    geometry in um ends at 100, not at 1e-4."""
+    rows = [("lam", "100[um]"), ("half", "lam/2"), ("n", "4")]
+    params = {"lam": 1e-4, "half": 5e-5, "n": 4.0}
+    assert units.expr_has_units("lam", rows) and units.expr_has_units("half", rows)
+    assert not units.expr_has_units("n*2", rows) and units.expr_has_units("3[mm]", rows)
+    assert abs(units.geometry_value("lam", params, rows, 1e-6) - 100) < 1e-9
+    assert abs(units.geometry_value("half", params, rows, 1e-6) - 50) < 1e-9
+    assert units.geometry_value("n*2", params, rows, 1e-6) == 8.0              # plain numbers: geometry units
+
+
+def test_named_selection_is_never_all():
+    """A feature that uses a geometry (Box) selection resolves to its entities even if its 'all' flag was set
+    (derived values default to all entities)."""
+    from elmerstudio.core.model import Selection
+    s = Selection("boundary", [3, 5], True, "boxsel1")
+    assert s.resolve([1, 2, 3, 4, 5]) == [3, 5]
+    assert Selection("boundary", [3], True).resolve([1, 2, 3]) == [1, 2, 3]

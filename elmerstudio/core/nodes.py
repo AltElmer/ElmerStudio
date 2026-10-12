@@ -111,6 +111,11 @@ _phys_tbl = Prop("physics", "", "physics_table", {}, section="Physics and Variab
 register(NodeType("study.stationary", "Stationary", "stat", "stationary", props=[
     Prop("coupling", "Max coupling iterations:", "int", 30, section="Study Settings",
          tip="Steady State Max Iterations when several physics are solved together"),
+    Prop("coupling_tol", "Coupling tolerance:", "string", "1e-6", section="Study Settings",
+         tip="Relative change at which the segregated (physics-by-physics) iteration stops"),
+    Prop("coupling_relax", "Coupling damping factor:", "string", "1", section="Study Settings",
+         tip="Under-relaxation of every coupled physics between segregated iterations; lower it (e.g. 0.5, 0.25) "
+             "when the coupled iteration oscillates and grows (a loop gain G > 1 needs a factor below 2/(1+G))"),
     _phys_tbl]))
 register(NodeType("study.time", "Time Dependent", "time", "time_dependent", props=[
     Prop("tunit", "Time unit:", "choice", "s", choices=[("s", "s"), ("ms", "ms"), ("min", "min"), ("h", "h"), ("d", "d")],

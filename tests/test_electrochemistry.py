@@ -230,6 +230,49 @@ def test_sweep_all_combinations(elmer):
     assert len(seen) == 6
 
 
+def test_tertiary_three_resistances(elmer):
+    """Secondary Current Distribution + Transport of Diluted Species coupled at the anode (tertiary): linear
+    kinetics (polarization length Lam), an equilibrium potential shifted by the local product concentration
+    (linearized Nernst) and a Nernst diffusion layer delta under a bulk electrolyte.  Ohmic, charge-transfer and
+    concentration resistances in series: i = sigma V / (L + Lam + beta delta), beta = sigma R T/(n^2 F^2 D c_b).
+    The species flux comes from the anode's own kinetics through an Electrode Surface Coupling (nu i/(n F))."""
+    sigma, V, L, dl, lam, D, n, beta, T_ = 20.0, 0.02, 200e-6, 2e-6, 15e-6, 1e-9, 2.0, 2.0, 298.15
+    cb = sigma * R * T_ / (n ** 2 * F ** 2 * D * beta)
+    m = B.new_model("2D", ["cd", "tds"], "stationary")
+    m.global_defs.child("params").props["table"] = [
+        {"name": k, "expr": v, "descr": ""} for k, v in (
+            ("sig", f"{sigma}[S/m]"), ("Vc", f"{V}[V]"), ("Lam", f"{lam}[m]"), ("Dc", f"{D}[m^2/s]"),
+            ("nel", f"{n}"), ("cb", f"{cb}[mol/m^3]"), ("Tk", f"{T_}[K]"))]
+    g = m.component.child("geometry")
+    m.create("geom.rectangle", g, index=0, w="20e-6", h=str(dl))                  # Nernst layer
+    m.create("geom.rectangle", g, index=1, w="20e-6", h=str(L - dl), y=str(dl))  # bulk
+    geo = build_geometry(m, display=False)
+    layer = geo.select("domain", ymax=dl * (1 + 1e-9))
+    anode, top = geo.select("boundary", ymax=1e-12), geo.select("boundary", ymin=L * (1 - 1e-9))
+    edge = geo.select("boundary", ymin=dl * (1 - 1e-9), ymax=dl * (1 + 1e-9))
+    cd = m.component.child("physics.cd")
+    cd.child("cd.elyte").props.update(sigma_src="user", sigma="sig")
+    an = B.add_feature(m, cd, "cd.es", anode, phis="Vc", kin="expr", iexpr="sig/Lam*eta",
+                       Eeq="R_const*Tk/(nel*F_const)*(c-cb)/cb")          # product accumulation opposes dissolution
+    B.add_feature(m, cd, "cd.pot", top, phil0="0")
+    tds = m.component.child("physics.tds")
+    tds.selection.all, tds.selection.entities = False, layer
+    tds.child("tds.tp").props["D"] = "Dc"
+    tds.child("tds.init").props["c0"] = "cb"
+    B.add_feature(m, tds, "tds.esc", anode, es=an.tag, nu="1", nel="nel")
+    B.add_feature(m, tds, "tds.conc", edge, c0="cb")
+    m.studies()[0].child("study.stationary").props.update(coupling=100, coupling_tol="1e-11")
+    sol = _solve(m, geo, "es_cd_tertiary_")[-1]
+    i = sol.frame_index("last")
+    I = float(sol.evaluate(f"cd.{an.tag}.Itot", i)[0]) / 20e-6
+    exact = sigma * V / (L + lam + beta * dl)
+    assert abs(I / exact - 1) < 1e-8, (I, exact)
+    cs = float(np.nanmax(sol.evaluate("c", i)))                               # surface enrichment c_b + i delta/(nFD)
+    assert abs((cs - cb) / (exact * dl / (n * F * D)) - 1) < 1e-6, (cs, cb)
+    ctrl = sigma * V / (L + lam)                                              # without the concentration resistance
+    assert abs(I / ctrl - 1) > 0.01
+
+
 def test_box_selection_follows_a_swept_geometry(elmer):
     """Sweeping the wave amplitude to 0 renumbers the boundaries (the flat anode ties the left wall on position).
     Electrode features on Box Selections follow; each run reports its own electrode boundaries."""
@@ -305,6 +348,30 @@ def test_face_currents_add_up_in_3d(elmer):
     assert abs(sol.integrate("cd.iloc", i, "boundary", an.selection.entities) / I - 1) < 1e-9
     consistent = sol._integrate_values(sol.evaluate("cd.iloc", i), "boundary", an.selection.entities)
     assert abs(consistent / I - 1) > 1e-3                                # the control: shape-function quadrature
+
+
+def test_uniform_current_density_on_quadratic_triangles(elmer):
+    """3D box, anode and cathode on opposite faces: the current density is uniform, so cd.iloc must read sigma V/L
+    at every anode node -- corner nodes of the 6-node triangles included (dividing the nodal loads by a lumped
+    measure gave 0 there, since a uniform flux loads only the mid-side nodes)."""
+    sigma, V, L = 5.0, 1.0, 1e-3
+    m = B.new_model("3D", ["cd"], "stationary")
+    g = m.component.child("geometry")
+    m.create("geom.block", g, index=0, w="2e-3", d="1e-3", h=str(L))
+    geo = build_geometry(m, display=False)
+    cd = m.component.child("physics.cd")
+    cd.props["dist"] = "primary"
+    cd.child("cd.elyte").props.update(sigma_src="user", sigma=str(sigma))
+    an = B.add_feature(m, cd, "cd.es", geo.select("boundary", zmax=1e-12), phis=str(V))
+    B.add_feature(m, cd, "cd.es", geo.select("boundary", zmin=L * (1 - 1e-9)), phis="0")
+    sol = _solve(m, geo, "es_cd_box3d_")[-1]
+    i = sol.frame_index("last")
+    j = sol.evaluate("cd.iloc", i)
+    on = np.isfinite(j) & (np.abs(sol.topo.nodes[:, 2] * sol.scale) < 1e-12)
+    assert on.sum() > 20
+    assert np.allclose(j[on], sigma * V / L, rtol=1e-6), (j[on].min(), j[on].max())
+    I = float(sol.evaluate(f"cd.{an.tag}.Itot", i)[0])
+    assert abs(sol.integrate("cd.iloc", i, "boundary", an.selection.entities) / I - 1) < 1e-9
 
 
 def test_curve_coordinates_follow_length_units():

@@ -11,6 +11,20 @@ warnings.filterwarnings("ignore", message=".*extract_surface.*")
 collect_ignore = ["test_gui_smoke.py"]
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _solver_scratch():
+    """Every case folder the tests create (tempfile.mkdtemp) goes into one directory removed at the end: a full
+    run writes about 1 GB of meshes and results."""
+    import shutil
+    import tempfile
+    d = tempfile.mkdtemp(prefix="elmerstudio_tests_")
+    old = tempfile.tempdir
+    tempfile.tempdir = d
+    yield d
+    tempfile.tempdir = old
+    shutil.rmtree(d, ignore_errors=True)
+
+
 @pytest.fixture(scope="session")
 def elmer():
     from elmerstudio.core.elmer import find_elmer

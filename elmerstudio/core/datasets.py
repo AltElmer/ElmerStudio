@@ -379,16 +379,19 @@ def resolve(model, dset, load, sweep=None, base=None, _depth=0):
     view, post = resolve(model, parent, load, sweep, base, _depth + 1)
     if view is None:
         return None, None
+    # coordinates in the geometry unit; values with units are converted (COMSOL semantics)
+    glen = lambda key, d="0": units.geometry_value(dset.get(key, d), model.parameters(),  # noqa: E731
+                                                   model.parameter_rows(), view.scale)
     if k == "dset.cutplane":
         if view.sdim != 3:
             raise ValueError("A Cut Plane needs a 3D dataset")
         if dset.get("ptype", "general") == "quick":
             ax = {"yz": 0, "zx": 1, "xy": 2}[dset.get("plane", "yz")]
             o = np.zeros(3)
-            o[ax] = num("coord")
+            o[ax] = glen("coord")
             nrm = np.eye(3)[ax]
         else:
-            o = np.array([num("px"), num("py"), num("pz")])
+            o = np.array([glen("px"), glen("py"), glen("pz")])
             nrm = np.array([num("nx", "1"), num("ny"), num("nz")])
         return CutPlane(view, o, nrm), post
     if k == "dset.mirror":
@@ -403,8 +406,8 @@ def resolve(model, dset, load, sweep=None, base=None, _depth=0):
             lo, hi = np.array([-rmax, -rmax, lo[1]]), np.array([rmax, rmax, hi[1]])
         lo_, hi_ = [], []
         for j, a in enumerate("xyz"[:d]):
-            lo_.append(num(f"{a}min") if str(dset.get(f"{a}min", "")).strip() else float(lo[j]))
-            hi_.append(num(f"{a}max") if str(dset.get(f"{a}max", "")).strip() else float(hi[j]))
+            lo_.append(glen(f"{a}min") if str(dset.get(f"{a}min", "")).strip() else float(lo[j]))
+            hi_.append(glen(f"{a}max") if str(dset.get(f"{a}max", "")).strip() else float(hi[j]))
         res = [int(dset.get(f"{a}res", 40) or 40) for a in "xyz"[:d]]
         return GridView(view, lo_, hi_, res), post
     if k == "dset.paramcurve":

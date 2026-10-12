@@ -810,8 +810,6 @@ class GeometryBuilder:
                 return out
 
             xs, ys = coords("xs"), coords("ys")
-            if len(xs) != len(ys) or len(xs) < 3:
-                raise GeometryError(f"{f.label}: need at least 3 points with matching x and y counts")
             ptype = f.get("ptype", "solid")
             if len(xs) != len(ys) or len(xs) < (2 if ptype == "open" else 3):
                 raise GeometryError(f"{f.label}: need {'2' if ptype == 'open' else '3'} or more points with matching x and y counts")

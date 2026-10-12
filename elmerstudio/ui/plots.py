@@ -701,11 +701,24 @@ def _plot(ax, f, xs, ys, i, label):
     ax.plot(xs, ys, label=f.get("legend_text") or label, **kw)
 
 
+def _geom(model, expr, scale) -> float:
+    """A coordinate expression in the geometry length unit (a value with units is converted, as in COMSOL)."""
+    return units.geometry_value(expr, model.parameters(), model.parameter_rows(), scale)
+
+
+def _dataset_of(model, f: Node, pg: Node):
+    """The dataset a plot draws: its own, or the plot group's when it says "From parent" (or nothing)."""
+    tag = f.get("data") or ""
+    if tag in ("", "fromparent"):
+        tag = pg.get("data") or ""
+    return model.by_tag(tag) if tag and tag != "fromparent" else None
+
+
 def _reduce(f: Node, s, expr, fi, model):
     """Scalar for a Global graph: an operator expression (aveop1(T)) or a reduction of a field."""
     how = f.get("reduce", "max")
     if how == "point":
-        ev = lambda key: float(units.evaluate(f.get(key, "0"), model.parameters())) * s.scale  # noqa: E731
+        ev = lambda key: _geom(model, f.get(key, "0"), s.scale) * s.scale  # noqa: E731
         pt = [ev("px"), ev("py")] + ([ev("pz")] if s.sdim == 3 else [])
         return float(s.point_eval(expr, fi, [pt])[0])
     v = s.evaluate(expr, fi)
@@ -714,10 +727,11 @@ def _reduce(f: Node, s, expr, fi, model):
     return float({"max": np.nanmax, "min": np.nanmin, "avg": np.nanmean}[how](v))
 
 
-def cut_points(ds, model, sdim):
-    """Coordinates (geometry units) of a Cut Point dataset: space-separated lists, broadcast."""
+def cut_points(ds, model, sdim, scale=1.0):
+    """Coordinates (geometry units) of a Cut Point dataset: space-separated lists, broadcast.  *scale*: the
+    geometry unit in metres, for entries with units."""
     def lst(key):
-        return [float(units.evaluate(t, model.parameters())) for t in re.split(r"[\s,;]+", str(ds.get(key, "0")).strip()) if t]
+        return [_geom(model, t, scale) for t in re.split(r"[\s,;]+", str(ds.get(key, "0")).strip()) if t]
     xs, ys = lst("x"), lst("y")
     zs = lst("z") if sdim == 3 else [0.0]
     n = max(len(xs), len(ys), len(zs))
@@ -745,7 +759,7 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
         if not f.enabled:
             continue
         if f.kind == "plot.directivity":
-            ds = model.by_tag(f.get("data") or pg.get("data") or "")
+            ds = _dataset_of(model, f, pg)
             sol, _fi, _ = get_solution(ds, "last")
             if sol is None:
                 continue
@@ -765,9 +779,9 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
             ylabels.append("Angle (deg)")
             dir_title = f"{label} ({pretty_unit(unit)})" if unit else label
             continue
-        if f.kind == "plot.linegraph" and (model.by_tag(f.get("data") or pg.get("data") or "") or Node("x")).kind \
+        if f.kind == "plot.linegraph" and (_dataset_of(model, f, pg) or Node("x")).kind \
                 == "dset.paramcurve":
-            ds = model.by_tag(f.get("data") or pg.get("data") or "")
+            ds = _dataset_of(model, f, pg)
             sol, fi, _ = get_solution(ds, frame_sel)
             if sol is None:
                 continue
@@ -783,14 +797,14 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
             lines += 1
             continue
         if f.kind == "plot.linegraph":
-            ds = model.by_tag(f.get("data") or pg.get("data") or "")
+            ds = _dataset_of(model, f, pg)
             if ds is None or ds.kind != "dset.cutline":
                 ax.text(0.5, 0.5, "Select a Cut Line dataset for the Line Graph", ha="center", transform=ax.transAxes)
                 continue
             sol, fi, scale = get_solution(ds, frame_sel)
             if sol is None:
                 continue
-            ev = lambda key: float(units.evaluate(ds.get(key, "0"), model.parameters()))  # noqa: E731
+            ev = lambda key: _geom(model, ds.get(key, "0"), sol.scale)  # noqa: E731
             sdim = sol.sdim
             p0 = [ev("x0"), ev("y0")] + ([ev("z0")] if sdim == 3 else [0.0])
             p1 = [ev("x1"), ev("y1")] + ([ev("z1")] if sdim == 3 else [0.0])
@@ -811,7 +825,7 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
             ylabels.append(f"{label} ({pretty_unit(unit)})" if unit else label)
             lines += 1
         elif f.kind == "plot.globalgraph":
-            ds = model.by_tag(f.get("data") or pg.get("data") or "")
+            ds = _dataset_of(model, f, pg)
             if ds is None:
                 continue
             sol, _fi, _ = get_solution(ds, "last")
@@ -850,7 +864,7 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
             ylabels.append(f"{label} ({pretty_unit(si)})" if si else label)
             lines += 1
         elif f.kind == "plot.pointgraph":
-            ds = model.by_tag(f.get("data") or pg.get("data") or "")
+            ds = _dataset_of(model, f, pg)
             if ds is None or ds.kind != "dset.cutpoint":
                 ax.text(0.5, 0.5, "Select a Cut Point dataset for the Point Graph", ha="center", transform=ax.transAxes)
                 continue
@@ -860,7 +874,7 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
             expr = (f.get("expr") or "").strip() or default_expr(sol)
             label, si = sol.describe(expr)
             unit = f.get("unit") or si
-            pts = cut_points(ds, model, sol.sdim)
+            pts = cut_points(ds, model, sol.sdim, sol.scale)
             P = [np.array(p[:max(2, sol.sdim)]) * sol.scale for p in pts]
             sweep, sw_label, sw_unit = get_sweep(ds) if get_sweep else ([], None, "")
             if sweep:
@@ -928,7 +942,8 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
 def polar_values(view, f, model, fi):
     """(angles rad, values) of a polar graph's evaluation circle on a 2D dataset."""
     ev = lambda key, d="0": float(units.evaluate(str(f.get(key, d)), model.parameters()))  # noqa: E731
-    xc, yc, r = ev("xc"), ev("yc"), ev("radius", "1")
+    gv = lambda key, d="0": _geom(model, str(f.get(key, d)), view.scale)  # noqa: E731
+    xc, yc, r = gv("xc"), gv("yc"), gv("radius", "1")
     a0, a1 = ev("a0", "0"), ev("a1", "360")
     n = max(3, int(f.get("npts", 181)))
     th = np.radians(np.linspace(a0, a1, n))
@@ -1009,7 +1024,7 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities,
     if not exprs:
         exprs = [{"expr": default_expr(sol), "unit": "", "descr": ""}]
     if kind == "eval.point" and not points:
-        ev = lambda key: float(units.evaluate(node.get(key, "0"), model.parameters())) * sol.scale  # noqa: E731
+        ev = lambda key: _geom(model, node.get(key, "0"), sol.scale) * sol.scale  # noqa: E731
         points = [[ev("x"), ev("y")] + ([ev("z")] if sol.sdim == 3 else [])]
     npt = len(points) if kind == "eval.point" else 1
     # rows: (leading cells, solution, frame index)
@@ -1085,4 +1100,12 @@ def _int_unit(si, sdim, level):
     m = {3: "m^3", 2: "m^2", 1: "m"}.get(d, "")
     if not si or si == "1":
         return m
+    per = re.fullmatch(r"([^/()]+)/m(?:\^(\d+))?", si)       # a density per length^k: cancel the lengths
+    if per and m:
+        num, e = per.group(1), d - int(per.group(2) or 1)  # (A/m^2) * m^2 = A, (kg/m^3) * m^3 = kg
+        lead = "" if num == "1" else num
+        if e == 0:
+            return lead or "1"
+        pw = "m" + (f"^{abs(e)}" if abs(e) > 1 else "")
+        return (f"{lead}*{pw}" if lead else pw) if e > 0 else f"{lead or '1'}/{pw}"
     return f"{si}*{m}"

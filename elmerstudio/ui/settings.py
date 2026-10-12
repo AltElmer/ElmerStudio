@@ -382,6 +382,8 @@ class SettingsWindow(QWidget):
             if p.kind != "expr":
                 return True, ""
             if t == "":
+                if p.default == "":                    # optional field (e.g. a Box Selection limit: unbounded)
+                    return True, p.tip or "Empty: not used"
                 return False, "Empty expression"
             names = dict(self.ctx.parameters())
             for s in FIELD_SYMBOLS | set(self.ctx.variable_names()):

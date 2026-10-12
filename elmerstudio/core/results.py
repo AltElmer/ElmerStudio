@@ -354,10 +354,12 @@ class Solution:
             elif comp == "mag":
                 v = np.linalg.norm(a, axis=1) if a.ndim == 2 else np.abs(a)
             elif comp in ("bflux", "-bflux"):       # reaction (Loads) -> boundary flux density
-                A = self.boundary_lumped()
-                with np.errstate(divide="ignore", invalid="ignore"):
-                    v = np.where(A > 0, (a if a.ndim == 1 else a[:, 0]) * self.load_scale(src, arr)
-                                 / np.where(A > 0, A, 1.0), np.nan)
+                loads = (a if a.ndim == 1 else a[:, 0]) * self.load_scale(src, arr)
+                v = self.boundary_projection(loads) if self.sdim == 3 else None
+                if v is None:
+                    A = self.boundary_lumped()
+                    with np.errstate(divide="ignore", invalid="ignore"):
+                        v = np.where(A > 0, loads / np.where(A > 0, A, 1.0), np.nan)
                 if comp == "-bflux":
                     v = -v
             elif comp == "spl":
@@ -402,6 +404,106 @@ class Solution:
     efc: dict = {}             # exterior field calculations {efc1: acoustics.ExteriorField}
     globals: dict = {}         # {name: (array, boundary numbers, factor)}: sums of nodal reactions (electrode currents)
     flux_boundaries: set = set()   # boundaries where a reaction flux exists (others are insulating)
+
+    def boundary_projection(self, loads):
+        """Flux density j on the reaction boundaries of a 3D model from nodal loads L: solve M j = L with the
+        consistent boundary mass matrix (matrix-free conjugate gradients).
+
+        Dividing loads by a lumped measure is exact in total but, on 6-node triangles, a uniform flux has zero
+        load at the corner nodes, so the corners read zero and a face looks spotted.  The consistent projection
+        is smooth and still integrates to the sum of the loads.  None when the boundary is not triangulated."""
+        tm = self._tri_mass(self.flux_boundaries)
+        if tm is None:
+            return None
+        nodes, conns, mats = tm
+        n = len(nodes)
+
+        def mv(x):
+            y = np.zeros(n)
+            for c, Me in zip(conns, mats):
+                np.add.at(y, c.ravel(), np.einsum("eij,ej->ei", Me, x[c]).ravel())
+            return y
+        diag = np.zeros(n)
+        for c, Me in zip(conns, mats):
+            np.add.at(diag, c.ravel(), np.einsum("eii->ei", Me).ravel())
+        rhs = np.nan_to_num(np.asarray(loads, float)[nodes])
+        x = rhs / diag
+        r = rhs - mv(x)
+        z = r / diag
+        p = z.copy()
+        rz = r @ z
+        tol = 1e-12 * max(np.linalg.norm(rhs), 1e-300)
+        for _ in range(400):
+            if np.linalg.norm(r) <= tol:
+                break
+            q = mv(p)
+            alpha = rz / (p @ q)
+            x += alpha * p
+            r -= alpha * q
+            z = r / diag
+            rz, rz0 = r @ z, rz
+            p = z + (rz / rz0) * p
+        out = np.full(len(self.topo.nodes), np.nan)
+        out[nodes] = x
+        return out
+
+    def boundary_weights(self, boundaries):
+        """Consistent integration weights W_i = integral of N_i over *boundaries* (3D, triangulated), so that the
+        integral of a nodal field is sum W_i v_i; None when the boundary is not triangulated."""
+        tm = self._tri_mass(boundaries)
+        if tm is None:
+            return None
+        nodes, conns, mats = tm
+        W = np.zeros(len(nodes))
+        for c, Me in zip(conns, mats):
+            np.add.at(W, c.ravel(), Me.sum(axis=2).ravel())
+        out = np.zeros(len(self.topo.nodes))
+        out[nodes] = W
+        return out
+
+    def _tri_mass(self, boundaries):
+        """(global node ids, element connectivities in local ids, element mass matrices) of the triangulated
+        boundary elements on *boundaries*; None for other element shapes."""
+        if not boundaries:
+            return None
+        g = self.boundary_grid()
+        if not g.n_cells or "bnd" not in g.cell_data:
+            return None
+        keep = np.where(np.isin(np.asarray(g.cell_data["bnd"]), sorted(int(b) for b in boundaries)))[0]
+        if not len(keep):
+            return None
+        g = g.extract_cells(keep)
+        ids = np.asarray(g.point_data["vtkOriginalPointIds"]) if "vtkOriginalPointIds" in g.point_data else None
+        cd = g.cells_dict
+        if ids is None or set(int(t) for t in cd) - {5, 22}:
+            return None                                  # quadrilaterals etc.: keep the lumped form
+        P = np.asarray(self.topo.nodes, float)[ids] * self.scale
+        a, b = 0.445948490915965, 0.091576213509771     # 6-point degree-4 rule on the reference triangle
+        gp = np.array([[a, a], [1 - 2 * a, a], [a, 1 - 2 * a], [b, b], [1 - 2 * b, b], [b, 1 - 2 * b]])
+        gw = np.array([0.223381589678011] * 3 + [0.109951743655322] * 3) / 2
+        xi, et = gp[:, 0], gp[:, 1]
+        l1, l2, l3 = 1 - xi - et, xi, et
+        conns, mats = [], []
+        for ct, conn in cd.items():
+            if int(ct) == 22:
+                N = np.array([l1 * (2 * l1 - 1), l2 * (2 * l2 - 1), l3 * (2 * l3 - 1), 4 * l1 * l2, 4 * l2 * l3,
+                              4 * l3 * l1])
+                dxi = np.array([1 - 4 * l1, 4 * l2 - 1, 0 * xi, 4 * (l1 - l2), 4 * l3, -4 * l3])
+                det = np.array([1 - 4 * l1, 0 * xi, 4 * l3 - 1, -4 * l2, 4 * l2, 4 * (l1 - l3)])
+            else:
+                N = np.array([l1, l2, l3])
+                dxi = np.array([-np.ones_like(xi), np.ones_like(xi), 0 * xi])
+                det = np.array([-np.ones_like(xi), 0 * xi, np.ones_like(xi)])
+            X = P[conn]                                                    # (ne, nn, 3)
+            t1, t2 = np.einsum("enk,ng->egk", X, dxi), np.einsum("enk,ng->egk", X, det)
+            jac = np.linalg.norm(np.cross(t1, t2), axis=2)                 # (ne, ng)
+            mats.append(np.einsum("ig,jg,eg->eij", N, N, jac * gw))
+            conns.append(conn)
+        used = np.unique(np.concatenate([c.ravel() for c in conns]))
+        loc = np.full(len(P), -1)
+        loc[used] = np.arange(len(used))
+        conns = [loc[c] for c in conns]
+        return ids[used], conns, mats
 
     def load_scale(self, src: str, arr: dict) -> float:
         """Factor that makes Elmer's axisymmetric nodal loads per radian.
@@ -586,6 +688,10 @@ class Solution:
             # quadratic shape functions would drop the corner loads -- a corner of a 6-node triangle integrates
             # to zero)
             ents = entities if entities is not None else sorted(int(b) for b in np.unique(self.topo.bnd))
+            W = self.boundary_weights(ents) if self.sdim == 3 else None
+            if W is not None:                      # 3D: j is the consistent projection, so integrate it consistently
+                tot = float(np.sum(W * np.nan_to_num(vals)))
+                return tot / float(W.sum()) if average else tot
             A = self.boundary_lumped(ents, r_weight=False)
             on = (A > 0) & np.isfinite(vals)
             tot = float(np.sum(vals[on] * A[on]))

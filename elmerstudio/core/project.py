@@ -15,6 +15,17 @@ def new_workdir() -> str:
     return tempfile.mkdtemp(prefix="elmerstudio_")
 
 
+def discard_workdir(path: str | None) -> None:
+    """Remove a working folder made by new_workdir (meshes, case folders, results of the computed studies) when
+    its model is closed; a saved .esm keeps its own copy.  Never touches anything else."""
+    if not path:
+        return
+    p = os.path.abspath(path)
+    tmp = os.path.abspath(tempfile.gettempdir())
+    if os.path.dirname(p) == tmp and os.path.basename(p).startswith("elmerstudio_") and os.path.isdir(p):
+        shutil.rmtree(p, ignore_errors=True)
+
+
 def save(model: Model, path: str, workdir: str | None, include_solutions=True):
     tmp = path + ".part"
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:

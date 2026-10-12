@@ -644,6 +644,26 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     else:
         sim.update({"Simulation Type": "Steady State", "Steady State Max Iterations": coupling if n_primary > 1 else 1,
                     "Output Intervals": [1]})
+        if n_primary > 1:                              # segregated coupling of several physics
+            # Elmer saves a steady-state run at every coupling iteration (hundreds of VTU files and an ever-growing
+            # restart file); save the converged solution once, at the end
+            sim["Output Intervals"] = [0]
+            for s in solvers:
+                if s.keywords.get("Procedure") == ("ResultOutputSolve", "ResultOutputSolver"):
+                    s.keywords["Exec Solver"] = "After Simulation"
+            try:
+                ctol = float(units.evaluate(str(step.get("coupling_tol", "1e-6") or "1e-6")))
+            except Exception:
+                ctol = 1e-6
+            try:
+                crel = float(units.evaluate(str(step.get("coupling_relax", "1") or "1")))
+            except Exception:
+                crel = 1.0
+            for s in solvers:
+                if not s.post:
+                    s.keywords["Steady State Convergence Tolerance"] = ctol
+                    if crel != 1.0:
+                        s.keywords["Steady State Relaxation Factor"] = crel
         if continuation in ("save", "reuse"):           # parametric continuation (COMSOL: reuse previous solution)
             sim["Output File"] = "restart.result"
             if continuation == "reuse":

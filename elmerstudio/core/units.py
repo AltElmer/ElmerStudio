@@ -266,6 +266,32 @@ def _fmt(v: float) -> str:
     return f"{v:.12g}"
 
 
+def expr_has_units(expr, rows) -> bool:
+    """Does *expr* carry units, directly ("2[mm]") or through a parameter defined with units?  *rows*: the
+    model's parameter rows [(name, expression)], in definition order."""
+    s = str(expr)
+    if "[" in s:
+        return True
+    flags: dict = {}
+    for name, e in rows:
+        e = str(e)
+        try:
+            flags[name] = "[" in e or any(flags.get(t, False) for t in free_symbols(e))
+        except Exception:
+            flags[name] = "[" in e
+    try:
+        return any(flags.get(t, False) for t in free_symbols(s))
+    except Exception:
+        return False
+
+
+def geometry_value(expr, params, rows, scale):
+    """A coordinate in the geometry length unit, COMSOL style: a plain number is in the geometry unit, a value
+    with units (or built from parameters with units) is converted from SI.  *scale*: geometry unit in metres."""
+    v = float(np.real(evaluate(str(expr), params)))
+    return v / scale if expr_has_units(expr, rows) else v
+
+
 # two-argument min/max for exported expressions (MATC's own min/max reduce one vector).  Defined once at the top
 # of a SIF that uses them, so nested clamps do not repeat their arguments.
 MATC_PRELUDE = {"stmin(": "$ function stmin(a,b) { _stmin = a*(a<=b) + b*(a>b) }",

@@ -520,6 +520,8 @@ class MainWindow(QMainWindow):
         self.model = model
         self.file_path = path
         if workdir:
+            if getattr(self, "workdir", None) and os.path.abspath(self.workdir) != os.path.abspath(workdir):
+                project.discard_workdir(self.workdir)      # the previous model's solutions are no longer shown
             self.workdir = workdir
         self.geo = None
         self.geo_stale = True
@@ -533,6 +535,7 @@ class MainWindow(QMainWindow):
         self.active_sel = None
         self.tree.set_model(model, self._file_name())
         self.graphics.clear()
+        self.table.show_table("", [], [])               # no results table from the previous model
         self._update_title()
         self._update_geom_actions()
         self.tree.select(model.root)
@@ -669,6 +672,7 @@ class MainWindow(QMainWindow):
                 self.graphics.plotter.close()
         except Exception:
             pass
+        project.discard_workdir(getattr(self, "workdir", None))
         ev.accept()
 
     def reset_desktop(self):
@@ -1666,6 +1670,10 @@ class MainWindow(QMainWindow):
                 f.props["expr"] = default_expr(sol)
             self.tree.refresh(select=pg)
         else:
+            if not pg.get("data"):                    # COMSOL: a new plot group takes the current solution dataset
+                ds = self._dataset_for(pg)
+                if ds is not None:
+                    pg.props["data"] = ds.tag
             cl = next((d for d in self.datasets() if d.kind == "dset.cutline"), None)
             g = self.create_node("plot.linegraph", pg, select=False)
             if cl is not None:
