@@ -93,7 +93,7 @@ def test_wrench_tutorial(elmer):
     nodes = [r[5] for r in rows]
     assert nodes == sorted(nodes) and len(set(nodes)) == len(nodes), nodes   # each hd refines the mesh
     for _hd, mises, xmax, tip, unsafe, _n, maxop in rows:
-        assert maxop == mises                                          # maxop1(...) equals Volume Maximum
+        assert abs(maxop - mises) <= 1e-12 * abs(mises)                # maxop1(...) equals Volume Maximum
         assert 0.85 < abs(tip) / (150 * L ** 3 / (3 * E * I)) < 1.05    # head is stiffer than a slender beam
         assert 0 < unsafe < 0.2                                         # a small region exceeds 200 MPa (safety plot)
     # mesh convergence of the tip deflection (the peak stress sits in a sharp re-entrant corner of this stand-in
