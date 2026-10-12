@@ -48,7 +48,18 @@ jobs:
 
       - name: Engine and solver tests (Linux, with Elmer)
         if: runner.os == 'Linux'
-        run: xvfb-run -a pytest tests -v -rs
+        run: |
+          ElmerSolver -v 2>&1 | head -n 8 || true
+          xvfb-run -a pytest tests -v -rs
+
+      - name: Keep failed solver cases (SIF, mesh, solver.log)
+        if: failure() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-cases-linux
+          path: /tmp/es_*/
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Engine tests (no Elmer on this runner; solver tests skip)
         if: runner.os != 'Linux'
