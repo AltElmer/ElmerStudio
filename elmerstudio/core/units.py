@@ -266,6 +266,12 @@ def _fmt(v: float) -> str:
     return f"{v:.12g}"
 
 
+# two-argument min/max for exported expressions (MATC's own min/max reduce one vector).  Defined once at the top
+# of a SIF that uses them, so nested clamps do not repeat their arguments.
+MATC_PRELUDE = {"stmin(": "$ function stmin(a,b) { _stmin = a*(a<=b) + b*(a>b) }",
+                "stmax(": "$ function stmax(a,b) { _stmax = a*(a>=b) + b*(a<b) }"}
+
+
 def to_matc(expr: str, params: dict, fields: dict[str, str]):
     """Translate an expression to an Elmer SIF value.
 
@@ -312,6 +318,10 @@ def to_matc(expr: str, params: dict, fields: dict[str, str]):
             args = [emit(a) for a in n.args]
             if name == "pow":
                 return f"(({args[0]})^({args[1]}))"
+            if name in ("min", "max") and len(args) == 2:      # MATC's min/max are one-argument reductions:
+                return f"st{name}({args[0]}, {args[1]})"        # call the two-argument helpers in MATC_PRELUDE
+            if name == "sign" and len(args) == 1:
+                return f"((({args[0]})>0)-(({args[0]})<0))"
             if name not in _MATC_FUNCS:
                 raise ExprError(f"Function '{name}' cannot be exported to MATC")
             return f"{_MATC_FUNCS[name]}({', '.join(args)})"

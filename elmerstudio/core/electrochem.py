@@ -14,7 +14,7 @@ from __future__ import annotations
 import math
 
 from .model import selection_entities
-from .physics import F_CONST, cd_eta, cd_kinetics
+from .physics import F_CONST, cd_eta, cd_kinetics, sub_eta
 
 
 def electrode_results(model, sol, params=None):
@@ -40,7 +40,7 @@ def electrode_results(model, sol, params=None):
             var[f"cd.{t}.eta"] = eta
             if ph.get("dist", "secondary") != "primary" and f.get("kin", "bv") != "primary":
                 i, _di = cd_kinetics(f)
-                var[f"cd.{t}.iloc"] = "(" + i.replace("eta", eta) + ")"
+                var[f"cd.{t}.iloc"] = "(" + sub_eta(i, eta) + ")"
             var[f"cd.{t}.vdis"] = (f"(({f.get('M', '55.845[g/mol]')})/(({f.get('nel', '2')})*{F_CONST!r}*"
                                    f"({f.get('rhom', '7870[kg/m^3]')}))*cd.iloc)")
     return gl, var, flux

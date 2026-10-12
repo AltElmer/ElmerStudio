@@ -100,6 +100,28 @@ def test_strip_tabulated_kinetics(elmer):
     assert abs(I / (iex * W) - 1) < 1e-6, (I, iex * W)
 
 
+def test_strip_clamped_kinetics(elmer):
+    """User-defined i(eta) with nested two-argument min/max clamps (a saturating Tafel law with a floor and a
+    ceiling, as fitted polarization data are often written).  MATC's own min/max are one-argument reductions,
+    so the export calls helper functions; nested clamps must not blow the expression up."""
+    V, L, W, sigma = 0.3, 2e-4, 1e-4, 20.0
+    law = "min(max(j0*exp(min(eta/b,30))/(1+j0*exp(min(eta/b,30))/jl),0),20*jl)"
+    m, geo, an = strip("expr", V=V, L=L, W=W, sigma=sigma, iexpr=law)
+    m.global_defs.child("params").props["table"] += [
+        {"name": "j0", "expr": "5[A/m^2]", "descr": ""}, {"name": "b", "expr": "0.04[V]", "descr": ""},
+        {"name": "jl", "expr": "2000[A/m^2]", "descr": ""}]
+    sol = _solve(m, geo, "es_cd_clamp_")[-1]
+    text = open(os.path.join(sol.folder, "case.sif")).read()
+    assert "$ function stmin" in text and max(len(s) for s in text.splitlines()) < 4000
+    I = float(sol.evaluate(f"cd.{an.tag}.Itot", sol.frame_index("last"))[0])
+
+    def law_py(eta):
+        jt = 5 * math.exp(min(eta / 0.04, 30))
+        return min(max(jt / (1 + jt / 2000), 0), 40000)
+    iex = exact_current(law_py, V, L, sigma)
+    assert abs(I / (iex * W) - 1) < 1e-6, (I, iex * W)
+
+
 def test_polarization_sweep(elmer):
     """Parametric sweep of the electrode potential: a polarization (V-I) curve, monotonic and exact."""
     V, L, W, sigma = 0.1, 2e-4, 1e-4, 20.0
@@ -242,6 +264,47 @@ def test_box_selection_follows_a_swept_geometry(elmer):
     I = {a: float(s.evaluate(f"cd.{an.tag}.Itot", s.frame_index("last"))[0]) for a, s in sols.items()}
     assert abs(I[0] / iex - 1) < 1e-8, I                                  # flat run: exact 1D cell
     assert 0 < I[1] / iex - 1 < 1e-2, I                                   # wavy: slightly more area, more current
+
+
+def test_face_currents_add_up_in_3d(elmer):
+    """3D, quadratic tetrahedra: Surface Integration of cd.iloc over each face of a plate electrode adds up to the
+    electrode current from the reaction loads (cd.es1.Itot) to round-off.  Integrating the nodal flux with the
+    quadratic shape functions instead would drop the corner loads (control below)."""
+    m = B.new_model("3D", ["cd"], "stationary")
+    g = m.component.child("geometry")
+    g.props["unit"] = "mm"
+    bath = m.create("geom.block", g, index=0, w="20", d="20", h="10", x="-10", y="-10", z="-10")
+    plate = m.create("geom.block", g, index=1, w="6", d="1", h="8", x="-3", y="-0.5", z="-5")
+    m.create("geom.difference", g, index=2).props.update(input=[bath.tag], tools=[plate.tag])
+    faces = [m.create("geom.boxsel", g, index=3 + i, level="boundary", **lim) for i, lim in enumerate([
+        dict(xmin="-3", xmax="3", ymin="-0.5", ymax="-0.5", zmin="-5", zmax="0"),
+        dict(xmin="-3", xmax="3", ymin="0.5", ymax="0.5", zmin="-5", zmax="0"),
+        dict(xmin="-3", xmax="-3", ymin="-0.5", ymax="0.5", zmin="-5", zmax="0"),
+        dict(xmin="3", xmax="3", ymin="-0.5", ymax="0.5", zmin="-5", zmax="0"),
+        dict(xmin="-3", xmax="3", ymin="-0.5", ymax="0.5", zmin="-5", zmax="-5")])]
+    plate_sel = m.create("geom.boxsel", g, index=8, level="boundary", xmin="-3", xmax="3", ymin="-0.5", ymax="0.5",
+                         zmin="-5", zmax="0")
+    wall = m.create("geom.boxsel", g, index=9, level="boundary", ymin="10")
+    cd = m.component.child("physics.cd")
+    cd.props["dist"] = "primary"
+    cd.child("cd.elyte").props.update(sigma_src="user", sigma="1")
+    an = m.create("cd.es", cd, phis="1")
+    an.selection.named = plate_sel.tag
+    m.create("cd.es", cd, phis="0").selection.named = wall.tag
+    mesh = m.component.child("mesh")
+    mesh.props["sequence"] = "user"
+    m.create("mesh.size", mesh, mode="custom", hmax="2.5", hmin="0.1", hgrad="1.4")
+    m.create("mesh.ftet", mesh)
+    geo = build_geometry(m, display=False)
+    assert len(an.selection.entities) == 5
+    sol = _solve(m, geo, "es_cd_faces3d_")[-1]
+    i = sol.frame_index("last")
+    I = float(sol.evaluate(f"cd.{an.tag}.Itot", i)[0])
+    parts = [sol.integrate("cd.iloc", i, "boundary", geo.named[f.tag][1]) for f in faces]
+    assert abs(sum(parts) / I - 1) < 1e-9, (parts, I)
+    assert abs(sol.integrate("cd.iloc", i, "boundary", an.selection.entities) / I - 1) < 1e-9
+    consistent = sol._integrate_values(sol.evaluate("cd.iloc", i), "boundary", an.selection.entities)
+    assert abs(consistent / I - 1) > 1e-3                                # the control: shape-function quadrature
 
 
 def test_curve_coordinates_follow_length_units():

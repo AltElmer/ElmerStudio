@@ -10,6 +10,7 @@ Feature contribution functions return a dict of SIF keywords for one of the sect
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -494,8 +495,16 @@ def cd_kinetics(n):
     if k == "expr":
         e = f"({n.get('iexpr', 'i0_user*eta')})"
         d = "1e-4"           # central difference for the Newton slope; |slope| keeps the Robin coefficient positive
-        return e, f"(abs(({e.replace('eta', f'(eta+{d})')})-({e.replace('eta', f'(eta-{d})')}))/(2*{d})+1e-12)"
+        return e, f"(abs(({sub_eta(e, f'(eta+{d})')})-({sub_eta(e, f'(eta-{d})')}))/(2*{d})+1e-12)"
     return "0", "0"
+
+
+_ETA = re.compile(r"\beta\b")
+
+
+def sub_eta(expr: str, by: str) -> str:
+    """Substitute the overpotential symbol `eta` (a whole word: `beta`, `theta` stay)."""
+    return _ETA.sub(lambda _m: by, expr)
 
 
 def cd_eta(n):
@@ -589,8 +598,8 @@ def _cd_es(n, ctx, d=None):
         raise SifError(f"{n.label}: electrode kinetics need the HeatSolve or ModelPDE back end")
     i, di = cd_kinetics(n)
     eta = cd_eta(n)
-    h = di.replace("eta", eta)
-    ext = f"phil+({i.replace('eta', eta)})/({h})"
+    h = sub_eta(di, eta)
+    ext = f"phil+({sub_eta(i, eta)})/({h})"
     if kin == "linear":                       # constant Robin: h = 1/R_ct, external potential phis - Eeq
         ext = f"({n.get('phis', '0[V]')})-({n.get('Eeq', '0[V]')})"
     keys = ("Heat Transfer Coefficient", "External Temperature") if back == "heat" else ("Robin Coefficient", "External Field")
@@ -635,7 +644,13 @@ def _cd_solvers(ph, ctx):
     if back != "statcurrent" and any(f.enabled and f.kind == "cd.es" and f.get("kin", "bv") not in ("primary", "linear")
                                      for f in ph.children):
         maxit = int(ph.get("nl_maxit", 200) or 200)
-    nl = nonlin(maxit=maxit, tol=1e-10, relax=float(ph.get("nl_relax", "0.5") or 0.5) if maxit > 1 else 1.0)
+    nl = nonlin(maxit=maxit, tol=1e-10, relax=float(ph.get("nl_relax", "1") or 1) if maxit > 1 else 1.0)
+    if maxit > 1 and ph.get("nl_ls", True) and back == "heat":     # HeatSolve's residual-based line search
+        nl["Nonlinear System Linesearch"] = True
+        # CheckStepSize accepts a step smaller than (Linear System Convergence Tolerance) x |x| without searching;
+        # a direct solver leaves that tolerance at 0, and a converged step (residual at round-off) then exhausts
+        # the backtracking and stops the run.  An iterative solver overrides this with its own tolerance.
+        nl["Linear System Convergence Tolerance"] = 1e-10
     if back == "statcurrent":
         s = {"Equation": "Current Distribution", "Procedure": ("StatCurrentSolve", "StatCurrentSolver"), "Variable": "phil",
              "Variable DOFs": 1, "Calculate Volume Current": True, "Calculate Joule Heating": True, "Calculate Loads": True}
@@ -683,7 +698,10 @@ define_physics(PhysicsDef(
                       tip="Automatic: StatCurrentSolve for primary electrodes, HeatSolve when kinetics need a Robin "
                           "condition, ModelPDE when a Heat Transfer interface already uses HeatSolve"),
                  Prop("nl_maxit", "Maximum Newton iterations (kinetics):", "int", 200, section="Elmer Solver"),
-                 Prop("nl_relax", "Newton damping factor:", "string", "0.5", section="Elmer Solver")])
+                 Prop("nl_relax", "Newton damping factor:", "string", "1", section="Elmer Solver",
+                      tip="Fixed damping of every Newton step; with the line search on, 1 (full steps) is best"),
+                 Prop("nl_ls", "Line search (backtrack steps that increase the residual)", "bool", True,
+                      section="Elmer Solver")])
 
 
 # =========================================================================== Magnetic Fields (2D / axisymmetric)

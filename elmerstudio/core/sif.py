@@ -77,7 +77,7 @@ def fmt_num(v: float) -> str:
     return f"{v:.12g}" if ("e" in f"{v:.12g}" or "." in f"{v:.12g}") else f"{v:.12g}.0"
 
 
-FILE_KEYS = {"Solver Input File", "Output File Name", "Control Procedure"}
+FILE_KEYS = {"Solver Input File", "Output File Name", "Control Procedure", "Output File", "Restart File"}
 
 
 def kw_line(key: str, val, indent="  ") -> str:
@@ -397,7 +397,9 @@ class SifContext:
         lin = (cfg.get("lin", "auto") if cfg else "auto")
         out = dict(nl)
         if lin == "auto":
-            lin = "direct" if dofs < 150_000 or self.step.kind == "study.eigen" else "iterative"
+            # a scalar elliptic problem on a 3D (quadratic) mesh factorizes slowly; Krylov + ILU wins early
+            limit = 30_000 if self.sdim == 3 and pd.id == "cd" else 150_000
+            lin = "direct" if dofs < limit or self.step.kind == "study.eigen" else "iterative"
         if lin == "direct":
             out.update({"Linear System Solver": "Direct",
                         "Linear System Direct Method": cfg.get("direct", "UMFPack") if cfg else "UMFPack"})
@@ -417,7 +419,11 @@ class SifContext:
                 out["Nonlinear System Max Iterations"] = int(cfg.get("nl_maxit"))
             try:
                 out["Nonlinear System Convergence Tolerance"] = float(units.evaluate(cfg.get("nl_tol", "1e-7")))
-                out["Nonlinear System Relaxation Factor"] = float(units.evaluate(cfg.get("relax", "1")))
+                relax = float(units.evaluate(cfg.get("relax", "1")))
+                # the solver configuration's damping overrides the interface's own (e.g. the Newton damping of
+                # electrode kinetics) only when the user changed it from the default 1
+                if relax != 1.0 or "Nonlinear System Relaxation Factor" not in out:
+                    out["Nonlinear System Relaxation Factor"] = relax
             except Exception:
                 pass
             if str(cfg.get("extra", "")).strip():
@@ -460,7 +466,9 @@ class SifResult:
 
 
 def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, overrides=None,
-              output_name="case") -> SifResult:
+              output_name="case", continuation: str | None = None) -> SifResult:
+    """*continuation*: for a stationary step, "save" writes the solution as an Elmer restart file
+    (mesh/restart.result); "reuse" also starts from mesh/previous.result (the previous sweep step's)."""
     ctx = SifContext(model, study, step, geo, n_nodes, overrides)
     sd, axi = ctx.sdim, ctx.axi
     domains = list(geo.numbers["domain"])
@@ -636,6 +644,10 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     else:
         sim.update({"Simulation Type": "Steady State", "Steady State Max Iterations": coupling if n_primary > 1 else 1,
                     "Output Intervals": [1]})
+        if continuation in ("save", "reuse"):           # parametric continuation (COMSOL: reuse previous solution)
+            sim["Output File"] = "restart.result"
+            if continuation == "reuse":
+                sim.update({"Restart File": "previous.result", "Restart Position": 0})
     sim["Solver Input File"] = "case.sif"
 
     g = [0, 0, -1] if sd == 3 else [0, -1, 0]
@@ -732,4 +744,9 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     meta["solvers"] = [{"sid": s.sid, "physics": s.physics.tag if s.physics else None,
                         "equation": s.keywords.get("Equation"), "post": s.post} for s in solvers]
     meta["nonlinear"] = sorted(ctx.nonlinear)
-    return SifResult("\n".join(L) + "\n", meta)
+    text = "\n".join(L) + "\n"
+    prelude = [line for call, line in units.MATC_PRELUDE.items() if call in text]
+    if prelude:                                       # MATC helper functions, defined before any section uses them
+        head, rest = text.split("\n", 1)
+        text = head + "\n" + "\n".join(prelude) + "\n" + rest
+    return SifResult(text, meta)

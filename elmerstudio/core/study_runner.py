@@ -11,6 +11,8 @@ import subprocess
 import threading
 import time
 
+import numpy as np
+
 from . import units
 from .builder import study_steps, study_sweep
 from .elmer import ElmerInstall, RunState, partition_command, result_files, solver_command, write_case
@@ -120,6 +122,8 @@ class StudyRunner:
         total = len(values) * len(steps)
         job = 0
         t_start = time.time()
+        reuse = sweep is not None and len(values) > 1 and sweep.get("reuse", "auto") != "off"
+        previous: dict = {}                # study step index -> (restart file, mesh nodes) of the last sweep run
         for vi, val in enumerate(values):
             overrides = dict(combos[vi]) if combos[vi] else None
             if pname:
@@ -140,10 +144,19 @@ class StudyRunner:
                 if self._stop.is_set():
                     raise StudyCancelled()
                 folder = os.path.join(sdir, f"sol_{vi}_{si}")
-                sif = build_sif(self.model, self.study, step, mesh.geometry, len(mesh.nodes), overrides)
+                cont, prev = None, previous.get(si)
+                if reuse and step.kind == "study.stationary":
+                    same = prev is not None and prev[1].shape == np.shape(mesh.nodes) and \
+                        np.allclose(prev[1], mesh.nodes, rtol=0, atol=1e-12 * (np.ptp(prev[1]) or 1))
+                    cont = "reuse" if same and os.path.exists(prev[0]) else "save"
+                sif = build_sif(self.model, self.study, step, mesh.geometry, len(mesh.nodes), overrides,
+                                continuation=cont)
                 for w in sif.meta.get("warnings", []):
                     self.emit("warning", w)
                 write_case(folder, mesh.to_elmer(), sif.text)
+                if cont == "reuse":
+                    shutil.copyfile(prev[0], os.path.join(folder, "mesh", "previous.result"))
+                    self.emit("message", f"{step.label}: starting from the previous parameter's solution")
                 topology_to_npz(mesh, os.path.join(folder, "mesh.npz"))
                 self.emit("message", f"{step.label}: solving {', '.join(sif.meta['physics'])} "
                                      f"(case folder {folder})")
@@ -166,6 +179,8 @@ class StudyRunner:
                     err = (said or rs.errors or [f"ElmerSolver exited with code {getattr(rs, 'returncode', '?')}"])[-1]
                     raise RuntimeError(f"{step.label}: {err}")
                 self.folders.append(folder)
+                if cont:
+                    previous[si] = (os.path.join(folder, "mesh", "restart.result"), np.array(mesh.nodes, float))
                 job += 1
                 self.emit("progress", (job / total, "Done"))
                 if rs.eigen:

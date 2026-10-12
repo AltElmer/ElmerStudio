@@ -101,6 +101,10 @@ Added for these: Spherical Wave Radiation (with an optional incident plane wave)
 
 Added with it:
 - *Parametric Curve*, Polygon as open or closed curve, and *Convert to Solid*;
+- Surface Integration of `cd.iloc` (and `cd.nIl`) uses the lumped weights that turned the reaction loads into a current density, so face-by-face currents of a 3D electrode add up to `cd.es1.Itot` exactly (quadratic shape-function quadrature would drop the corner loads);
+- user-defined kinetics may clamp with two-argument `min`/`max` (exported as MATC helper functions; MATC's own are one-argument reductions);
+- nonlinear electrode kinetics are solved by Newton's method with HeatSolve's line search, and a stationary Parametric Sweep starts each step from the previous parameter's solution when the mesh is unchanged (*Reuse solution from previous step: Automatic*, through Elmer restart files);
+- 3D current distribution switches to an iterative solver from about 30 000 degrees of freedom;
 - geometry *Box Selections*, offered in every feature's Selection list: physics and mesh features that use one keep the right entities when a swept parameter renumbers the geometry (a flat companion of a wavy electrode, for example);
 - *Mapped* meshes with graded *Distribution* (element ratio, geometric sequence, symmetric, reverse direction);
 - COMSOL's *maximum element growth rate*, which grades local mesh sizes into the domain (without it a refined electrode edge was surrounded by coarse elements, and the disc resistance was off by 6–46 %);

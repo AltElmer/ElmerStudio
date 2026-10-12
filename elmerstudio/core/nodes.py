@@ -140,6 +140,10 @@ register(NodeType("study.sweep", "Parametric Sweep", "param", "parametric_sweep"
     Prop("punit", "Parameter unit:", "string", "", section="Study Settings"),
     Prop("more", "More parameters:", "table", [], section="Study Settings",
          columns=[("name", "Parameter name"), ("values", "Parameter value list"), ("unit", "Parameter unit")]),
+    Prop("reuse", "Reuse solution from previous step:", "choice", "auto",
+         choices=[("auto", "Automatic"), ("off", "Off")], section="Study Settings",
+         tip="Stationary steps start from the previous parameter's solution when the mesh is unchanged "
+             "(continuation); Off starts every run from the initial values"),
 ]))
 register(NodeType("study.solvers", "Solver Configurations", "sols", "solver_config", label="Solver Configurations",
                   numbered=False, deletable=True, can_disable=False, children=["study.solver"]))

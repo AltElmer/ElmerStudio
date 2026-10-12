@@ -74,6 +74,9 @@ CATALOG = [
     ("cd.iloc", "phil loads", "bflux", "Local current density into the electrolyte (from the reaction)", "A/m^2", "scalar"),
     ("cd.nIl", "phil loads", "-bflux", "Normal electrolyte current density (outward)", "A/m^2", "scalar"),
 ]
+# result quantities reconstructed from nodal reaction loads (integrated with the lumped weights)
+_BFLUX = re.compile(r"\b(?:" + "|".join(re.escape(a).replace(r"\.", r"[._]") for a, _s, c, *_r in CATALOG
+                                       if c in ("bflux", "-bflux")) + r")\b")
 # short aliases accepted in expressions (and used by default plots)
 SHORT = {"mises": "solid.mises", "disp": "solid.disp", "normE": "es.normE", "normJ": "ec.normJ",
          "normB": "mf.normB", "U": "spf.U", "p_re": "acpr.p_t", "Lp": "acpr.Lp", "abs_p": "acpr.absp",
@@ -424,17 +427,21 @@ class Solution:
         memo[src] = scale
         return scale
 
-    def boundary_lumped(self):
+    def boundary_lumped(self, boundaries=None, r_weight=True):
         """Lumped boundary measure per node (HRZ), with the r weight on axisymmetric models -- the measure that
-        turns Elmer's nodal reaction loads into a boundary flux density.  Zero on interior nodes."""
-        if getattr(self, "_blump", None) is not None:
+        turns Elmer's nodal reaction loads into a boundary flux density.  Zero on interior nodes.
+
+        *boundaries*: only these boundaries (the quadrature for integrating a reaction flux over a selection);
+        default: the boundaries carrying a reaction."""
+        if boundaries is None and r_weight and getattr(self, "_blump", None) is not None:
             return self._blump
         g = self.boundary_grid()
         P = np.asarray(self.topo.nodes, float) * self.scale
         A = np.zeros(len(P))
-        axi = self.sdim == 2 and self.meta.get("axi")
-        if self.flux_boundaries and g.n_cells and "bnd" in g.cell_data:     # only boundaries carrying a reaction,
-            keep = np.where(np.isin(np.asarray(g.cell_data["bnd"]), sorted(self.flux_boundaries)))[0]
+        axi = self.sdim == 2 and self.meta.get("axi") and r_weight
+        only = self.flux_boundaries if boundaries is None else set(int(b) for b in boundaries)
+        if only and g.n_cells and "bnd" in g.cell_data:                       # only boundaries carrying a reaction,
+            keep = np.where(np.isin(np.asarray(g.cell_data["bnd"]), sorted(only)))[0]
             g = g.extract_cells(keep) if len(keep) else g                     # so corners are not diluted
             if "vtkOriginalPointIds" in g.point_data:
                 P = P[np.asarray(g.point_data["vtkOriginalPointIds"])]
@@ -456,7 +463,8 @@ class Solution:
             if axi:
                 w = w * np.abs(P[conn, 0])
             np.add.at(A, (ids[conn] if ids is not None else conn).ravel(), w.ravel())
-        self._blump = A
+        if boundaries is None and r_weight:
+            self._blump = A
         return A
     params: dict = {}
     variables: dict = {}
@@ -571,7 +579,18 @@ class Solution:
 
     # -- derived values
     def integrate(self, expr, i, level="domain", entities=None, average=False):
-        return self._integrate_values(self.evaluate(expr, i), level, entities, average)
+        vals = self.evaluate(expr, i)
+        if level == "boundary" and _BFLUX.search(str(expr)):
+            # a flux density reconstructed from nodal reaction loads: integrate with the lumped (HRZ) weights that
+            # reconstructed it, so integrals over boundary subsets add up to the electrode current exactly (the
+            # quadratic shape functions would drop the corner loads -- a corner of a 6-node triangle integrates
+            # to zero)
+            ents = entities if entities is not None else sorted(int(b) for b in np.unique(self.topo.bnd))
+            A = self.boundary_lumped(ents, r_weight=False)
+            on = (A > 0) & np.isfinite(vals)
+            tot = float(np.sum(vals[on] * A[on]))
+            return tot / float(A.sum()) if average else tot
+        return self._integrate_values(vals, level, entities, average)
 
     def _integrate_values(self, vals, level="domain", entities=None, average=False):
         g = self.bulk_grid() if level == "domain" else self.boundary_grid()
