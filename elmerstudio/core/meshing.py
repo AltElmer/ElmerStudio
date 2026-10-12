@@ -81,6 +81,7 @@ class MeshResult:
     bulk: dict = field(default_factory=dict)       # domain -> list[(gmsh type, conn (M,k) 0-based)]
     bnd: dict = field(default_factory=dict)        # boundary -> list[(gmsh type, conn)]
     quality: dict = field(default_factory=dict)    # domain -> array
+    point_nodes: dict = field(default_factory=dict)  # geometry point number -> node index
     stats: dict = field(default_factory=dict)
     geometry: GeometryResult | None = None
     order: int = 1
@@ -315,6 +316,13 @@ class Mesher:
                 blocks.append((t, conn))
                 n_bnd += len(conn)
             res.bnd[num] = blocks
+        for num, tag in geo.tag_of.get("point", {}).items():      # geometry vertices -> mesh node index
+            try:
+                pt, _c, _p = gmsh.model.mesh.getNodes(0, tag)
+                if len(pt):
+                    res.point_nodes[num] = int(idx[int(pt[0])])
+            except Exception:
+                pass
         q = np.concatenate(qual_all) if qual_all else np.zeros(0)
         res.stats.update({
             "nodes": len(xyz), "elements": n_bulk, "boundary_elements": n_bnd, "types": type_counts,

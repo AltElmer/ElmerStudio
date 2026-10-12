@@ -44,7 +44,8 @@ for _kind, _title, _prefix, _icon in (("cpl.average", "Average", "aveop", "avera
                       description=f"{_title} coupling operator: use <name>(expression) in results, e.g. {_prefix}1(T).",
                       props=[Prop("opname", "Operator name:", "string", "", section="Operator Name"),
                              Prop("level", "Geometric entity level:", "choice", "domain",
-                                  choices=[("domain", "Domain"), ("boundary", "Boundary")], section="Source Selection")]))
+                                  choices=[("domain", "Domain"), ("boundary", "Boundary"), ("point", "Point")],
+                                  section="Source Selection")]))
 
 
 def coupling_operators(model) -> dict:
@@ -59,6 +60,25 @@ def coupling_operators(model) -> dict:
             ents = None if (sel is None or sel.all) else list(sel.entities)
             out[name] = (n.kind.split(".", 1)[1], n.get("level", "domain"), ents)
     return out
+
+
+def bind_results(model, sol):
+    """Make a Solution's result expressions read like COMSOL's: coupling operators, global parameters (with the
+    sweep value it was computed for) and Definitions > Variables."""
+    sol.operators = coupling_operators(model)
+    try:
+        params = dict(model.parameters())
+    except Exception:
+        params = {}
+    if sol.meta.get("sweep_param") and sol.meta.get("sweep_value") is not None:
+        params[sol.meta["sweep_param"]] = sol.meta["sweep_value"]
+    sol.params = params
+    comp = model.component
+    defs = comp.child("definitions") if comp else None
+    sol.variables = {str(r["name"]).strip(): r.get("expr", "0") for n in (defs.children if defs else [])
+                     if n.kind == "variables" and n.enabled for r in (n.props.get("table") or [])
+                     if str(r.get("name", "")).strip()}
+    return sol
 register(NodeType("variables", "Variables", "var", "variables", props=[
     Prop("table", "", "table", [], section="Variables",
          columns=[("name", "Name"), ("expr", "Expression"), ("descr", "Description")]),
@@ -133,13 +153,15 @@ register(NodeType("study.solver", "Solver", "s", "solver", props=[
 CMAPS = [(c, c) for c in ("RainbowLight", "Rainbow", "ThermalLight", "Thermal", "Wave", "WaveLight", "Cyclic",
                           "GrayScale", "Traffic", "Viridis", "Cividis", "Plasma", "Magma", "Jupiter", "Prism")]
 register(NodeType("results", "Results", "results", "results", label="Results", numbered=False, deletable=False,
-                  can_disable=False, children=["pg3d", "pg2d", "pg1d", "results.datasets", "results.derived",
+                  can_disable=False, children=["pg3d", "pg2d", "pg1d", "pgpolar", "results.datasets", "results.derived",
                                                "results.tables", "results.export"]))
 register(NodeType("results.datasets", "Datasets", "dsets", "dataset", label="Datasets", numbered=False, deletable=False,
-                  can_disable=False, children=["dset.solution", "dset.cutline", "dset.cutpoint"]))
+                  can_disable=False, children=["dset.solution", "dset.cutline", "dset.cutpoint", "dset.cutplane",
+                                               "dset.parext", "dset.revolution", "dset.mirror"]))
 register(NodeType("results.derived", "Derived Values", "dvals", "derived_values", label="Derived Values", numbered=False,
                   deletable=False, can_disable=False,
-                  children=["eval.point", "eval.volint", "eval.surfint", "eval.avg", "eval.max", "eval.global"]))
+                  children=["eval.point", "eval.volint", "eval.surfint", "eval.avg", "eval.max", "eval.min",
+                            "eval.global"]))
 register(NodeType("results.tables", "Tables", "tbls", "table", label="Tables", numbered=False, deletable=False,
                   can_disable=False, children=["table"]))
 register(NodeType("results.export", "Export", "exps", "export", label="Export", numbered=False, deletable=False,
@@ -161,8 +183,42 @@ register(NodeType("dset.cutline", "Cut Line", "cln", "cut_line", props=[
 ]))
 register(NodeType("dset.cutpoint", "Cut Point", "cpt", "cut_point", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
-    Prop("x", "x:", "string", "0", section="Point Data"), Prop("y", "y:", "string", "0", section="Point Data"),
+    Prop("x", "x:", "string", "0", section="Point Data", tip="Space-separated list for several points"),
+    Prop("y", "y:", "string", "0", section="Point Data"),
     Prop("z", "z:", "string", "0", section="Point Data", visible=lambda p: p.get("__sdim", 3) == 3),
+    Prop("snap", "Snap to closest boundary", "bool", False, section="Point Data"),
+]))
+register(NodeType("dset.cutplane", "Cut Plane", "cpl", "cut_plane", dims=(3,), props=[
+    Prop("data", "Dataset:", "dataset", "", section="Data"),
+    Prop("ptype", "Plane type:", "choice", "general", choices=[("quick", "Quick"), ("general", "General")],
+         section="Plane Data"),
+    Prop("plane", "Plane:", "choice", "yz", choices=[("xy", "xy-planes"), ("yz", "yz-planes"), ("zx", "zx-planes")],
+         section="Plane Data", visible=lambda p: p.get("ptype") == "quick"),
+    Prop("coord", "Coordinate:", default="0", unit="LEN", section="Plane Data", visible=lambda p: p.get("ptype") == "quick"),
+    Prop("px", "Point, x:", default="0", unit="LEN", section="Plane Data", visible=lambda p: p.get("ptype") != "quick"),
+    Prop("py", "Point, y:", default="0", unit="LEN", section="Plane Data", visible=lambda p: p.get("ptype") != "quick"),
+    Prop("pz", "Point, z:", default="0", unit="LEN", section="Plane Data", visible=lambda p: p.get("ptype") != "quick"),
+    Prop("nx", "Normal, x:", default="1", section="Plane Data", visible=lambda p: p.get("ptype") != "quick"),
+    Prop("ny", "Normal, y:", default="0", section="Plane Data", visible=lambda p: p.get("ptype") != "quick"),
+    Prop("nz", "Normal, z:", default="0", section="Plane Data", visible=lambda p: p.get("ptype") != "quick"),
+]))
+register(NodeType("dset.parext", "Parametric Extrusion 2D", "pext", "dataset", props=[
+    Prop("data", "Dataset (cut plane or 2D solution):", "dataset", "", section="Data"),
+    Prop("values", "Parameter values (indices from 1, empty = all):", "string", "", section="Parameter Selection"),
+    Prop("levelscale", "Level scale factor:", default="1", section="Settings",
+         tip="Height of a layer = parameter value x this factor (in geometry units)"),
+]))
+register(NodeType("dset.revolution", "Revolution 2D", "rev", "revolve", props=[
+    Prop("data", "Dataset:", "dataset", "", section="Data"),
+    Prop("start", "Start angle:", default="-90", unit="deg", section="Revolution Layers"),
+    Prop("angle", "Revolution angle:", default="225", unit="deg", section="Revolution Layers"),
+    Prop("layers", "Number of layers:", "int", 60, section="Revolution Layers"),
+]))
+register(NodeType("dset.mirror", "Mirror", "mir", "mirror", props=[
+    Prop("data", "Dataset:", "dataset", "", section="Data"),
+    Prop("axis", "Plane/line of reflection:", "choice", "x",
+         choices=[("x", "x = 0 (mirror in x)"), ("y", "y = 0 (mirror in y)"), ("z", "z = 0 (mirror in z)"),
+                  ("xy", "x = 0 and y = 0 (four copies)")], section="Plane Data"),
 ]))
 
 _expr_tbl = Prop("exprs", "", "expr_table", [{"expr": "", "unit": "", "descr": ""}], section="Expressions",
@@ -171,17 +227,20 @@ for kind, title, prefix, icon, level in [
         ("eval.volint", "Volume Integration", "int", "integration", "domain"),
         ("eval.surfint", "Surface Integration", "int", "integration", "boundary"),
         ("eval.avg", "Volume Average", "av", "average", "domain"),
-        ("eval.max", "Volume Maximum", "max", "maxmin", "domain")]:
+        ("eval.max", "Volume Maximum", "max", "maxmin", "domain"),
+        ("eval.min", "Volume Minimum", "min", "maxmin", "domain")]:
     register(NodeType(kind, title, prefix, icon, selection=level, selection_all=True, props=[
         Prop("data", "Dataset:", "dataset", "", section="Data"),
         Prop("solnum", "Time/parameter selection:", "choice", "last", choices=[("last", "Last"), ("all", "All")],
              section="Data"),
         Prop("table", "Table:", "string", "", section="Data", readonly=True),
         _expr_tbl]))
-register(NodeType("eval.point", "Point Evaluation", "pev", "point_evaluation", props=[
+register(NodeType("eval.point", "Point Evaluation", "pev", "point_evaluation", selection="point",
+                  description="Click geometry points in the Graphics window (or give coordinates).", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
     Prop("solnum", "Time/parameter selection:", "choice", "last", choices=[("last", "Last"), ("all", "All")], section="Data"),
-    Prop("x", "x:", "string", "0", section="Point"), Prop("y", "y:", "string", "0", section="Point"),
+    Prop("x", "x (if no points selected):", "string", "0", section="Point"),
+    Prop("y", "y:", "string", "0", section="Point"),
     Prop("z", "z:", "string", "0", section="Point", visible=lambda p: p.get("__sdim", 3) == 3),
     _expr_tbl]))
 register(NodeType("eval.global", "Global Evaluation", "gev", "global_evaluation", props=[
@@ -197,35 +256,44 @@ register(NodeType("table", "Table", "tbl", "table", props=[
 
 _dataset = Prop("data", "Dataset:", "dataset", "", section="Data")
 _solsel = Prop("solnum", "Solution selection:", "solnum", "last", section="Data")
-register(NodeType("pg3d", "3D Plot Group", "pg", "plot_group_3d", children=[
-    "plot.surface", "plot.volume", "plot.slice", "plot.multislice", "plot.isosurface", "plot.arrow", "plot.streamline", "plot.mesh",
-    "plot.line"], props=[
-    _dataset, _solsel,
-    Prop("title_type", "Title type:", "choice", "auto", choices=[("auto", "Automatic"), ("manual", "Manual"), ("none", "None")],
-         section="Title"),
-    Prop("title", "Title:", "string", "", section="Title", visible=lambda p: p.get("title_type") == "manual"),
-    Prop("legend", "Show legends", "bool", True, section="Color Legend"),
+_TITLE = [Prop("title_type", "Title type:", "choice", "auto",
+               choices=[("auto", "Automatic"), ("manual", "Manual"), ("none", "None")], section="Title"),
+          Prop("title", "Title:", "string", "", section="Title", visible=lambda p: p.get("title_type") == "manual")]
+_LEGEND = [Prop("legend", "Show legends", "bool", True, section="Color Legend"),
+           Prop("maxmin", "Show maximum and minimum values", "bool", True, section="Color Legend"),
+           Prop("legendpos", "Position:", "choice", "right", choices=[("right", "Right"), ("left", "Left")],
+                section="Color Legend")]
+_PG_SETTINGS = [Prop("edges", "Plot dataset edges", "bool", True, section="Plot Settings")]
+_PLOTS_3D = ["plot.surface", "plot.volume", "plot.slice", "plot.multislice", "plot.isosurface", "plot.contour",
+             "plot.arrow", "plot.streamline", "plot.mesh", "plot.line", "plot.annotation"]
+_PLOTS_2D = ["plot.surface", "plot.contour", "plot.arrow", "plot.streamline", "plot.mesh", "plot.line", "plot.annotation"]
+register(NodeType("pg3d", "3D Plot Group", "pg", "plot_group_3d", children=_PLOTS_3D, props=[
+    _dataset, _solsel, *_TITLE, *_LEGEND, *_PG_SETTINGS,
     Prop("frame", "Frame:", "choice", "material", choices=[("material", "Material (undeformed)")], section="Plot Settings"),
 ]))
-register(NodeType("pg2d", "2D Plot Group", "pg", "plot_group_2d", children=[
-    "plot.surface", "plot.contour", "plot.arrow", "plot.streamline", "plot.mesh", "plot.line"], props=[
-    _dataset, _solsel,
-    Prop("title_type", "Title type:", "choice", "auto", choices=[("auto", "Automatic"), ("manual", "Manual"), ("none", "None")],
-         section="Title"),
-    Prop("title", "Title:", "string", "", section="Title", visible=lambda p: p.get("title_type") == "manual"),
-    Prop("legend", "Show legends", "bool", True, section="Color Legend"),
+register(NodeType("pg2d", "2D Plot Group", "pg", "plot_group_2d", children=_PLOTS_2D, props=[
+    _dataset, _solsel, *_TITLE, *_LEGEND, *_PG_SETTINGS,
     Prop("revolve", "Show 2D axisymmetric revolution (3D)", "bool", False, section="Plot Settings",
          visible=lambda p: p.get("__axi", False)),
 ]))
-register(NodeType("pg1d", "1D Plot Group", "pg", "plot_group_1d", children=["plot.linegraph", "plot.globalgraph"], props=[
-    _dataset, _solsel,
-    Prop("title_type", "Title type:", "choice", "auto", choices=[("auto", "Automatic"), ("manual", "Manual"), ("none", "None")],
-         section="Title"),
-    Prop("title", "Title:", "string", "", section="Title", visible=lambda p: p.get("title_type") == "manual"),
+register(NodeType("pg1d", "1D Plot Group", "pg", "plot_group_1d",
+                  children=["plot.linegraph", "plot.globalgraph", "plot.pointgraph", "plot.tablegraph"], props=[
+    _dataset, _solsel, *_TITLE,
     Prop("xlabel", "x-axis label:", "string", "", section="Axis"),
     Prop("ylabel", "y-axis label:", "string", "", section="Axis"),
+    Prop("xlog", "x-axis log scale", "bool", False, section="Axis"),
+    Prop("ylog", "y-axis log scale", "bool", False, section="Axis"),
     Prop("grid", "Show grid", "bool", True, section="Grid"),
     Prop("legend", "Show legends", "bool", True, section="Legend"),
+    Prop("legendpos", "Position:", "choice", "upper right",
+         choices=[(v, v.capitalize()) for v in ("upper right", "upper left", "lower right", "lower left", "center right",
+                                                "center left", "upper center", "lower center", "best")], section="Legend"),
+]))
+register(NodeType("pgpolar", "Polar Plot Group", "pg", "plot_group_1d", children=["plot.polar"], props=[
+    _dataset, *_TITLE,
+    Prop("legend", "Show legends", "bool", True, section="Legend"),
+    Prop("zero", "Zero angle:", "choice", "E", choices=[("E", "Right (0 deg = +x)"), ("N", "Top (0 deg = +y)")],
+         section="Axis"),
 ]))
 
 
@@ -236,24 +304,41 @@ def _plot_props(extra=(), coloring=True, inherit=True):
          Prop("descr", "Description:", "string", "", section="Expression"),
          *extra]
     if coloring:
-        p += [Prop("cmap", "Color table:", "choice", "RainbowLight", choices=CMAPS, section="Coloring and Style"),
+        p += [Prop("coloring", "Coloring:", "choice", "table", choices=[("table", "Color table"), ("uniform", "Uniform")],
+                   section="Coloring and Style"),
+              Prop("cmap", "Color table:", "choice", "RainbowLight", choices=CMAPS, section="Coloring and Style",
+                   visible=lambda q: q.get("coloring", "table") == "table"),
+              Prop("ucolor", "Color:", "choice", "black",
+                   choices=[(c, c.capitalize()) for c in ("black", "white", "gray", "red", "green", "blue", "cyan",
+                                                         "magenta", "yellow")], section="Coloring and Style",
+                   visible=lambda q: q.get("coloring") == "uniform"),
               Prop("colorleg", "Color legend", "bool", True, section="Coloring and Style"),
               Prop("reverse", "Reverse color table", "bool", False, section="Coloring and Style"),
+              Prop("symmetric", "Symmetrize color range", "bool", False, section="Coloring and Style"),
               Prop("manual", "Manual color range", "bool", False, section="Range"),
               Prop("vmin", "Minimum:", "string", "0", section="Range", visible=lambda q: q.get("manual", False)),
               Prop("vmax", "Maximum:", "string", "1", section="Range", visible=lambda q: q.get("manual", False))]
     return p
 
 
-_PLOT_CHILD = ["plot.deform"]
+_PLOT_CHILD = ["plot.deform", "plot.selection"]
+_VEC_CHILD = ["plot.deform", "plot.selection", "plot.colorexpr"]
 register(NodeType("plot.surface", "Surface", "surf", "surface_plot", children=_PLOT_CHILD, props=_plot_props(
-    [Prop("edges", "Show element edges", "bool", False, section="Coloring and Style")])))
+    [Prop("edges", "Show element edges", "bool", False, section="Coloring and Style"),
+     Prop("wireframe", "Wireframe", "bool", False, section="Coloring and Style")])))
 register(NodeType("plot.volume", "Volume", "vol", "volume_plot", children=_PLOT_CHILD, props=_plot_props(
-    [Prop("edges", "Show element edges", "bool", False, section="Coloring and Style")])))
+    [Prop("edges", "Show element edges", "bool", False, section="Coloring and Style"),
+     Prop("wireframe", "Wireframe", "bool", False, section="Coloring and Style")])))
 register(NodeType("plot.slice", "Slice", "slc", "slice_plot", children=_PLOT_CHILD, props=_plot_props([
     Prop("plane", "Plane type:", "choice", "yz", choices=[("yz", "yz-planes"), ("zx", "zx-planes"), ("xy", "xy-planes")],
          section="Plane Data"),
-    Prop("nplanes", "Planes:", "int", 5, section="Plane Data")])))
+    Prop("entry", "Entry method:", "choice", "number", choices=[("number", "Number of planes"), ("coords", "Coordinates")],
+         section="Plane Data"),
+    Prop("nplanes", "Planes:", "int", 5, section="Plane Data", visible=lambda p: p.get("entry", "number") == "number"),
+    Prop("coords", "Coordinates:", "string", "0", section="Plane Data", visible=lambda p: p.get("entry") == "coords",
+         tip="Space-separated coordinates in the geometry length unit"),
+    Prop("shift", "Shift:", default="0", unit="LEN", section="Plane Data",
+         tip="Interactive positioning: moves all slices along their normal")])))
 register(NodeType("plot.multislice", "Multislice", "mslc", "slice_plot", children=_PLOT_CHILD, props=_plot_props([
     Prop("nx", "x-planes:", "int", 1, section="Multiplane Data"),
     Prop("ny", "y-planes:", "int", 1, section="Multiplane Data"),
@@ -262,39 +347,91 @@ register(NodeType("plot.isosurface", "Isosurface", "iso", "isosurface", children
     Prop("levels", "Total levels:", "int", 5, section="Levels")])))
 register(NodeType("plot.contour", "Contour", "con", "contour", children=_PLOT_CHILD, props=_plot_props([
     Prop("levels", "Total levels:", "int", 20, section="Levels"),
-    Prop("filled", "Filled", "bool", False, section="Coloring and Style")])))
-register(NodeType("plot.arrow", "Arrow Volume", "arwv", "arrow_plot", children=_PLOT_CHILD, props=[
+    Prop("ctype", "Contour type:", "choice", "lines", choices=[("lines", "Lines"), ("filled", "Filled"), ("tubes", "Tubes")],
+         section="Coloring and Style"),
+    Prop("labels", "Level labels", "bool", False, section="Coloring and Style"),
+    Prop("filled", "Filled", "bool", False, section="Coloring and Style", visible=lambda p: False)])))
+register(NodeType("plot.arrow", "Arrow Volume", "arwv", "arrow_plot", children=_VEC_CHILD, props=[
     Prop("data", "Dataset:", "dataset", "fromparent", section="Data"),
     Prop("expr", "Vector expression:", "rvexpr", "", section="Expression"),
-    Prop("npts", "Number of points:", "int", 400, section="Arrow Positioning"),
+    Prop("positioning", "Placement:", "choice", "grid", choices=[("grid", "Grid points"), ("random", "Random points")],
+         section="Arrow Positioning"),
+    Prop("xg", "x grid points:", "int", 15, section="Arrow Positioning", visible=lambda p: p.get("positioning", "grid") == "grid"),
+    Prop("yg", "y grid points:", "int", 15, section="Arrow Positioning", visible=lambda p: p.get("positioning", "grid") == "grid"),
+    Prop("zg", "z grid points:", "int", 15, section="Arrow Positioning",
+         visible=lambda p: p.get("positioning", "grid") == "grid" and p.get("__sdim", 3) == 3),
+    Prop("npts", "Number of points:", "int", 400, section="Arrow Positioning", visible=lambda p: p.get("positioning") == "random"),
+    Prop("arrowlen", "Arrow length:", "choice", "proportional",
+         choices=[("proportional", "Proportional"), ("normalized", "Normalized")], section="Coloring and Style"),
     Prop("scale_auto", "Automatic scale", "bool", True, section="Coloring and Style"),
     Prop("scale", "Scale factor:", "string", "1", section="Coloring and Style", visible=lambda p: not p.get("scale_auto", True)),
     Prop("color", "Color:", "choice", "red", choices=[("red", "Red"), ("black", "Black"), ("blue", "Blue"),
                                                      ("magnitude", "Color by magnitude")], section="Coloring and Style")]))
-register(NodeType("plot.streamline", "Streamline", "str", "streamline", children=_PLOT_CHILD, props=[
+register(NodeType("plot.streamline", "Streamline", "str", "streamline", children=_VEC_CHILD, props=[
     Prop("data", "Dataset:", "dataset", "fromparent", section="Data"),
     Prop("expr", "Vector expression:", "rvexpr", "", section="Expression"),
+    Prop("positioning", "Positioning:", "choice", "uniform",
+         choices=[("uniform", "Uniform density"), ("magnitude", "Magnitude controlled"),
+                  ("start", "Start point controlled (selected boundaries)")], section="Streamline Positioning"),
     Prop("nseeds", "Number of streamlines:", "int", 40, section="Streamline Positioning"),
+    Prop("ltype", "Line type:", "choice", "line", choices=[("line", "Line"), ("tube", "Tube"), ("ribbon", "Ribbon")],
+         section="Coloring and Style"),
+    Prop("width", "Width / radius (fraction of model size):", "string", "0.004", section="Coloring and Style",
+         visible=lambda p: p.get("ltype", "line") != "line"),
     Prop("cmap", "Color table:", "choice", "RainbowLight", choices=CMAPS, section="Coloring and Style"),
-    Prop("tube", "Line type: tube", "bool", False, section="Coloring and Style")]))
-register(NodeType("plot.mesh", "Mesh", "mesh", "mesh_plot", props=[
+    Prop("tube", "Line type: tube", "bool", False, section="Coloring and Style", visible=lambda p: False)]))
+register(NodeType("plot.mesh", "Mesh", "mesh", "mesh_plot", children=["plot.selection"], props=[
     Prop("data", "Dataset:", "dataset", "fromparent", section="Data"),
     Prop("quality", "Color by element quality", "bool", False, section="Coloring and Style")]))
-register(NodeType("plot.line", "Line", "lin", "line_graph", props=[
+register(NodeType("plot.line", "Line", "lin", "line_graph", children=["plot.selection", "plot.colorexpr", "plot.deform"], props=[
     Prop("data", "Dataset:", "dataset", "fromparent", section="Data"),
+    Prop("expr", "Expression (empty = uniform color):", "rexpr", "", section="Expression"),
+    Prop("ltype", "Line type:", "choice", "line", choices=[("line", "Line"), ("tube", "Tube")], section="Coloring and Style"),
+    Prop("radius", "Tube radius (fraction of model size):", "string", "0.003", section="Coloring and Style",
+         visible=lambda p: p.get("ltype") == "tube"),
+    Prop("cmap", "Color table:", "choice", "RainbowLight", choices=CMAPS, section="Coloring and Style"),
     Prop("color", "Color:", "choice", "black", choices=[("black", "Black"), ("gray", "Gray"), ("blue", "Blue")],
          section="Coloring and Style")]))
+register(NodeType("plot.annotation", "Annotation", "ann", "rename", props=[
+    Prop("text", "Text:", "string", "T = eval(T, K)", section="Annotation",
+         tip="eval(expression[, unit]) is replaced by the value at the position"),
+    Prop("x", "x:", default="0", unit="LEN", section="Position"),
+    Prop("y", "y:", default="0", unit="LEN", section="Position"),
+    Prop("z", "z:", default="0", unit="LEN", section="Position", visible=lambda p: p.get("__sdim", 3) == 3),
+    Prop("point", "Show point", "bool", True, section="Coloring and Style"),
+    Prop("precision", "Precision:", "int", 4, section="Coloring and Style")]))
 register(NodeType("plot.deform", "Deformation", "def", "deformation", props=[
-    Prop("expr", "Vector expression:", "rvexpr", "disp", section="Expression"),
+    Prop("expr", "Vector expression (e.g. disp, or 0, -50[mm]):", "rvexpr", "disp", section="Expression"),
     Prop("scale_auto", "Automatic scale factor", "bool", True, section="Scale"),
     Prop("scale", "Scale factor:", "string", "1", section="Scale", visible=lambda p: not p.get("scale_auto", True))]))
+register(NodeType("plot.selection", "Selection", "sel", "selection_node", selection="boundary", props=[
+    Prop("level", "Geometric entity level:", "choice", "boundary",
+         choices=[("domain", "Domain"), ("boundary", "Boundary"), ("edge", "Edge")], section="Selection")]))
+register(NodeType("plot.colorexpr", "Color Expression", "col", "legend", props=[
+    Prop("expr", "Expression:", "rexpr", "", section="Expression"),
+    Prop("unit", "Unit:", "runit", "", section="Expression"),
+    Prop("cmap", "Color table:", "choice", "RainbowLight", choices=CMAPS, section="Coloring and Style"),
+    Prop("colorleg", "Color legend", "bool", True, section="Coloring and Style")]))
+_LINESTYLE = [Prop("lstyle", "Line style:", "choice", "-", choices=[("-", "Solid"), ("--", "Dashed"), (":", "Dotted"),
+                                                                    ("-.", "Dash-dot"), ("none", "None")], section="Coloring and Style"),
+              Prop("lwidth", "Width:", "string", "1.6", section="Coloring and Style"),
+              Prop("lcolor", "Color:", "choice", "cycle",
+                   choices=[("cycle", "Cycle"), *[(c, c.capitalize()) for c in ("black", "blue", "red", "green", "magenta",
+                                                                              "cyan", "orange", "gray")]],
+                   section="Coloring and Style"),
+              Prop("marker", "Marker:", "choice", "none",
+                   choices=[("none", "None"), ("o", "Circle"), ("+", "Plus sign"), ("*", "Asterisk"), ("s", "Square"),
+                            ("^", "Triangle"), ("x", "Cross"), ("d", "Diamond")], section="Coloring and Style"),
+              Prop("nmarkers", "Number of markers:", "int", 10, section="Coloring and Style",
+                   visible=lambda p: p.get("marker", "none") != "none"),
+              Prop("legend_text", "Legend:", "string", "", section="Legends")]
 register(NodeType("plot.linegraph", "Line Graph", "lngr", "line_graph", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
     Prop("expr", "y-axis expression:", "rexpr", "", section="y-Axis Data"),
     Prop("unit", "Unit:", "runit", "", section="y-Axis Data"),
     Prop("xaxis", "x-axis parameter:", "choice", "arc", choices=[("arc", "Arc length"), ("x", "x"), ("y", "y"), ("z", "z")],
          section="x-Axis Data"),
-    Prop("legend_text", "Legend:", "string", "", section="Legends")]))
+    *_LINESTYLE]))
 register(NodeType("plot.globalgraph", "Global", "glob", "global_evaluation", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
     Prop("expr", "Expression (global, e.g. aveop1(T), or a field to reduce):", "rexpr", "", section="y-Axis Data"),
@@ -303,7 +440,30 @@ register(NodeType("plot.globalgraph", "Global", "glob", "global_evaluation", pro
                                                            ("point", "At point")], section="y-Axis Data"),
     Prop("px", "x:", "string", "0", section="y-Axis Data", visible=lambda p: p.get("reduce") == "point"),
     Prop("py", "y:", "string", "0", section="y-Axis Data", visible=lambda p: p.get("reduce") == "point"),
-    Prop("pz", "z:", "string", "0", section="y-Axis Data", visible=lambda p: p.get("reduce") == "point" and p.get("__sdim", 3) == 3)]))
+    Prop("pz", "z:", "string", "0", section="y-Axis Data", visible=lambda p: p.get("reduce") == "point" and p.get("__sdim", 3) == 3),
+    *_LINESTYLE]))
+register(NodeType("plot.pointgraph", "Point Graph", "ptgr", "point_evaluation", props=[
+    Prop("data", "Dataset (Cut Point):", "dataset", "", section="Data"),
+    Prop("expr", "y-axis expression:", "rexpr", "", section="y-Axis Data"),
+    Prop("unit", "Unit:", "runit", "", section="y-Axis Data"),
+    *_LINESTYLE]))
+register(NodeType("plot.tablegraph", "Table Graph", "tblg", "table", props=[
+    Prop("table", "Table:", "table_ref", "", section="Data"),
+    Prop("xcol", "x-axis data (column, 1-based; 0 = row index):", "int", 1, section="Data"),
+    Prop("ycols", "Plot columns (comma-separated, empty = all others):", "string", "", section="Data"),
+    *_LINESTYLE]))
+register(NodeType("plot.polar", "Line Graph (Polar)", "plgr", "line_graph", props=[
+    Prop("data", "Dataset:", "dataset", "", section="Data"),
+    Prop("expr", "Radius expression:", "rexpr", "", section="r-Axis Data"),
+    Prop("unit", "Unit:", "runit", "", section="r-Axis Data"),
+    Prop("xc", "Center, x:", default="0", unit="LEN", section="Evaluation Circle"),
+    Prop("yc", "Center, y:", default="0", unit="LEN", section="Evaluation Circle"),
+    Prop("radius", "Radius:", default="1", unit="LEN", section="Evaluation Circle"),
+    Prop("a0", "Start angle:", default="0", unit="deg", section="Evaluation Circle"),
+    Prop("a1", "End angle:", default="360", unit="deg", section="Evaluation Circle"),
+    Prop("npts", "Points:", "int", 181, section="Evaluation Circle"),
+    Prop("params", "Parameter values (indices from 1, empty = current):", "string", "", section="Data"),
+    *_LINESTYLE]))
 
 register(NodeType("export.image", "Image", "img", "image_export", props=[
     Prop("source", "Plot group:", "plotgroup", "", section="Image"),

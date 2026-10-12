@@ -53,6 +53,19 @@ The two step-by-step models of *Introduction to COMSOL Multiphysics* are rebuilt
 | **Wrench** (stationary solid mechanics) | geometry from parameters (COMSOL's `wrench.mphbin` is not public); Fixed Constraint on the socket; Boundary Load as **Total force** −F (150 N); von Mises plot, safety plot `solid.mises > 200[MPa]`, Volume Maximum / `maxop1`; mesh-convergence sweep on `hd` with Size hmax = h0/hd, hmin = h0/(4·hd), curvature 0.1, narrow regions 0.2 | mesh refines with hd; tip deflection converges (3.100 → 3.117 mm) and agrees with beam theory; peak stress located at the handle/head corner |
 
 Features added while following them: face-parallel and all quick work planes (xy, yz, zx, yx, zy, xz); 2D Fillet/Chamfer on clicked vertices; the plane sketch and the "geometry so far" shown with entity labels while picking; component couplings (Average, Integration, Maximum, Minimum); Global Evaluation and Global plots over a parametric sweep (parameter in its own unit); Max/Min with location; Total force loads; Multislice plots; COMSOL's definition of *resolution of narrow regions*.
+
+### Essentials of Postprocessing and Visualization
+
+The guide's own models are COMSOL files, so stand-ins carry the same workflow (`tests/test_tutorial_postprocessing.py`, GUI walkthrough `tools/screenshot_postprocessing.py`, screenshots `docs/screenshots/tutorial_post_*.png`):
+
+| Walkthrough | Workflow in Elmer Studio | Checked |
+|---|---|---|
+| **Pulley** (2D plane stress, spinning) | Rotating Frame with Ω = `n[rpm]`; Parametric Sweep over n; Surface Maximum of displacement (mm) and von Mises stress (MPa) over the sweep; Cut Point (19, 54) mm with a Point Graph; Point Evaluation on two clicked geometry points; Integration couplings on the far-right and far-left points (point level), variable `diam = intop1(R+u) - intop2(-R+u)`, Global Evaluation of `diam - 2*R`, Table Graph | every result scales with n²; point values outward on both sides; `diam - 2R` equals the point-value difference to 1e-9 |
+| **Rotating annulus** (verification) | quarter annulus, rollers, Rotating Frame | hoop stress at the bore within 0.7 % and rim displacement within 0.01 % of Lamé's plane-stress solution |
+| **Heat sink** (3D) | wireframe surface, isosurfaces, streamlines started on selected boundaries (tubes/ribbons), Cut Plane dataset in a 2D plot group with grid arrows, Parametric Extrusion of the cut plane over a sweep | linear-temperature block: cut-plane values exact, plane area exact, extrusion volume and mean exact |
+| **Revolution and polar plots** (2D axisymmetric coil) | Revolution 2D dataset (start −90°, 225°, layers) with a domain Selection subnode; Polar Plot Group with a Line Graph (Polar) on an evaluation circle | polar values of a field linear in x reproduce `cos θ` exactly |
+
+Added for these: datasets Cut Plane, Parametric Extrusion 2D, Revolution 2D and Mirror (chainable, e.g. a mirrored cut plane); Point Graph, Table Graph, Polar Plot Group, Annotation with `eval(expr, unit)`; Selection and Color Expression subnodes; surface uniform coloring and wireframe; symmetric color ranges; slice planes by coordinates with shift; filled/line/tube contours with level labels; arrow placement on a grid with normalized lengths; streamline tubes/ribbons and start-point control; colored and tube line plots; line styles and markers for 1D graphs; legends with optional max/min; derived values named after the space dimension (*Surface Maximum* in 2D); circles built from four arcs with vertices at 0°, 90°, 180° and 270°, as in COMSOL; parameters and Definitions variables usable in result expressions.
 ## What is there
 
 | COMSOL concept | Elmer Studio | Elmer back end |
@@ -66,8 +79,8 @@ Features added while following them: face-parallel and all quick work planes (xy
 | Materials, Material Contents table with required-property status, material library | yes, 20 materials, user materials | Material sections |
 | Physics-controlled mesh (Extremely fine … Extremely coarse, fluid calibration), user-controlled Size / Free Tetrahedral / Free Triangular / Free Quad / Distribution, statistics, quality plot | yes | gmsh → native Elmer mesh with parent elements |
 | Studies: Stationary, Time Dependent, Eigenfrequency, Frequency Domain (sweeps), Parametric Sweep, Solver Configurations | yes | Steady / Transient (BDF) / Eigen (ARPACK) / Scanning |
-| Results: 3D/2D/1D plot groups; Surface, Volume, Slice, Isosurface, Contour, Arrow, Streamline, Mesh, Line, Deformation, Line Graph, Global; Revolution 2D; color tables; unit conversion | yes | VTU results |
-| Derived values: Volume/Surface Integration, Average, Maximum, Point Evaluation, Global (eigenfrequencies) → Tables | yes | — |
+| Results: 3D/2D/1D/polar plot groups; Surface, Volume, Slice, Multislice, Isosurface, Contour, Arrow, Streamline, Mesh, Line, Annotation, Deformation, Selection, Color Expression, Line Graph, Global, Point Graph, Table Graph, polar Line Graph; datasets Solution, Cut Line, Cut Point, Cut Plane, Parametric Extrusion, Revolution 2D, Mirror; color tables; unit conversion | yes | VTU results |
+| Derived values: Volume/Surface Integration, Average, Maximum, Minimum, Point Evaluation, Global (eigenfrequencies, operators, variables) → Tables | yes | — |
 | Export: Image, Data (CSV), VTU, HTML Report; Convergence Plot during solve | yes | — |
 | Undo/Redo, rename, duplicate, disable/enable, move, context menus, keyboard shortcuts | yes | — |
 | Model file with solutions (`.mph`) | `.esm` (zip of model JSON + solutions) | — |
@@ -166,6 +179,8 @@ These are deliberately listed, so nobody assumes they exist:
   - named selections;
   - probes;
   - animations;
+  - far-field calculations (the acoustic radiation polar plots of the guide's horn use near-field values here);
+  - result filters, data-set joins and Combined/Array datasets;
   - adaptive meshing;
   - LiveLink-style CAD sync;
   - the Application Builder.

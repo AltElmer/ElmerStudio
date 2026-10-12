@@ -716,15 +716,20 @@ class GeometryBuilder:
                 x, y = x + r, y + r
             sec = self.A(f, "sector")
             if sec >= 2 * math.pi - 1e-9:
-                t = occ.addDisk(x, y, z, r, r)
+                # four quarter arcs like COMSOL: vertices at 0, 90, 180 and 270 degrees
+                pc = occ.addPoint(x, y, z)
+                ps = [occ.addPoint(x + r * math.cos(a), y + r * math.sin(a), z) for a in (0, math.pi / 2, math.pi, 1.5 * math.pi)]
+                arcs = [occ.addCircleArc(ps[i], pc, ps[(i + 1) % 4]) for i in range(4)]
+                t = occ.addPlaneSurface([occ.addCurveLoop(arcs)])
+                occ.remove([(0, pc)])
             else:
-                c = occ.addCircle(x, y, z, r, angle1=0.0, angle2=sec)
+                # sector: radial lines and arcs sharing their end points (each arc at most 90 degrees)
+                narc = max(1, math.ceil(sec / (math.pi / 2) - 1e-9))
                 p0 = occ.addPoint(x, y, z)
-                p1 = occ.addPoint(x + r, y, z)
-                p2 = occ.addPoint(x + r * math.cos(sec), y + r * math.sin(sec), z)
-                l1 = occ.addLine(p0, p1)
-                l2 = occ.addLine(p2, p0)
-                loop = occ.addCurveLoop([l1, c, l2])
+                ps = [occ.addPoint(x + r * math.cos(sec * j / narc), y + r * math.sin(sec * j / narc), z)
+                      for j in range(narc + 1)]
+                arcs = [occ.addCircleArc(ps[j], p0, ps[j + 1]) for j in range(narc)]
+                loop = occ.addCurveLoop([occ.addLine(p0, ps[0]), *arcs, occ.addLine(ps[-1], p0)])
                 t = occ.addPlaneSurface([loop])
             x0, y0 = x, y
         elif k == "geom.ellipse":

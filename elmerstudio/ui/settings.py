@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QColorDialog, QComb
 
 from ..core import units
 from ..core.materials import MATPROPS
-from ..core.model import REGISTRY, Node, Prop, level_plural
+from ..core.model import REGISTRY, Node, Prop, level_plural, space_dim, type_title
 from ..core.physics import PHYSICS, physics_def
 from . import icons
 
@@ -194,7 +194,7 @@ class SettingsWindow(QWidget):
             return
         nt = REGISTRY.get(node.kind)
         self.h_icon.setPixmap(icons.pixmap(nt.icon if nt else "info", 20))
-        self.h_title.setText(nt.title if nt else node.kind)
+        self.h_title.setText(type_title(node.kind, space_dim(self.ctx.model.component)) if nt else node.kind)
         for name, icon_name, tip in self.ctx.header_actions(node):
             b = QPushButton(icons.icon(icon_name), name)
             b.setIconSize(QSize(16, 16))
@@ -501,6 +501,15 @@ class SettingsWindow(QWidget):
                 cb.addItem(icons.icon("solution"), d.label, d.tag)
             if cb.count() == 0:
                 cb.addItem("None", "")
+            cb.setCurrentIndex(max(0, cb.findData(val)))
+            cb.currentIndexChanged.connect(lambda i: commit(cb.itemData(i), rebuild=True))
+            sec.add_row(p.label, cb)
+        elif k == "table_ref":
+            cb = QComboBox()
+            for t in self.ctx.tables():
+                cb.addItem(icons.icon("table"), t.label, t.tag)
+            if cb.count() == 0:
+                cb.addItem("None (evaluate a derived value first)", "")
             cb.setCurrentIndex(max(0, cb.findData(val)))
             cb.currentIndexChanged.connect(lambda i: commit(cb.itemData(i), rebuild=True))
             sec.add_row(p.label, cb)

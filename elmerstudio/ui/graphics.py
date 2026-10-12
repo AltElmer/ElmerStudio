@@ -518,7 +518,19 @@ class GraphicsView(QWidget):
                 bounds = b if bounds is None else (min(bounds[0], b[0]), max(bounds[1], b[1]), min(bounds[2], b[2]),
                                                    max(bounds[3], b[3]), min(bounds[4], b[4]), max(bounds[5], b[5]))
         for i, lg in enumerate(scene.legends[:3]):
-            self._legend(lg["cmap"], lg["clim"], lg.get("title", ""), index=i, n_labels=lg.get("n_labels", 6))
+            self._legend(lg["cmap"], lg["clim"], lg.get("title", ""), index=i, n_labels=lg.get("n_labels", 6),
+                         maxmin=lg.get("maxmin", True))
+        pts = [t for t in scene.texts if len(t) >= 2]
+        if pts:      # annotations / contour level labels: (xyz, text[, show point])
+            import pyvista as pv
+            try:
+                p.add_point_labels(pv.PolyData(np.array([np.asarray(t[0], float)[:3] for t in pts])),
+                                   [str(t[1]) for t in pts], font_size=11, point_size=7, point_color="black",
+                                   text_color="black", shape_color="white", shape_opacity=0.75, margin=2,
+                                   always_visible=True, name="annotations",
+                                   show_points=any(len(t) < 3 or t[2] for t in pts))
+            except Exception as exc:
+                self.status.emit(f"Annotation error: {exc}")
         if scene.title:
             import vtk
             t = vtk.vtkTextActor()
@@ -535,7 +547,7 @@ class GraphicsView(QWidget):
         self._update_grid()
         p.render()
 
-    def _legend(self, cmap, clim, title, index=0, n_labels=6):
+    def _legend(self, cmap, clim, title, index=0, n_labels=6, maxmin=True):
         """COMSOL-style color legend: bar with nice ticks, x10^n multiplier, max/min markers."""
         import math
 
@@ -585,7 +597,7 @@ class GraphicsView(QWidget):
             _font(tp, 10)
         sb.SetTitle("")
         p.add_actor(sb, name=f"legend{index}")
-        texts = [(f"▲ {_fmt(hi)}", 0.855), (f"▼ {_fmt(lo)}", 0.07)]
+        texts = [(f"▲ {_fmt(hi)}", 0.855), (f"▼ {_fmt(lo)}", 0.07)] if maxmin else []
         if exp:
             texts.append((f"×10{_sup(exp)}", 0.825))
         for k, (s, y) in enumerate(texts):

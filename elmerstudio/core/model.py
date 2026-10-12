@@ -267,8 +267,11 @@ class Model:
         nt = node_type(kind)
         n = Node(kind)
         n.tag = tag or self.new_tag(nt.prefix)
+        dim_title = DIM_TITLES.get((kind, space_dim(self.component))) if kind in DIM_KINDS else None
         if label:
             n.label = label
+        elif dim_title and nt.numbered:
+            n.label = self.new_label(dim_title, parent)
         elif nt.numbered:
             n.label = self.new_label(nt.base_label(), parent)
         else:
@@ -352,6 +355,16 @@ class Model:
 
 
 # --------------------------------------------------------------------------- helpers
+# COMSOL names derived values after the entity dimension: a domain maximum is a "Surface Maximum" in 2D
+DIM_TITLES = {("eval.volint", 2): "Surface Integration", ("eval.surfint", 2): "Line Integration",
+              ("eval.avg", 2): "Surface Average", ("eval.max", 2): "Surface Maximum", ("eval.min", 2): "Surface Minimum"}
+DIM_KINDS = {k for k, _d in DIM_TITLES}
+
+
+def type_title(kind: str, sdim: int = 3) -> str:
+    return DIM_TITLES.get((kind, sdim)) or node_type(kind).title
+
+
 def space_dim(comp: Node | None) -> int:
     if comp is None:
         return 3

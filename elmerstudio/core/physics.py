@@ -313,6 +313,27 @@ feature("solid.gravity", "Gravity", "grav", "feature_domain", "domain", "bodyfor
         equation=r"$\mathbf{F}_V = \rho\mathbf{g}$")
 
 
+def _solid_rotframe(n, ctx, d):
+    """Kinetostatic rotating frame about an axis parallel to z: centrifugal load rho*Omega^2*r_perp."""
+    rho = ctx.matnum(n, "rho", d, src_key="rho_src")
+    om = n.get("omega", "0")
+    x0, y0 = n.get("x0", "0"), n.get("y0", "0")
+    out = {"Stress Bodyforce 1": ctx.value(f"({rho})*({om})^2*(x-({x0}))"),
+           "Stress Bodyforce 2": ctx.value(f"({rho})*({om})^2*(y-({y0}))")}
+    if ctx.sdim == 3:
+        out["Stress Bodyforce 3"] = 0.0
+    return out
+
+
+feature("solid.rotframe", "Rotating Frame", "rotf", "feature_domain", "domain", "bodyforce", _solid_rotframe,
+        props=[Prop("omega", "Angular velocity:", default="1000[rpm]", unit="rad/s", section="Rotating Frame",
+                    symbol="Ω", tip="e.g. n[rpm] with a parameter n, or 100[rad/s]; axis parallel to z"),
+               Prop("x0", "Axis point, x:", default="0", unit="m", section="Rotating Frame"),
+               Prop("y0", "Axis point, y:", default="0", unit="m", section="Rotating Frame"),
+               *matprop_props(["rho"], "Density")],
+        equation=r"$\mathbf{F}_V = \rho\,\Omega^2\,\mathbf{r}_\perp$")
+
+
 def _solid_solvers(ph, ctx):
     s = {"Equation": "Linear Elasticity", "Procedure": ("StressSolve", "StressSolver"),
          "Variable": f"-dofs {ctx.sdim} Displacement", "Calculate Stresses": True, "Displace Mesh": False}
@@ -337,7 +358,7 @@ define_physics(PhysicsDef(
              "v": ("Displacement 2", "Displacement field, y component", "m"),
              "w": ("Displacement 3", "Displacement field, z component", "m")},
     defaults=[("solid.lemm", "domain"), ("solid.init", "domain"), ("solid.free", "boundary")],
-    domain=["solid.lemm", "solid.bodyload", "solid.gravity", "solid.init"],
+    domain=["solid.lemm", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init"],
     boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring", "solid.free"],
     mat_props=["E", "nu", "rho"], solvers=_solid_solvers, plots=_solid_plots,
     description="Linear elastic stress analysis, eigenfrequencies. Elmer StressSolver.",

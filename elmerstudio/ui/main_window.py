@@ -22,7 +22,7 @@ from ..core.examples import EXAMPLES
 from ..core.geometry import GeometryError, GeometryResult, build_geometry, object_names_before
 from ..core.materials import MATPROPS
 from ..core.meshing import SIZE_CHOICES, build_mesh
-from ..core.model import REGISTRY, Model, Node, is_axisymmetric, space_dim
+from ..core.model import REGISTRY, Model, Node, is_axisymmetric, space_dim, type_title
 from ..core.physics import COUPLINGS, PHYSICS, STUDY_TYPES, physics_def
 from ..core.results import Solution, compatible_units
 from ..core.sif import SifError, build_sif
@@ -32,6 +32,8 @@ from .graphics import GraphicsView
 from .material_browser import MaterialBrowser
 from .model_builder import ModelBuilder
 from .panes import ConvergencePlot, LogPane, MessagesPane, MplCanvas, ProgressPane, TablePane
+from ..core.datasets import resolve as resolve_dataset
+from ..core.datasets import root_dataset
 from .plots import build_scene, default_expr, draw_1d, evaluate_derived
 from .ribbon import Ribbon
 from .settings import SettingsWindow, pretty_unit
@@ -245,7 +247,8 @@ class MainWindow(QMainWindow):
         g.add_large(self._a("add_pg", "Add Plot\nGroup", "plot_group_3d", menu=self._menu([
             ("3D Plot Group", "plot_group_3d", lambda: self.add_plot_group("pg3d")),
             ("2D Plot Group", "plot_group_2d", lambda: self.add_plot_group("pg2d")),
-            ("1D Plot Group", "plot_group_1d", lambda: self.add_plot_group("pg1d"))])))
+            ("1D Plot Group", "plot_group_1d", lambda: self.add_plot_group("pg1d")),
+            ("Polar Plot Group", "plot_group_1d", lambda: self.add_plot_group("pgpolar"))])))
         g = t.add_group("Layout")
         g.add_large(self.act["reset_desktop"])
 
@@ -363,18 +366,29 @@ class MainWindow(QMainWindow):
         g.add_large(self._a("pg3", "3D Plot\nGroup", "plot_group_3d", lambda: self.add_plot_group("pg3d")))
         g.add_large(self._a("pg2", "2D Plot\nGroup", "plot_group_2d", lambda: self.add_plot_group("pg2d")))
         g.add_large(self._a("pg1", "1D Plot\nGroup", "plot_group_1d", lambda: self.add_plot_group("pg1d")))
+        g.add_large(self._a("pgp", "Polar Plot\nGroup", "plot_group_1d", lambda: self.add_plot_group("pgpolar")))
         g = t.add_group("Plots")
         plots = [self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon, (lambda kk=k: self.add_plot(kk)))
                  for k in ("plot.surface", "plot.volume", "plot.slice", "plot.isosurface", "plot.contour", "plot.arrow",
-                           "plot.streamline", "plot.mesh", "plot.linegraph", "plot.globalgraph")]
+                           "plot.streamline", "plot.mesh", "plot.line", "plot.linegraph", "plot.globalgraph",
+                           "plot.pointgraph", "plot.tablegraph", "plot.annotation", "plot.multislice")]
         g.add_large(plots[0])
         g.add_small(plots[1:4])
         g.add_small(plots[4:7])
-        g.add_small(plots[7:10])
+        g.add_small(plots[7:9] + [plots[14]])
+        g.add_small(plots[9:12])
+        g.add_small(plots[12:14])
+        g = t.add_group("Attributes")
         g.add_large(self._a("r_def", "Deformation", "deformation", lambda: self.add_plot("plot.deform")))
+        g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon, (lambda kk=k: self.add_plot(kk)))
+                     for k in ("plot.selection", "plot.colorexpr")])
         g = t.add_group("Datasets")
-        g.add_small([self._a("r_cln", "Cut Line", "cut_line", lambda: self.add_results_child("results.datasets", "dset.cutline")),
-                     self._a("r_cpt", "Cut Point", "cut_point", lambda: self.add_results_child("results.datasets", "dset.cutpoint"))])
+        g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon,
+                             (lambda kk=k: self.add_results_child("results.datasets", kk)))
+                     for k in ("dset.cutline", "dset.cutpoint", "dset.cutplane")])
+        g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon,
+                             (lambda kk=k: self.add_results_child("results.datasets", kk)))
+                     for k in ("dset.parext", "dset.revolution", "dset.mirror")])
         g = t.add_group("Evaluation")
         g.add_large(self._a("r_glob", "Global\nEvaluation", "global_evaluation",
                             lambda: self.add_results_child("results.derived", "eval.global")))
@@ -383,7 +397,7 @@ class MainWindow(QMainWindow):
                      for k in ("eval.volint", "eval.surfint", "eval.avg")])
         g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon,
                              (lambda kk=k: self.add_results_child("results.derived", kk)))
-                     for k in ("eval.max", "eval.point")])
+                     for k in ("eval.max", "eval.min", "eval.point")])
         g = t.add_group("Export")
         g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon,
                              (lambda kk=k: self.add_results_child("results.export", kk)))
@@ -684,7 +698,7 @@ class MainWindow(QMainWindow):
             return
         self._push_undo()
         node.props[key] = value
-        if node.kind.startswith("cpl.") and key == "level" and node.selection is not None:
+        if (node.kind.startswith("cpl.") or node.kind == "plot.selection") and key == "level" and node.selection is not None:
             node.selection.level = value
             node.selection.entities = []
         if node.kind == "mesh.size" and key == "scope" and node.selection is not None and value != "entire":
@@ -848,10 +862,34 @@ class MainWindow(QMainWindow):
                 n.selection.all = not mats
         if kind.startswith("plot.") and "data" in n.props:
             n.props["data"] = "fromparent"
-        if kind in ("pg3d", "pg2d", "pg1d") or kind.startswith("eval.") or kind.startswith("export.") or kind.startswith("dset.cut"):
+        if (kind in ("pg3d", "pg2d", "pg1d", "pgpolar", "plot.polar") or kind.startswith(("eval.", "export.", "dset."))) \
+                and kind != "dset.solution":
             ds = [d for d in self.datasets() if d.kind == "dset.solution" and d is not n]
             if ds and "data" in n.props:
                 n.props["data"] = ds[-1].tag
+        if kind == "plot.pointgraph":
+            cp = [d for d in self.datasets() if d.kind == "dset.cutpoint"]
+            if cp:
+                n.props["data"] = cp[-1].tag
+        if kind == "plot.tablegraph":
+            tbls = self.tables()
+            if tbls:
+                n.props["table"] = tbls[-1].tag
+        if kind == "plot.selection" and n.selection is not None:
+            lvl = "domain" if parent.kind in ("plot.volume", "plot.mesh", "plot.isosurface", "plot.slice") or \
+                (parent.kind in ("plot.surface", "plot.contour", "plot.arrow") and self.sdim() == 2) else "boundary"
+            n.props["level"] = lvl
+            n.selection.level = lvl
+            n.selection.all = False
+        if self.geo is not None and kind in ("plot.annotation", "dset.cutplane", "plot.polar"):
+            b = self.geo.bbox
+            c = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2]
+            if kind == "plot.annotation":
+                n.props.update({"x": f"{c[0]:.6g}", "y": f"{c[1]:.6g}", "z": f"{c[2]:.6g}"})
+            elif kind == "dset.cutplane":
+                n.props.update({"px": f"{c[0]:.6g}", "py": f"{c[1]:.6g}", "pz": f"{c[2]:.6g}"})
+            else:
+                n.props["radius"] = f"{0.45 * max(b[3] - b[0], b[4] - b[1]):.6g}"
         if kind in ("dset.cutline",) and self.geo is not None:
             b = self.geo.bbox
             n.props.update({"x0": f"{b[0]:.6g}", "y0": f"{(b[1] + b[4]) / 2:.6g}", "z0": f"{(b[2] + b[5]) / 2:.6g}",
@@ -1063,13 +1101,38 @@ class MainWindow(QMainWindow):
             d = ds[0] if ds else None
         return d
 
-    def solution_of(self, dset: Node | None) -> Solution | None:
+    def tables(self):
+        res = self.model.results
+        t = res.child("results.tables") if res else None
+        return list(t.children) if t else []
+
+    def solution_of(self, dset: Node | None):
+        """Solution (or a Solution-like derived view: cut plane, mirror, extrusion) for a dataset node."""
+        view, _rev = self.view_of(dset)
+        return view
+
+    def view_of(self, dset: Node | None):
+        """(Solution-like view, revolution settings or None) for a dataset node, cached per dataset settings."""
+        if dset is None:
+            return None, None
+        if dset.kind == "dset.solution":
+            return self._solution_for(dset), None
+        key = (dset.tag, json.dumps([(d.tag, d.props) for d in self.datasets()], default=str, sort_keys=True),
+               tuple(id(s) for s in self.sol_cache.values()), json.dumps(self.parameters(), default=str))
+        cache = self.__dict__.setdefault("_view_cache", {})
+        if key not in cache:
+            try:
+                cache.clear()
+                cache[key] = resolve_dataset(self.model, dset, self._solution_for,
+                                             lambda d: self.sweep_solutions(d))
+            except Exception as exc:
+                self.messages.add(f"{dset.label}: {exc}", "error")
+                return None, None
+        return cache[key]
+
+    def _solution_for(self, dset: Node | None) -> Solution | None:
         if dset is None:
             return None
-        if dset.kind in ("dset.cutline", "dset.cutpoint"):
-            dset = self.model.by_tag(dset.get("data", "")) or next((x for x in self.datasets() if x.kind == "dset.solution"), None)
-            if dset is None:
-                return None
         st = self.model.by_tag(dset.get("study", ""))
         if st is None:
             return None
@@ -1093,14 +1156,13 @@ class MainWindow(QMainWindow):
                 self.messages.add(f"Could not load solution {folder}: {exc}", "error")
                 return None
         sol = self.sol_cache[folder]
-        from ..core.nodes import coupling_operators
-        sol.operators = coupling_operators(self.model)
-        return sol
+        from ..core.nodes import bind_results
+        return bind_results(self.model, sol)
 
     def sweep_info(self, dset: Node | None):
         """(parameter name, unit) of the dataset study's parametric sweep."""
-        if dset is not None and dset.kind in ("dset.cutline", "dset.cutpoint"):
-            dset = self.model.by_tag(dset.get("data", "")) or dset
+        if dset is not None and dset.kind != "dset.solution":
+            dset = root_dataset(self.model, dset) or dset
         st = self.model.by_tag(dset.get("study", "")) if dset is not None else None
         sw = B.study_sweep(st) if st is not None else None
         if sw is None:
@@ -1111,8 +1173,8 @@ class MainWindow(QMainWindow):
         """[(parameter value, Solution)] over a parametric sweep (last study step), or [] without a sweep."""
         if dset is None:
             return []
-        if dset.kind in ("dset.cutline", "dset.cutpoint"):
-            dset = self.model.by_tag(dset.get("data", "")) or dset
+        if dset.kind != "dset.solution":
+            dset = root_dataset(self.model, dset) or dset
         st = self.model.by_tag(dset.get("study", ""))
         if st is None:
             return []
@@ -1188,6 +1250,8 @@ class MainWindow(QMainWindow):
         k = node.kind
         if k.startswith("pg"):
             self.plot(node)
+        elif k == "plot.selection":           # pick the entities on the geometry, then Plot
+            self._show_geometry_for(node)
         elif k.startswith("plot."):
             pg = node.ancestor("pg")
             if pg is not None and pg is not self.current_plot:
@@ -1265,9 +1329,9 @@ class MainWindow(QMainWindow):
 
         def add_kind(menu, kind, parent=node):
             t = REGISTRY[kind]
-            a = menu.addAction(icons.icon(t.icon), t.title)
-            a.triggered.connect(lambda _=False: self.create_node(kind, parent))
             sd = self.sdim() if self.model.component else 3
+            a = menu.addAction(icons.icon(t.icon), type_title(kind, sd))
+            a.triggered.connect(lambda _=False: self.create_node(kind, parent))
             if sd not in t.dims and kind.startswith("geom.") and not node.kind == "geom.workplane":
                 a.setEnabled(False)
 
@@ -1544,7 +1608,10 @@ class MainWindow(QMainWindow):
         res = self.model.results
         idx = next((i for i, c in enumerate(res.children) if c.kind == "results.export"), len(res.children))
         pg = self.create_node(kind, res, index=idx)
-        if kind != "pg1d":
+        if kind == "pgpolar":
+            self.create_node("plot.polar", pg, select=False)
+            self.tree.refresh(select=pg)
+        elif kind != "pg1d":
             sol = self.solution_of(self._dataset_for(pg))
             f = self.create_node("plot.surface", pg, select=False)
             if sol is not None:
@@ -1559,16 +1626,24 @@ class MainWindow(QMainWindow):
 
     def add_plot(self, kind):
         cur = self.tree.current()
-        if kind == "plot.deform":
+        if kind in ("plot.deform", "plot.selection", "plot.colorexpr"):
             if cur is not None and cur.kind.startswith("plot.") and kind in REGISTRY[cur.kind].child_kinds(cur):
                 self.create_node(kind, cur)
+            else:
+                self.statusBar().showMessage(f"Select a plot that supports {REGISTRY[kind].title} first.", 5000)
             return
         pg = cur if cur is not None and cur.kind.startswith("pg") else (cur.ancestor("pg") if cur is not None else None)
-        if kind in ("plot.linegraph", "plot.globalgraph"):
+        if kind == "plot.polar":
+            if pg is None or pg.kind != "pgpolar":
+                self.add_plot_group("pgpolar")
+            else:
+                self.create_node(kind, pg)
+            return
+        if kind in ("plot.linegraph", "plot.globalgraph", "plot.pointgraph", "plot.tablegraph"):
             if pg is None or pg.kind != "pg1d":
                 self.add_plot_group("pg1d")
                 pg = self.tree.current()
-                if kind == "plot.globalgraph":
+                if kind != "plot.linegraph":
                     for c in list(pg.children):
                         pg.remove(c)
             n = self.create_node(kind, pg)
@@ -1906,22 +1981,23 @@ class MainWindow(QMainWindow):
             return
         self.current_plot = pg
         ds = self._dataset_for(pg)
-        if pg.kind == "pg1d":
+        if pg.kind in ("pg1d", "pgpolar"):
             def get_sol(dset, sel):
-                sol = self.solution_of(dset)
+                sol = self.solution_of(dset if dset is not None else ds)
                 if sol is None:
                     return None, -1, 1.0
                 return sol, sol.frame_index(pg.get("solnum", "last")), sol.scale
             try:
                 draw_1d(self.plot1d.fig, pg, self.model, get_sol, pg.get("solnum", "last"),
-                        get_sweep=lambda d: (self.sweep_solutions(d), *self.sweep_info(d)))
+                        get_sweep=lambda d: (self.sweep_solutions(d), *self.sweep_info(d)),
+                        get_table=lambda tag: self.model.by_tag(tag) if tag else None)
             except Exception as exc:
                 self.messages.add(f"{pg.label}: {exc}", "error")
             self.plot1d.draw()
             self.gstack.setCurrentIndex(1)
             self.central.setCurrentIndex(0)
             return
-        sol = self.solution_of(ds)
+        sol, rev = self.view_of(ds)
         if sol is None:
             self.statusBar().showMessage("No solution available: compute the study first.", 5000)
             if self.geo is not None:
@@ -1929,7 +2005,7 @@ class MainWindow(QMainWindow):
             return
         fi = sol.frame_index(pg.get("solnum", "last"))
         try:
-            scene = build_scene(pg, sol, fi, sol.sdim, self.is_axi())
+            scene = build_scene(pg, sol, fi, sol.sdim, self.is_axi(), revolution=rev)
         except Exception as exc:
             self.messages.add(f"{pg.label}: {exc}", "error")
             traceback.print_exc()
@@ -1946,12 +2022,26 @@ class MainWindow(QMainWindow):
             return
         sel = list(range(len(sol.frames))) if node.get("solnum", "last") == "all" else [sol.frame_index("last")]
         ents = None
+        points = None
         if node.selection is not None and self.geo is not None:
             ents = node.selection.resolve(self.geo.numbers.get(node.selection.level, []))
+        if node.kind == "eval.point":
+            ents = None
+            if node.selection is not None and node.selection.entities:   # geometry points -> their mesh nodes
+                base = sol
+                while not isinstance(base, Solution):
+                    base = base.base
+                pn = base.topo.point_nodes
+                points = [list(base.topo.nodes[pn[e]][:max(2, base.sdim)] * base.scale)
+                          for e in sorted(node.selection.entities) if e in pn]
+                if not points:
+                    self.messages.add(f"{node.label}: the selected points are not mesh vertices; remesh the geometry.",
+                                      "warning")
         sweep = self.sweep_solutions(ds)
         sw_label, sw_unit = self.sweep_info(ds)
         try:
-            cols, rows = evaluate_derived(node, self.model, sol, sel, ents, sweep or None, sw_label, sw_unit)
+            cols, rows = evaluate_derived(node, self.model, sol, sel, ents, sweep or None, sw_label, sw_unit,
+                                          points=points)
         except Exception as exc:
             self.messages.add(f"{node.label}: {exc}", "error")
             return
@@ -2025,7 +2115,7 @@ class MainWindow(QMainWindow):
         if images:
             parts.append("<h2>Results</h2>")
             for i, pg in enumerate(self.plot_groups()):
-                if pg.kind == "pg1d":
+                if pg.kind in ("pg1d", "pgpolar"):
                     continue
                 self.plot(pg)
                 QApplication.processEvents()

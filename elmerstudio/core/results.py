@@ -37,6 +37,8 @@ CATALOG = [
     ("solid.sy", "stress", 1, "Stress tensor, yy component", "Pa", "scalar"),
     ("solid.sz", "stress", 2, "Stress tensor, zz component", "Pa", "scalar"),
     ("solid.sxy", "stress", 3, "Stress tensor, xy component", "Pa", "scalar"),
+    ("solid.syz", "stress", 4, "Stress tensor, yz component", "Pa", "scalar"),
+    ("solid.sxz", "stress", 5, "Stress tensor, xz component", "Pa", "scalar"),
     ("V", "potential", None, "Electric potential", "V", "scalar"),
     ("es.E", "electric field", "vec", "Electric field", "V/m", "vector"),
     ("es.normE", "electric field", "mag", "Electric field norm", "V/m", "scalar"),
@@ -129,6 +131,8 @@ def topology_to_npz(mesh_result, path):
                 arrays[f"{kind}_{num}_{gt}_{i}"] = conn
     for num, q in mesh_result.quality.items():
         arrays[f"qual_{num}"] = q
+    for num, node in getattr(mesh_result, "point_nodes", {}).items():
+        arrays[f"ptnode_{num}"] = np.array(node)
     np.savez_compressed(path, **arrays)
 
 
@@ -139,10 +143,12 @@ class Topology:
         self.bulk: dict = {}
         self.bnd: dict = {}
         self.quality: dict = {}
+        self.point_nodes: dict = {}
         if mesh_result is not None:
             self.nodes = mesh_result.nodes
             self.sdim, self.scale, self.unit, self.order = mesh_result.sdim, mesh_result.scale, mesh_result.unit, mesh_result.order
             self.bulk, self.bnd, self.quality = mesh_result.bulk, mesh_result.bnd, mesh_result.quality
+            self.point_nodes = dict(getattr(mesh_result, "point_nodes", {}))
             return
         z = np.load(path, allow_pickle=False)
         self.nodes = z["nodes"]
@@ -156,6 +162,8 @@ class Topology:
                 getattr(self, m.group(1)).setdefault(int(m.group(2)), []).append((int(m.group(3)), z[k]))
             elif k.startswith("qual_"):
                 self.quality[int(k[5:])] = z[k]
+            elif k.startswith("ptnode_"):
+                self.point_nodes[int(k[7:])] = int(z[k])
 
     def _grid(self, src, idname):
         import pyvista as pv
@@ -281,6 +289,9 @@ class Solution:
             for k in list(out.keys()):
                 if k.endswith(suffix):
                     out[k[: -len(suffix)]] = out[k]
+        comps = ("xx", "yy", "zz", "xy", "yz", "xz")
+        if "stress" not in out and "stress_xx" in out:       # ResultOutputSolve writes tensor components apart
+            out["stress"] = np.column_stack([out.get(f"stress_{c}", np.zeros(n)) for c in comps])
         self._cache = {i: out}
         return out
 
@@ -297,6 +308,8 @@ class Solution:
                 if isinstance(comp, int) and (a.ndim < 2 or comp >= a.shape[1]):
                     continue
                 if isinstance(comp, int) and comp == 2 and self.sdim == 2 and src not in ("stress",):
+                    continue
+                if src == "stress" and comp in (4, 5) and self.sdim == 2:
                     continue
                 out.append((alias, label, unit, kind))
         known = {c[1] for c in CATALOG}
@@ -333,6 +346,9 @@ class Solution:
             names[alias.replace(".", "_")] = v
         for k, a in arr.items():
             names.setdefault(k.replace(" ", "_"), a if a.ndim == 1 else a)
+        if "u" not in names and "spf_u" in names:      # flow models: u, v, w are velocity components
+            names["u"], names["v"] = names["spf_u"], names["spf_v"]
+            names["w"] = names.get("spf_w", np.zeros_like(names["spf_u"]))
         P = self.topo.nodes * self.scale
         names["x"], names["y"], names["z"] = P[:, 0], P[:, 1], P[:, 2]
         if self.sdim == 2:
@@ -343,8 +359,23 @@ class Solution:
                 names[s] = names[fk]
         return names
 
-    # component coupling operators (aveop1(T), intop1(...), maxop1, minop1), set by the model
+    # component coupling operators (aveop1(T), intop1(...), maxop1, minop1), global parameters and
+    # Definitions variables, all set by the model so result expressions read like COMSOL's
     operators: dict = {}
+    params: dict = {}
+    variables: dict = {}
+
+    def _expand(self, expr: str) -> str:
+        s = str(expr)
+        for _ in range(8):
+            changed = False
+            for nm, ex in self.variables.items():
+                new = re.sub(rf"(?<![\w.]){re.escape(nm)}(?![\w(])", f"({ex})", s)
+                if new != s:
+                    s, changed = new, True
+            if not changed:
+                break
+        return s
 
     def _operator_funcs(self):
         def make(kind, level, ents):
@@ -352,6 +383,13 @@ class Solution:
                 arr = np.asarray(np.real(arr), float)
                 if arr.ndim == 0:
                     arr = np.full(len(self.topo.nodes), float(arr))
+                if level == "point":       # COMSOL: integrating over points sums the point values
+                    idx = [self.topo.point_nodes[e] for e in (ents or self.topo.point_nodes) if e in self.topo.point_nodes]
+                    if not idx:
+                        return float("nan")
+                    v = arr[idx]
+                    return float({"integration": np.sum, "average": np.mean, "maximum": np.max,
+                                  "minimum": np.min}[kind](v))
                 if kind in ("maximum", "minimum"):
                     sel = self._node_mask(level, ents)
                     v = arr[sel] if sel is not None else arr
@@ -375,8 +413,8 @@ class Solution:
 
     def evaluate(self, expr: str, i: int | None = None) -> np.ndarray:
         i = self.frame_index(i)
-        names = self.names(i)
-        e = _dotted(str(expr))
+        names = {**self.params, **self.names(i)}
+        e = _dotted(self._expand(str(expr)))
         v = units.evaluate(e, names, self._operator_funcs())
         v = np.asarray(np.real(v), dtype=float)
         if v.ndim == 0:
@@ -390,7 +428,7 @@ class Solution:
         # allow "u,v,w" component lists or a vector alias
         parts = [p for p in re.split(r"\s*,\s*", e) if p]
         if len(parts) >= 2:
-            comps = [np.asarray(units.evaluate(p, names), float) for p in parts[:3]]
+            comps = [self.evaluate(p, i) for p in parts[:3]]          # scalars broadcast to nodes
             while len(comps) < 3:
                 comps.append(np.zeros_like(comps[0]))
             return np.column_stack(comps)
@@ -477,21 +515,15 @@ class Solution:
         return {"max": float(vals[imax]), "min": float(vals[imin]), "xmax": P[imax].tolist(), "xmin": P[imin].tolist()}
 
     def point_eval(self, expr, i, points):
-        import pyvista as pv
         vals = self.evaluate(expr, i)
         g = self.bulk_grid().copy()
         g.point_data["f"] = vals
         P = np.atleast_2d(np.asarray(points, float)) / self.scale
         if P.shape[1] == 2:
             P = np.column_stack([P, np.zeros(len(P))])
-        s = pv.PolyData(P).sample(g)
-        ok = np.asarray(s.point_data.get("vtkValidPointMask", np.ones(len(P))), bool)
-        out = np.asarray(s.point_data["f"], float)
-        out[~ok] = np.nan
-        return out
+        return _probe(g, P)
 
     def line_eval(self, expr, i, p0, p1, n=200):
-        import pyvista as pv
         vals = self.evaluate(expr, i)
         g = self.bulk_grid().copy()
         g.point_data["f"] = vals
@@ -499,13 +531,39 @@ class Solution:
         b = np.array(p1, float) / self.scale
         if len(a) == 2:
             a, b = np.append(a, 0), np.append(b, 0)
-        line = g.sample_over_line(a, b, resolution=n)
-        pts = np.asarray(line.points)
-        f = np.asarray(line.point_data["f"], float)
-        ok = np.asarray(line.point_data.get("vtkValidPointMask", np.ones(len(f))), bool)
-        f[~ok] = np.nan
+        pts = a + np.linspace(0, 1, n + 1)[:, None] * (b - a)
+        f = _probe(g, pts)
         s = np.linalg.norm(pts - pts[0], axis=1) * self.scale
         return s, pts * self.scale, f
+
+
+def _probe(g, P):
+    """Interpolate point data 'f' of grid *g* at points *P* (NaN outside).
+
+    VTK's probe can miss points lying on edges of curved quadratic cells; those are retried on the
+    linearised grid (same nodes, corner-node interpolation), which always agrees on the containing cell.
+    """
+    import pyvista as pv
+    s = pv.PolyData(P).sample(g)
+    ok = np.asarray(s.point_data.get("vtkValidPointMask", np.ones(len(P))), bool)
+    out = np.asarray(s.point_data["f"], float).copy()
+    if not ok.all() and hasattr(g, "linear_copy"):
+        bad = np.where(~ok)[0]
+        s2 = pv.PolyData(P[bad]).sample(g.linear_copy())
+        ok2 = np.asarray(s2.point_data.get("vtkValidPointMask", np.ones(len(bad))), bool)
+        out[bad] = np.where(ok2, np.asarray(s2.point_data["f"], float), np.nan)
+    elif not ok.all():
+        out[~ok] = np.nan
+    bad = np.where(np.isnan(out))[0]
+    if len(bad) and "f" in g.point_data and g.n_points:     # a point exactly on a mesh vertex (corner, rim)
+        X = np.asarray(g.points)
+        tol = 1e-9 * (float(np.linalg.norm(np.ptp(X, axis=0))) or 1.0)
+        for j in bad:
+            d = np.linalg.norm(X - P[j], axis=1)
+            k = int(np.argmin(d))
+            if d[k] <= tol:
+                out[j] = float(np.asarray(g.point_data["f"])[k])
+    return out
 
 
 _DOTTED = re.compile(r"\b(ht|solid|es|ec|mf|spf|acpr|tds|pde)\.(\w+)")
