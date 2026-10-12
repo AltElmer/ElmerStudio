@@ -101,6 +101,7 @@ Added for these: Spherical Wave Radiation (with an optional incident plane wave)
 
 Added with it:
 - *Parametric Curve*, Polygon as open or closed curve, and *Convert to Solid*;
+- geometry *Box Selections*, offered in every feature's Selection list: physics and mesh features that use one keep the right entities when a swept parameter renumbers the geometry (a flat companion of a wavy electrode, for example);
 - *Mapped* meshes with graded *Distribution* (element ratio, geometric sequence, symmetric, reverse direction);
 - COMSOL's *maximum element growth rate*, which grades local mesh sizes into the domain (without it a refined electrode edge was surrounded by coarse elements, and the disc resistance was off by 6–46 %);
 - Parametric Sweep over several parameters (*All* or *Specified combinations*);

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 
+from .model import selection_entities
 from .physics import F_CONST, cd_eta, cd_kinetics
 
 
@@ -29,10 +30,10 @@ def electrode_results(model, sol, params=None):
             continue
         for f in ph.children:
             if f.kind in ("cd.es", "cd.pot", "cd.ncd") and f.enabled and f.selection is not None:
-                flux.update(int(b) for b in f.selection.entities)
+                flux.update(selection_entities(f, sol.meta))
             if f.kind != "cd.es" or not f.enabled or f.selection is None:
                 continue
-            bnds = sorted(int(b) for b in f.selection.entities)
+            bnds = sorted(selection_entities(f, sol.meta))
             t = f.tag
             gl[f"cd.{t}.Itot"] = ("phil loads", bnds, factor)
             eta = cd_eta(f)

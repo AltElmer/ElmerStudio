@@ -206,3 +206,56 @@ def test_sweep_all_combinations(elmer):
         assert s.params["sig"] == p["sig"]                     # result expressions see every swept parameter
         seen.add((round(p["Vapp"], 6), p["sig"]))
     assert len(seen) == 6
+
+
+def test_box_selection_follows_a_swept_geometry(elmer):
+    """Sweeping the wave amplitude to 0 renumbers the boundaries (the flat anode ties the left wall on position).
+    Electrode features on Box Selections follow; each run reports its own electrode boundaries."""
+    from elmerstudio.core.geometry import build_geometry as bg
+    V, L, lam, sigma = 0.1, 200e-6, 100e-6, 20.0
+    m = B.new_model("2D", ["cd"], "stationary")
+    m.global_defs.child("params").props["table"] = [
+        {"name": "lam", "expr": "100[um]", "descr": ""}, {"name": "a0", "expr": "1[um]", "descr": ""},
+        {"name": "L", "expr": "200[um]", "descr": ""}, {"name": "Vapp", "expr": f"{V}[V]", "descr": ""}]
+    g = m.component.child("geometry")
+    g.props["unit"] = "um"
+    pc = m.create("geom.paramcurve", g, index=0, xexpr="lam*s", yexpr="a0*sin(2*pi*s)", npts=41)
+    po = m.create("geom.polygon", g, index=1, ptype="open", xs="lam lam 0 0", ys="0 L L 0")
+    cs = m.create("geom.tosolid", g, index=2)
+    cs.props["input"] = [pc.tag, po.tag]
+    bs_an = m.create("geom.boxsel", g, index=3, level="boundary", ymax="L/2")
+    bs_ca = m.create("geom.boxsel", g, index=4, level="boundary", ymin="L/2")
+    wavy, flat = bg(m, display=False), bg(m, overrides={"a0": 0.0}, display=False)
+    assert wavy.named[bs_an.tag][1] != flat.named[bs_an.tag][1]          # the sweep does renumber
+    cd = m.component.child("physics.cd")
+    cd.child("cd.elyte").props.update(sigma_src="user", sigma=str(sigma))
+    an = B.add_feature(m, cd, "cd.es", [], phis="Vapp", kin="linear", i0="50")
+    an.selection.named = bs_an.tag
+    m.create("cd.pot", cd, phil0="0").selection.named = bs_ca.tag
+    geo = bg(m, display=False)
+    assert an.selection.entities == wavy.named[bs_an.tag][1]             # building points the feature at it
+    m.create("study.sweep", m.studies()[0], index=0, pname="a0", pvalues="1 0", punit="um")
+    sols = {round(s.meta["sweep_params"]["a0"] * 1e6): s for s in _solve(m, geo, "es_cd_boxsel_")}
+    assert sols[0].meta["selections"][an.tag] == flat.named[bs_an.tag][1]
+    assert an.selection.entities == wavy.named[bs_an.tag][1]             # restored after the sweep
+    iex = exact_current(KINETICS["linear"], V, L, sigma) * lam
+    I = {a: float(s.evaluate(f"cd.{an.tag}.Itot", s.frame_index("last"))[0]) for a, s in sols.items()}
+    assert abs(I[0] / iex - 1) < 1e-8, I                                  # flat run: exact 1D cell
+    assert 0 < I[1] / iex - 1 < 1e-2, I                                   # wavy: slightly more area, more current
+
+
+def test_curve_coordinates_follow_length_units():
+    """Parametric Curve and Polygon coordinates: expressions carrying units (directly or through parameters)
+    are converted to the geometry unit; plain numbers are in the geometry unit (COMSOL semantics)."""
+    m = B.new_model("2D", ["cd"], "stationary")
+    m.global_defs.child("params").props["table"] = [{"name": "W", "expr": "5[mm]", "descr": ""},
+                                                     {"name": "H", "expr": "2", "descr": "plain number"}]
+    g = m.component.child("geometry")
+    g.props["unit"] = "mm"
+    pc = m.create("geom.paramcurve", g, index=0, xexpr="W*s", yexpr="0.1[mm]*sin(2*pi*s)", npts=41)
+    po = m.create("geom.polygon", g, index=1, ptype="open", xs="W W 0 0", ys="0 H H 0")
+    cs = m.create("geom.tosolid", g, index=2)
+    cs.props["input"] = [pc.tag, po.tag]
+    geo = build_geometry(m, display=False)
+    b = geo.bbox
+    assert abs(b[3] - 5.0) < 1e-6 and abs(b[4] - 2.0) < 1e-6 and abs(b[1] + 0.1) < 1e-3, b

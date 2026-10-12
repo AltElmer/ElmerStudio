@@ -88,6 +88,22 @@ class StudyRunner:
         return os.path.join(self.workdir, self.study.tag)
 
     def run(self) -> list[str]:
+        try:
+            return self._run()
+        finally:
+            if self._swept_named:       # named selections follow the geometry; put them back on the unswept one
+                try:
+                    from .geometry import build_geometry
+                    build_geometry(self.model, display=False)
+                except Exception:
+                    pass
+
+    @property
+    def _swept_named(self) -> bool:
+        sweep = study_sweep(self.study)
+        return sweep is not None and any(n.selection is not None and n.selection.named for n in self.model.root.walk())
+
+    def _run(self) -> list[str]:
         if self.inst is None:
             raise RuntimeError("Elmer was not found. Set the Elmer installation folder in Preferences.")
         steps = study_steps(self.study)
@@ -133,6 +149,8 @@ class StudyRunner:
                                      f"(case folder {folder})")
                 rs = self._run_elmer(folder, step, job, total)
                 meta = dict(sif.meta)
+                meta["selections"] = {n.tag: list(n.selection.entities) for n in self.model.root.walk()
+                                      if n.selection is not None and n.selection.named}
                 meta.update({"eigen": rs.eigen, "sweep_param": pname, "sweep_value": val,
                              "sweep_params": dict(combos[vi]) if combos[vi] else {},
                              "step_index": si, "sweep_index": vi, "tunit": step.get("tunit", "s"),

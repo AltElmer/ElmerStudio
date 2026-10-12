@@ -19,7 +19,8 @@ from ..core import builder as B
 from ..core import project, units
 from ..core.elmer import elmer_version, find_elmer, write_case
 from ..core.examples import EXAMPLES
-from ..core.geometry import GeometryError, GeometryResult, build_geometry, object_names_before
+from ..core.geometry import (GeometryError, GeometryResult, apply_named_selections, build_geometry,
+                             object_names_before)
 from ..core.materials import MATPROPS
 from ..core.meshing import SIZE_CHOICES, build_mesh
 from ..core.model import REGISTRY, Model, Node, is_axisymmetric, space_dim, type_title
@@ -314,6 +315,9 @@ class MainWindow(QMainWindow):
         tos = self._a("geom.tosolid", "Convert\nto Solid", REGISTRY["geom.tosolid"].icon, lambda: self.add_geom("geom.tosolid"))
         self.geo2d_actions.append(tos)
         g.add_large(tos)
+        g = t.add_group("Selections")
+        g.add_large(self._a("geom.boxsel", "Box\nSelection", REGISTRY["geom.boxsel"].icon,
+                            lambda: self.add_geom("geom.boxsel")))
         g = t.add_group("Views")
         g.add_large(self.act["zoom_extents"])
 
@@ -744,17 +748,23 @@ class MainWindow(QMainWindow):
         node.label = text
         self.tree.update_node(node)
 
-    def set_selection(self, node: Node, all_=None, entities=None):
+    def set_selection(self, node: Node, all_=None, entities=None, named=None):
         if node.selection is None:
             return
         self._push_undo()
+        sel = node.selection
         if all_ is not None:
-            node.selection.all = all_
-            if not all_ and not node.selection.entities and self.geo is not None and False:
-                pass
+            sel.all = all_
+            sel.named = ""
         if entities is not None:
-            node.selection.entities = list(entities)
-            node.selection.all = False
+            sel.entities = list(entities)
+            sel.all = False
+            sel.named = ""
+        if named:
+            sel.named, sel.all = named, False
+            hit = self.geo.named.get(named) if self.geo is not None else None
+            if hit is not None and hit[0] == sel.level:
+                sel.entities = list(hit[1])
         self._mark(node)
         self.settings.refresh()
 
@@ -803,6 +813,7 @@ class MainWindow(QMainWindow):
             ents.sort()
         node.selection.entities = ents
         node.selection.all = False
+        node.selection.named = ""          # editing the list makes it a manual selection, as in COMSOL
         self._mark(node)
         self.graphics.set_selection_state(level, ents)
         self.settings.refresh()
@@ -1333,7 +1344,11 @@ class MainWindow(QMainWindow):
                     for d in m.selection.resolve(self.geo.numbers["domain"]):
                         colors[d] = m.props.get("color", [190, 190, 190])
         self.gstack.setCurrentIndex(0)
-        if node.selection is not None:
+        if node.kind == "geom.boxsel" and node.tag in self.geo.named:      # what the Box Selection picks
+            level, ents = self.geo.named[node.tag]
+            self.graphics.show_geometry(self.geo, None, [], colors)
+            self.graphics.set_selection_state(level, ents)
+        elif node.selection is not None:
             level = node.selection.level
             ents = node.selection.resolve(self.geo.numbers.get(level, []))
             self.graphics.show_geometry(self.geo, None, ents, colors)
@@ -1814,6 +1829,8 @@ class MainWindow(QMainWindow):
         def done(res: GeometryResult):
             self.geo = res
             self.geo_stale = upto is not None
+            if upto is None:
+                apply_named_selections(self.model, res)
             for m in res.messages:
                 self.messages.add(m, "warning")
             if not silent:

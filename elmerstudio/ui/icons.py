@@ -884,6 +884,10 @@ def _build() -> dict[str, str]:  # noqa: C901 - a flat catalogue of drawings
     S["parametric_curve"] = _doc(
         _path("M5 27C5 15 27 21 27 11C27 4 15 3 13 9C11.5 14 19 16 20 11", "none", BLUE, 2.4)
         + _circle(5, 27, 2.4, BLUE, WHITE, 1) + _circle(20, 11, 2.4, BLUE, WHITE, 1))
+    # box selection: a dashed box over a highlighted edge
+    S["box_selection"] = _doc(
+        _path("M4 24C10 20 20 26 28 20", "none", "#d9480f", 2.6)
+        + _path("M8 8H26V28H8Z", "none", INK, 1.4, extra='stroke-dasharray="2.5 2"'))
     # far field / radiation pattern: a lobed pattern on polar axes
     S["far_field"] = _doc(
         _circle(16, 16, 12.5, "none", "#8a9099", 1.1) + _circle(16, 16, 7, "none", "#b8bec6", 1)

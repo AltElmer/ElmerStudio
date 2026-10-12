@@ -58,11 +58,11 @@ def _layers_note():
 GEOM3D = ["geom.block", "geom.sphere", "geom.cylinder", "geom.cone", "geom.torus", "geom.ellipsoid",
           "geom.workplane", "geom.extrude", "geom.revolve", "geom.union", "geom.difference",
           "geom.intersection", "geom.move", "geom.rotate", "geom.scale", "geom.mirror", "geom.array",
-          "geom.copy", "geom.import", "geom.fillet3d", "geom.chamfer3d"]
+          "geom.copy", "geom.import", "geom.fillet3d", "geom.chamfer3d", "geom.boxsel"]
 GEOM2D = ["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.paramcurve", "geom.tosolid",
           "geom.union", "geom.difference",
           "geom.intersection", "geom.move", "geom.rotate", "geom.scale", "geom.mirror", "geom.array",
-          "geom.copy", "geom.import", "geom.fillet2d", "geom.chamfer2d"]
+          "geom.copy", "geom.import", "geom.fillet2d", "geom.chamfer2d", "geom.boxsel"]
 WP_KINDS = ["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.paramcurve", "geom.tosolid",
             "geom.union", "geom.difference",
             "geom.intersection", "geom.move", "geom.rotate", "geom.copy", "geom.array", "geom.fillet2d",
@@ -153,6 +153,20 @@ register(NodeType("geom.tosolid", "Convert to Solid", "csol", "union", dims=(2, 
     Prop("input", "Input objects:", "objects", [], section="Input"),
     Prop("keep", "Keep input objects", "bool", False, section="Input")],
     description="Curves (and the boundaries of solids) that together close a region become one solid domain."))
+
+# ---- selections: named entity sets that follow the geometry when parameters change
+SEL_LEVELS = [("domain", "Domain"), ("boundary", "Boundary"), ("edge", "Edge"), ("point", "Point")]
+_box = lambda key, lab: Prop(key, lab, "expr", "", unit="LEN", section="Box Limits",  # noqa: E731
+                             tip="Blank = unbounded; unitless numbers are in the geometry length unit",
+                             visible=(lambda p: p.get("__sdim", 3) == 3) if key[0] == "z" else None)
+register(NodeType("geom.boxsel", "Box Selection", "boxsel", "box_selection", props=[
+    Prop("level", "Geometric entity level:", "choice", "boundary", choices=SEL_LEVELS, section="Geometric Entity Selection"),
+    _box("xmin", "x minimum:"), _box("xmax", "x maximum:"), _box("ymin", "y minimum:"), _box("ymax", "y maximum:"),
+    _box("zmin", "z minimum:"), _box("zmax", "z maximum:"),
+    Prop("cond", "Include entity if:", "choice", "inside",
+         choices=[("inside", "Entity inside box"), ("intersects", "Entity intersects box")], section="Output Entities")],
+    description="Entities inside (or touching) a box. Physics, mesh and result features that use this selection "
+                "keep the right entities when a parameter change renumbers the geometry."))
 
 # ---- work plane, extrude, revolve
 WP_PLANES = {   # plane: (xw, yw, n) in global axes; offset is the coordinate along |n|
@@ -279,6 +293,7 @@ class GeometryResult:
     bbox_of: dict = field(default_factory=dict)       # level -> {number: (xmin,ymin,zmin,xmax,ymax,zmax)}
     measure: dict = field(default_factory=dict)       # level -> {number: length/area/volume in SI}
     objects: list = field(default_factory=list)       # object names alive before finalize
+    named: dict = field(default_factory=dict)         # selection tag -> (level, [numbers])
     messages: list = field(default_factory=list)
     built_upto: str = ""
 
@@ -382,6 +397,7 @@ class GeometryBuilder:
         self.wp_objects: dict[str, dict] = {}
         self.messages: list[str] = []
         self.in_plane = False
+        self.selections: list[Node] = []     # Box Selections, evaluated on the finished geometry
 
     # ---- expression helpers (COMSOL semantics: unitless numbers are in the geometry unit)
     def _param_units(self):
@@ -520,6 +536,8 @@ class GeometryBuilder:
             built_upto = fin_node.tag
         res = self._number(object_names)
         res.built_upto = built_upto
+        for s in self.selections:
+            res.named[s.tag] = (s.get("level", "boundary"), self._box_entities(res, s))
         if display:
             self._tessellate(res)
         res.messages = self.messages
@@ -718,8 +736,26 @@ class GeometryBuilder:
                 except Exception:
                     pass
             self.objects[f.tag] = out
+        elif k == "geom.boxsel":
+            self.selections.append(f)
         else:
             raise GeometryError(f"Unsupported geometry feature {k}")
+
+    def _box_entities(self, res: GeometryResult, f: Node) -> list[int]:
+        level = f.get("level", "boundary")
+        if level not in res.numbers:
+            raise GeometryError(f"{f.label}: no {level} level in a {res.sdim}D geometry")
+        lim = {}
+        for key in ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax"):
+            lim[key] = self.L(f, key) if str(f.get(key, "") or "").strip() else None
+        if f.get("cond", "inside") == "inside":
+            return res.select(level, **lim)
+        tol = max(res.diag * 1e-6, 1e-12)
+        lo = [lim["xmin"], lim["ymin"], lim["zmin"]]
+        hi = [lim["xmax"], lim["ymax"], lim["zmax"]]
+        return [n for n, bb in res.bbox_of[level].items()
+                if all((lo[i] is None or bb[i + 3] >= lo[i] - tol) and (hi[i] is None or bb[i] <= hi[i] + tol)
+                       for i in range(3))]
 
     # ---- 2D primitives (built in the local xy-plane at height z)
     def _prim2d(self, occ, f: Node, z=0.0):
@@ -765,8 +801,15 @@ class GeometryBuilder:
                 occ.rotate([(2, t)], x, y, z, 0, 0, 1, math.pi / 2)
             x0, y0 = x, y
         else:  # polygon
-            xs = [float(np.real(units.evaluate(v, self.params))) for v in re.split(r"[\s,;]+", str(f.get("xs", "")).strip()) if v]
-            ys = [float(np.real(units.evaluate(v, self.params))) for v in re.split(r"[\s,;]+", str(f.get("ys", "")).strip()) if v]
+            def coords(key):
+                out = []
+                for v in re.split(r"[\s,;]+", str(f.get(key, "")).strip()):
+                    if v:
+                        x = float(np.real(units.evaluate(v, self.params)))
+                        out.append(x / self.ufac if self._has_units(v) else x)
+                return out
+
+            xs, ys = coords("xs"), coords("ys")
             if len(xs) != len(ys) or len(xs) < 3:
                 raise GeometryError(f"{f.label}: need at least 3 points with matching x and y counts")
             ptype = f.get("ptype", "solid")
@@ -794,8 +837,12 @@ class GeometryBuilder:
         n = max(2, int(f.get("npts", 60) or 60))
         s = np.linspace(s0, s1, n)
         names = {**self.params, par: s}
-        xs = np.broadcast_to(np.real(units.evaluate(str(f.get("xexpr", "s")), names)), s.shape)
-        ys = np.broadcast_to(np.real(units.evaluate(str(f.get("yexpr", "0")), names)), s.shape)
+        def coord(key, dflt):
+            e = str(f.get(key, dflt))
+            v = np.broadcast_to(np.real(units.evaluate(e, names)), s.shape)
+            return v / self.ufac if self._has_units(e) else v       # COMSOL: unitless numbers are geometry units
+
+        xs, ys = coord("xexpr", "s"), coord("yexpr", "0")
         pts = [occ.addPoint(float(x), float(y), z) for x, y in zip(xs, ys)]
         closed = np.hypot(xs[0] - xs[-1], ys[0] - ys[-1]) < 1e-12 * max(np.ptp(xs) + np.ptp(ys), 1e-300)
         if closed:
@@ -1247,7 +1294,30 @@ def build_geometry(model: Model, geom: Node | None = None, upto: Node | None = N
     comp = model.component
     geom = geom or comp.child("geometry")
     with session("geometry"):
-        return GeometryBuilder(model, geom, overrides).build(upto=upto, display=display)
+        res = GeometryBuilder(model, geom, overrides).build(upto=upto, display=display)
+    if upto is None:
+        apply_named_selections(model, res)
+    return res
+
+
+def apply_named_selections(model: Model, res: GeometryResult) -> None:
+    """Point every feature that uses a named selection at that selection's entities in *res*."""
+    for n in model.root.walk():
+        sel = n.selection
+        if sel is not None and sel.named and sel.named in res.named:
+            level, ents = res.named[sel.named]
+            if level == sel.level:
+                sel.entities = list(ents)
+                sel.all = False
+
+
+def named_selections(model: Model, level: str) -> list[tuple[str, str]]:
+    """(tag, label) of the geometry's selections at *level*, for the Selection combo boxes."""
+    geom = model.component.child("geometry") if model.component is not None else None
+    if geom is None:
+        return []
+    return [(f.tag, f.label) for f in geom.children if f.kind == "geom.boxsel" and f.enabled
+            and f.get("level", "boundary") == level]
 
 
 def build_context_geometry(model: Model, node: Node, overrides=None) -> GeometryResult:

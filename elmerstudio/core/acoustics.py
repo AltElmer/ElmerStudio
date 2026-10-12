@@ -18,6 +18,7 @@ import re
 import numpy as np
 
 from . import units
+from .model import selection_entities
 
 P_REF = 20e-6                       # reference pressure for the sound pressure level (air)
 EFC_NAME = re.compile(r"(?<![\w.])acpr\.(efc\d+)\.(pext|Lp_pext|abs_pext|p_ext)(?![\w(])")
@@ -335,7 +336,7 @@ def efc_operators(model, sol, geo=None):
         for f in ph.children:
             if f.kind != "acpr.efc" or not f.enabled or f.selection is None:
                 continue
-            bnds = list(f.selection.entities) if not f.selection.all else sorted(int(b) for b in sol.topo.bnd)
+            bnds = selection_entities(f, sol.meta) if not f.selection.all else sorted(int(b) for b in sol.topo.bnd)
             if not bnds:
                 continue
             c = _sound_speed(model, ph, bnds, geo, params)
@@ -373,7 +374,7 @@ def _flux_conditions(ph, bnds, geo, params, sol):
                 continue
             ents = [b for b in bnds if len(geo.adj_up["boundary"].get(b, [])) == 1]   # exterior boundaries only
         else:
-            ents = [b for b in bnds if b in set(f.selection.entities)]
+            ents = [b for b in bnds if b in set(selection_entities(f, sol.meta))]
         for b in ents:
             if f.kind == "acpr.hard":
                 out[b] = ("hard",)

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .elmer_mesh import CORNERS, GMSH_TO_ELMER, ElmerMesh
-from .geometry import GeometryBuilder, GeometryError, GeometryResult, levels_for
+from .geometry import GeometryBuilder, GeometryError, GeometryResult, apply_named_selections, levels_for
 from .gmsh_session import session
 from .model import Model, Node, NodeType, Prop, register, space_dim
 
@@ -185,6 +185,7 @@ class Mesher:
         with session("mesh"):
             gb = GeometryBuilder(self.model, self.geom_node, self.overrides)
             geo = gb.build(display=False)
+            apply_named_selections(self.model, geo)    # mesh features may use them below
             sd = geo.sdim
             L = max(geo.bbox[3] - geo.bbox[0], geo.bbox[4] - geo.bbox[1],
                     geo.bbox[5] - geo.bbox[2] if sd == 3 else 0.0) or 1.0

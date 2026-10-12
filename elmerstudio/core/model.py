@@ -102,6 +102,7 @@ class Selection:
     level: str = "domain"
     entities: list[int] = field(default_factory=list)
     all: bool = False
+    named: str = ""                 # tag of a geometry selection (Box Selection); building the geometry sets entities
 
     def resolve(self, available: Iterable[int]) -> list[int]:
         avail = sorted(set(available))
@@ -111,11 +112,22 @@ class Selection:
         return [e for e in self.entities if e in s]
 
     def to_dict(self):
-        return {"level": self.level, "entities": list(self.entities), "all": self.all}
+        d = {"level": self.level, "entities": list(self.entities), "all": self.all}
+        if self.named:
+            d["named"] = self.named
+        return d
 
     @classmethod
     def from_dict(cls, d):
-        return cls(d.get("level", "domain"), [int(x) for x in d.get("entities", [])], bool(d.get("all", False)))
+        return cls(d.get("level", "domain"), [int(x) for x in d.get("entities", [])], bool(d.get("all", False)),
+                   str(d.get("named", "") or ""))
+
+
+def selection_entities(node, meta: dict | None = None) -> list[int]:
+    """A feature's entities in one solution: a named selection as the geometry of that run resolved it
+    (a parametric sweep can renumber the geometry), otherwise the feature's own list."""
+    got = (meta or {}).get("selections", {}).get(node.tag)
+    return [int(e) for e in (got if got is not None else node.selection.entities)]
 
 
 # --------------------------------------------------------------------------- node

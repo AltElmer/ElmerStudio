@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QColorDialog, QComb
                                QTableWidgetItem, QToolButton, QVBoxLayout, QWidget)
 
 from ..core import units
+from ..core.geometry import named_selections
 from ..core.materials import MATPROPS
 from ..core.model import REGISTRY, Node, Prop, level_plural, space_dim, type_title
 from ..core.physics import PHYSICS, physics_def
@@ -291,7 +292,10 @@ class SettingsWindow(QWidget):
         lab = QLabel("Selection:")
         combo = QComboBox()
         combo.addItems(["Manual", f"All {level_plural(level)}"])
-        combo.setCurrentIndex(1 if sel.all else 0)
+        named = named_selections(self.ctx.model, level) if not node.kind.startswith("geom.") else []
+        combo.addItems([title for _t, title in named])
+        tags = [t for t, _title in named]
+        combo.setCurrentIndex(2 + tags.index(sel.named) if sel.named in tags else (1 if sel.all else 0))
         locked = nt.selection_locked or node.meta.get("default")
         combo.setEnabled(not locked)
         row.addWidget(lab)
@@ -352,7 +356,10 @@ class SettingsWindow(QWidget):
             sec.add_full(note)
 
         def on_combo(i):
-            self.ctx.set_selection(node, all_=(i == 1))
+            if i >= 2:
+                self.ctx.set_selection(node, named=tags[i - 2])
+            else:
+                self.ctx.set_selection(node, all_=(i == 1))
             self.refresh()
         combo.currentIndexChanged.connect(on_combo)
         active.toggled.connect(lambda on: self.ctx.activate_selection(node if on else None))
