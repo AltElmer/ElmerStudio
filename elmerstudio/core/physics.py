@@ -530,7 +530,11 @@ def _cd_elyte(n, ctx, d):
 
 
 def _cd_eq(n, ctx, d):
-    return {"Convection": "None"} if _cd_backend(n.parent if n.kind != "physics.cd" else n) == "heat" else {}
+    # No "Convection" keyword at all: HeatSolve's default is no convection, and recent Elmer builds switch
+    # HeatSolve to bubble-enriched linear elements whenever any Equation names Convection (even "None"),
+    # which is singular on the quadratic meshes used here.  The heat backend is only chosen without a Heat
+    # Transfer interface, so no other feature writes Convection into this equation.
+    return {}
 
 
 feature("cd.elyte", "Electrolyte", "ice", "feature_domain", "domain", "material", _cd_elyte, default=True,

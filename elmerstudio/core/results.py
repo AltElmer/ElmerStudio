@@ -353,7 +353,8 @@ class Solution:
             elif comp in ("bflux", "-bflux"):       # reaction (Loads) -> boundary flux density
                 A = self.boundary_lumped()
                 with np.errstate(divide="ignore", invalid="ignore"):
-                    v = np.where(A > 0, (a if a.ndim == 1 else a[:, 0]) / np.where(A > 0, A, 1.0), np.nan)
+                    v = np.where(A > 0, (a if a.ndim == 1 else a[:, 0]) * self.load_scale(src, arr)
+                                 / np.where(A > 0, A, 1.0), np.nan)
                 if comp == "-bflux":
                     v = -v
             elif comp == "spl":
@@ -383,7 +384,8 @@ class Solution:
             if a is None:
                 continue
             mask = self._node_mask("boundary", ents)
-            tot = float(np.sum((a if a.ndim == 1 else a[:, 0])[mask])) * factor if mask is not None else float("nan")
+            tot = float(np.sum((a if a.ndim == 1 else a[:, 0])[mask])) * factor * self.load_scale(src, arr) \
+                if mask is not None else float("nan")
             names[gname.replace(".", "_")] = np.full(n, tot)
         for s, full in SHORT.items():
             fk = full.replace(".", "_")
@@ -397,6 +399,30 @@ class Solution:
     efc: dict = {}             # exterior field calculations {efc1: acoustics.ExteriorField}
     globals: dict = {}         # {name: (array, boundary numbers, factor)}: sums of nodal reactions (electrode currents)
     flux_boundaries: set = set()   # boundaries where a reaction flux exists (others are insulating)
+
+    def load_scale(self, src: str, arr: dict) -> float:
+        """Factor that makes Elmer's axisymmetric nodal loads per radian.
+
+        Elmer 9.0 and the classic assembly integrate with r dr dz (loads per radian); the vectorized axisymmetric
+        assembly of later builds returns loads for the full revolution.  The two differ by 2 pi, so compare the
+        loads on the reaction boundaries with the solver's own flux through them, per radian (HRZ measure x r);
+        an element-gradient flux is within ~10 % even at singular edges, far from a factor 6.3."""
+        if not (self.sdim == 2 and self.meta.get("axi")) or not src.endswith(" loads"):
+            return 1.0
+        memo = self.__dict__.setdefault("_lscale", {})
+        if src in memo:
+            return memo[src]
+        scale = 1.0
+        F, L = arr.get(src[: -len(" loads")] + " flux"), arr.get(src)
+        if F is not None and L is not None and self.flux_boundaries:
+            A = self.boundary_lumped()
+            on = A > 0
+            est = float(np.sum(np.linalg.norm(np.atleast_2d(F.T).T, axis=1)[on] * A[on]))
+            got = float(np.sum(np.abs(L if L.ndim == 1 else L[:, 0])[on]))
+            if est > 0 and got / est > math.sqrt(2 * math.pi):
+                scale = 1 / (2 * math.pi)
+        memo[src] = scale
+        return scale
 
     def boundary_lumped(self):
         """Lumped boundary measure per node (HRZ), with the r weight on axisymmetric models -- the measure that

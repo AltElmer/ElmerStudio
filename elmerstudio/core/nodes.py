@@ -83,7 +83,7 @@ def bind_results(model, sol, geo=None):
     gl, var, flux = electrode_results(model, sol, params)
     sol.globals = gl
     if flux != sol.flux_boundaries:
-        sol.flux_boundaries, sol._blump = flux, None
+        sol.flux_boundaries, sol._blump, sol._lscale = flux, None, {}
     sol.variables.update(var)
     if sol.kind == "study.freq":
         from .acoustics import efc_operators, incident_variables
