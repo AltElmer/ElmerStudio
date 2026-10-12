@@ -61,9 +61,10 @@ GEOM3D = ["geom.block", "geom.sphere", "geom.cylinder", "geom.cone", "geom.torus
           "geom.copy", "geom.import", "geom.fillet3d", "geom.chamfer3d"]
 GEOM2D = ["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.union", "geom.difference",
           "geom.intersection", "geom.move", "geom.rotate", "geom.scale", "geom.mirror", "geom.array",
-          "geom.copy", "geom.import"]
+          "geom.copy", "geom.import", "geom.fillet2d", "geom.chamfer2d"]
 WP_KINDS = ["geom.rectangle", "geom.circle", "geom.ellipse", "geom.polygon", "geom.union", "geom.difference",
-            "geom.intersection", "geom.move", "geom.rotate", "geom.copy", "geom.array"]
+            "geom.intersection", "geom.move", "geom.rotate", "geom.copy", "geom.array", "geom.fillet2d",
+            "geom.chamfer2d"]
 
 
 def _geom_children(node: Node):
@@ -135,11 +136,31 @@ register(NodeType("geom.polygon", "Polygon", "pol", "polygon", dims=(2, 3), prop
     Prop("ys", "y:", "string", "0 0 1 1", section="Coordinates", tip="Space- or comma-separated y coordinates")]))
 
 # ---- work plane, extrude, revolve
-register(NodeType("geom.workplane", "Work Plane", "wp", "work_plane", dims=(3,), children=WP_KINDS, props=[
-    Prop("plane", "Plane:", "choice", "xy", choices=[("xy", "xy-plane"), ("yz", "yz-plane"), ("zx", "zx-plane")],
+WP_PLANES = {   # plane: (xw, yw, n) in global axes; offset is the coordinate along |n|
+    "xy": ((1, 0, 0), (0, 1, 0), (0, 0, 1)), "yz": ((0, 1, 0), (0, 0, 1), (1, 0, 0)),
+    "zx": ((0, 0, 1), (1, 0, 0), (0, 1, 0)), "yx": ((0, 1, 0), (1, 0, 0), (0, 0, -1)),
+    "zy": ((0, 0, 1), (0, 1, 0), (-1, 0, 0)), "xz": ((1, 0, 0), (0, 0, 1), (0, -1, 0)),
+}
+register(NodeType("geom.workplane", "Work Plane", "wp", "work_plane", dims=(3,), children=WP_KINDS, selection="boundary",
+                  selection_visible=lambda p: p.get("ptype") == "face", single_select=True, props=[
+    Prop("ptype", "Plane type:", "choice", "quick", choices=[("quick", "Quick"), ("face", "Face parallel")],
          section="Plane Definition"),
+    Prop("plane", "Plane:", "choice", "xy", choices=[(k, f"{k}-plane") for k in WP_PLANES],
+         section="Plane Definition", visible=lambda p: p.get("ptype", "quick") == "quick"),
+    Prop("face", "Planar face (boundary number):", "int", 1, section="Plane Definition",
+         visible=lambda p: p.get("ptype") == "face",
+         tip="Boundary number of the geometry built so far; the plane origin is the face centre, the normal points out"),
     Prop("offset", "Offset:", default="0", unit="LEN", section="Plane Definition",
-         tip="Offset along the plane normal (z for xy, x for yz, y for zx)")]))
+         tip="Coordinate along the plane normal axis (quick planes) or distance along the face normal")]))
+register(NodeType("geom.fillet2d", "Fillet", "fil", "fillet", dims=(2, 3), selection="point",
+                  description="Click the vertices to fillet in the Graphics window (numbered by position).", props=[
+    Prop("points", "Vertices to fillet (point numbers, if not picked):", "string", "", section="Points",
+         tip="Point numbers of the plane geometry built so far (numbered by position, x then y)"),
+    Prop("r", "Radius:", default="0.1", unit="LEN", section="Radius")]))
+register(NodeType("geom.chamfer2d", "Chamfer", "cha", "chamfer", dims=(2, 3), selection="point",
+                  description="Click the vertices to chamfer in the Graphics window.", props=[
+    Prop("points", "Vertices to chamfer (point numbers, if not picked):", "string", "", section="Points"),
+    Prop("d", "Distance from vertex:", default="0.1", unit="LEN", section="Distance")]))
 register(NodeType("geom.extrude", "Extrude", "ext", "extrude", dims=(3,), props=[
     Prop("input", "Input objects:", "objects", [], section="General"),
     Prop("dist", "Distance from work plane:", default="1", unit="LEN", section="Distances"),
@@ -237,6 +258,7 @@ class GeometryResult:
     adj_down: dict = field(default_factory=dict)      # level -> {number: [numbers one level down]}
     display: dict = field(default_factory=dict)       # level -> {number: geometry arrays}
     bbox_of: dict = field(default_factory=dict)       # level -> {number: (xmin,ymin,zmin,xmax,ymax,zmax)}
+    measure: dict = field(default_factory=dict)       # level -> {number: length/area/volume in SI}
     objects: list = field(default_factory=list)       # object names alive before finalize
     messages: list = field(default_factory=list)
     built_upto: str = ""
@@ -289,6 +311,38 @@ class GeometryError(RuntimeError):
     pass
 
 
+def _circumcenter(a, b, c):
+    a, b, c = (np.asarray(v, float)[:2] for v in (a, b, c))
+    d = 2 * (a[0] * (b[1] - c[1]) + b[0] * (c[1] - a[1]) + c[0] * (a[1] - b[1]))
+    if abs(d) < 1e-30:
+        return (a + c) / 2
+    ux = ((a @ a) * (b[1] - c[1]) + (b @ b) * (c[1] - a[1]) + (c @ c) * (a[1] - b[1])) / d
+    uy = ((a @ a) * (c[0] - b[0]) + (b @ b) * (a[0] - c[0]) + (c @ c) * (b[0] - a[0])) / d
+    return np.array([ux, uy])
+
+
+def _chain(segs):
+    """Order and orient segments head-to-tail into a closed loop."""
+    if len(segs) <= 1:
+        return segs
+    out = [segs[0]]
+    rest = segs[1:]
+    tol = 1e-9 * (1 + max(np.abs(s[1]).max() for s in segs))
+    while rest:
+        end = out[-1][2]
+        for i, s in enumerate(rest):
+            if np.linalg.norm(s[1] - end) < tol:
+                out.append(s)
+                break
+            if np.linalg.norm(s[2] - end) < tol:
+                out.append([s[0], s[2], s[1], s[3]])
+                break
+        else:
+            raise GeometryError("Could not order the edges of a face (open boundary?)")
+        rest.pop(i)
+    return out
+
+
 def _floats(s: str) -> list[float]:
     return [float(x) for x in re.split(r"[\s,;]+", str(s).strip()) if x]
 
@@ -308,6 +362,7 @@ class GeometryBuilder:
         self.objects: dict[str, list[tuple[int, int]]] = {}
         self.wp_objects: dict[str, dict] = {}
         self.messages: list[str] = []
+        self.in_plane = False
 
     # ---- expression helpers (COMSOL semantics: unitless numbers are in the geometry unit)
     def _param_units(self):
@@ -599,6 +654,8 @@ class GeometryBuilder:
                         occ.translate(c, i * dx, j * dy, kk * dz)
                         out.extend(c)
             self.objects[f.tag] = out
+        elif k in ("geom.fillet2d", "geom.chamfer2d"):
+            self._corner_ops(occ, f)
         elif k in ("geom.fillet3d", "geom.chamfer3d"):
             names, dts = self._input(f, keep=False)
             vols = [t for d, t in dts if d == 3]
@@ -697,42 +754,232 @@ class GeometryBuilder:
         return dt
 
     # ---- work planes
-    def _wp_transform(self, occ, dts, wp: Node):
-        off = self.L(wp, "offset")
-        plane = wp.get("plane", "xy")
-        if plane == "xy":
-            if off:
-                occ.translate(dts, 0, 0, off)
-        elif plane == "yz":   # local (x,y) -> global (y,z), normal +x
-            occ.rotate(dts, 0, 0, 0, 1, 1, 1, 2 * math.pi / 3)
-            if off:
-                occ.translate(dts, off, 0, 0)
-        elif plane == "zx":   # local (x,y) -> global (z,x), normal +y
-            occ.rotate(dts, 0, 0, 0, 1, 1, 1, -2 * math.pi / 3)
-            if off:
-                occ.translate(dts, 0, off, 0)
+    # ---- 2D fillet / chamfer on numbered vertices
+    def _corner_ops(self, occ, f: Node):
+        import gmsh
+        occ.synchronize()
+        faces_of = {nm: [t for d, t in dts if d == 2] for nm, dts in self.objects.items()}
+        pts = {}
+        for fs in faces_of.values():
+            for t in fs:
+                for d, p in gmsh.model.getBoundary([(2, t)], combined=False, oriented=False, recursive=True):
+                    if d == 0:
+                        pts[p] = np.array(gmsh.model.getValue(0, p, []))
+        if not pts:
+            raise GeometryError(f"{f.label}: there is no plane geometry to modify")
+        span = max(np.ptp(np.array(list(pts.values())), axis=0)[:2].max(), 1e-12)
+        tol = span * 1e-9
+        order = sorted(pts, key=lambda p: (round(pts[p][0] / tol), round(pts[p][1] / tol)))
+        picked = list(f.selection.entities) if (f.selection is not None and f.selection.entities) else []
+        want = picked or [int(x) for x in _floats(f.get("points", ""))]
+        if not want:
+            raise GeometryError(f"{f.label}: select the vertices (point numbers 1..{len(order)})")
+        bad = [w for w in want if not 1 <= w <= len(order)]
+        if bad:
+            raise GeometryError(f"{f.label}: point(s) {bad} do not exist (1..{len(order)})")
+        targets = [pts[order[w - 1]][:2] for w in want]
+        size = self.L(f, "r" if f.kind == "geom.fillet2d" else "d")
+        out = []
+        for nm in list(self.objects):
+            fs = faces_of.get(nm, [])
+            touched = False
+            new = []
+            for t in fs:
+                loops = self._face_loops(t)
+                hit = any(np.linalg.norm(seg[1] - v) < span * 1e-7 for lp in loops for seg in lp for v in targets)
+                if not hit:
+                    new.append((2, t))
+                    continue
+                touched = True
+                loops = [self._round_corners(lp, targets, size, f, span) for lp in loops]
+                new.append((2, self._make_face(occ, loops)))
+                occ.remove([(2, t)], recursive=True)
+            if touched:
+                del self.objects[nm]
+                out.extend(new)
+        if not out:
+            raise GeometryError(f"{f.label}: the selected points are not corners of any object")
+        self.objects[f.tag] = out
 
-    def _wp_normal(self, wp: Node):
-        return {"xy": (0, 0, 1), "yz": (1, 0, 0), "zx": (0, 1, 0)}[wp.get("plane", "xy")]
+    def _face_loops(self, ftag):
+        """Boundary loops of a planar face as ordered segments ('line'|'arc'|'circle', start, end, center)."""
+        import gmsh
+        _ltags, ctags = gmsh.model.occ.getCurveLoops(ftag)
+        loops = []
+        for cl in ctags:
+            segs = []
+            for c in cl:
+                c = abs(int(c))
+                lo, hi = gmsh.model.getParametrizationBounds(1, c)
+                a = np.array(gmsh.model.getValue(1, c, [lo[0]]))[:2]
+                b = np.array(gmsh.model.getValue(1, c, [hi[0]]))[:2]
+                m = np.array(gmsh.model.getValue(1, c, [(lo[0] + hi[0]) / 2]))[:2]
+                typ = gmsh.model.getType(1, c)
+                if typ == "Line":
+                    segs.append(["line", a, b, None])
+                elif typ == "Circle":
+                    if np.linalg.norm(a - b) < 1e-12 * (1 + np.linalg.norm(a)):
+                        q = np.array(gmsh.model.getValue(1, c, [lo[0] + (hi[0] - lo[0]) / 4]))[:2]
+                        segs.append(["circle", a, a, _circumcenter(a, q, m)])
+                    else:
+                        segs.append(["arc", a, b, _circumcenter(a, m, b)])
+                else:
+                    raise GeometryError(f"Fillet/Chamfer supports straight and circular edges only (found {typ})")
+            loops.append(_chain(segs))
+        return loops
+
+    def _round_corners(self, segs, targets, size, f, span):
+        out = [list(s) for s in segs]
+        n = len(out)
+        if n < 2:
+            return out
+        for v in targets:
+            for i in range(n):
+                s_in, s_out = out[i], out[(i + 1) % n]
+                if np.linalg.norm(s_in[2] - v) > span * 1e-7:
+                    continue
+                if s_in[0] != "line" or s_out[0] != "line":
+                    raise GeometryError(f"{f.label}: only corners between two straight edges can be modified")
+                u1 = s_in[1] - v
+                u2 = s_out[2] - v
+                l1, l2 = np.linalg.norm(u1), np.linalg.norm(u2)
+                u1, u2 = u1 / l1, u2 / l2
+                th = math.acos(max(-1.0, min(1.0, float(np.dot(u1, u2)))))
+                if f.kind == "geom.fillet2d":
+                    t = size / math.tan(th / 2)
+                    if t >= min(l1, l2) - 1e-12:
+                        raise GeometryError(f"{f.label}: radius {size:g} is too large for the corner")
+                    p1, p2 = v + u1 * t, v + u2 * t
+                    bis = (u1 + u2) / np.linalg.norm(u1 + u2)
+                    c = v + bis * size / math.sin(th / 2)
+                    corner = ["arc", p1, p2, c]
+                else:
+                    if size >= min(l1, l2) - 1e-12:
+                        raise GeometryError(f"{f.label}: distance {size:g} is too large for the corner")
+                    p1, p2 = v + u1 * size, v + u2 * size
+                    corner = ["line", p1, p2, None]
+                s_in[2] = p1
+                s_out[1] = p2
+                out.insert(i + 1, corner)
+                n += 1
+                break
+        return out
+
+    def _make_face(self, occ, loops):
+        def area(lp):
+            P = np.array([s[1] for s in lp])
+            return 0.5 * abs(np.dot(P[:, 0], np.roll(P[:, 1], -1)) - np.dot(P[:, 1], np.roll(P[:, 0], -1)))
+        cache = {}
+
+        def pt(p):
+            key = (round(p[0], 12), round(p[1], 12))
+            if key not in cache:
+                cache[key] = occ.addPoint(p[0], p[1], 0.0)
+            return cache[key]
+        tags = []
+        for lp in loops:
+            if len(lp) == 1 and lp[0][0] == "circle":
+                c = lp[0][3]
+                r = float(np.linalg.norm(lp[0][1] - c))
+                ct = occ.addCircle(c[0], c[1], 0.0, r)
+                tags.append((math.pi * r * r, occ.addCurveLoop([ct])))
+                continue
+            cs = []
+            for kind, a, b, c in lp:
+                if kind == "line":
+                    cs.append(occ.addLine(pt(a), pt(b)))
+                else:
+                    cs.append(occ.addCircleArc(pt(a), occ.addPoint(c[0], c[1], 0.0), pt(b)))
+            tags.append((area(lp), occ.addCurveLoop(cs)))
+        tags.sort(key=lambda x: -x[0])
+        return occ.addPlaneSurface([t for _a, t in tags])
+
+    def _wp_frame(self, wp: Node):
+        """(origin, xw, yw, n) of a work plane in global coordinates (computed from the geometry built so far)."""
+        import gmsh
+        off = self.L(wp, "offset")
+        if wp.get("ptype", "quick") != "face":
+            ex, ey, n = (np.array(v, float) for v in WP_PLANES[wp.get("plane", "xy")])
+            return np.abs(n) * off, ex, ey, n
+        gmsh.model.occ.synchronize()
+        sel = wp.selection.entities if (wp.selection is not None and wp.selection.entities) else []
+        num = int(sel[0]) if sel else int(wp.get("face", 1) or 1)
+        faces = self._numbered(2)
+        if not 1 <= num <= len(faces):
+            raise GeometryError(f"{wp.label}: face {num} does not exist (the geometry has {len(faces)} boundaries here)")
+        ftag = faces[num - 1]
+        c = np.array(gmsh.model.occ.getCenterOfMass(2, ftag))
+        lo, hi = gmsh.model.getParametrizationBounds(2, ftag)
+        uvs = [(lo[0] + (hi[0] - lo[0]) * a, lo[1] + (hi[1] - lo[1]) * b) for a, b in ((.5, .5), (.2, .3), (.8, .7))]
+        normals = [np.array(gmsh.model.getNormal(ftag, list(uv))) for uv in uvs]
+        n = normals[0] / np.linalg.norm(normals[0])
+        if any(abs(abs(np.dot(n, v / np.linalg.norm(v))) - 1) > 1e-6 for v in normals[1:]):
+            raise GeometryError(f"{wp.label}: face {num} is not planar")
+        uv = gmsh.model.getParametrization(2, ftag, list(c))
+        n = np.array(gmsh.model.getNormal(ftag, list(uv)))
+        n /= np.linalg.norm(n)
+        vols = gmsh.model.getAdjacencies(2, ftag)[0]
+        if len(vols):                     # make the normal point out of the solid
+            eps = 1e-4 * self._extent()
+            if gmsh.model.isInside(3, int(vols[0]), list(c + eps * n)):
+                n = -n
+        ref = np.array([1.0, 0, 0]) if abs(n[0]) < 0.9 else np.array([0, 1.0, 0])
+        ex = ref - np.dot(ref, n) * n
+        ex /= np.linalg.norm(ex)
+        ey = np.cross(n, ex)
+        return c + off * n, ex, ey, n
+
+    def _extent(self):
+        import gmsh
+        b = gmsh.model.getBoundingBox(-1, -1)
+        return float(np.linalg.norm(np.array(b[3:]) - np.array(b[:3]))) or 1.0
+
+    def _numbered(self, dim):
+        """Entity tags of the current (intermediate) geometry, ordered by position like the final numbering."""
+        import gmsh
+        tol = max(self._extent() * 1e-9, 1e-14)
+        keys = []
+        for _d, t in gmsh.model.getEntities(dim):
+            b = gmsh.model.getBoundingBox(dim, t)
+            b = tuple(b[i] + OCC_PAD for i in range(3)) + tuple(b[i] - OCC_PAD for i in range(3, 6))
+            keys.append((tuple(round(v / tol) for v in b), t))
+        return [t for _k, t in sorted(keys)]
 
     def _workplane(self, occ, wp: Node):
+        frame = self._wp_frame(wp)          # before building the plane geometry (face numbers refer to the 3D model)
         outer = self.objects
         self.objects = {}
+        saved_sdim = self.sdim
         try:
-            saved_sdim = self.sdim
             self.sdim = 2
+            self.in_plane = True
             for f in wp.children:
                 if f.enabled:
                     self._build_feature(occ, f)
-            self.sdim = saved_sdim
             dts = [dt for v in self.objects.values() for dt in v]
         finally:
-            self.objects, inner = outer, self.objects
+            self.sdim = saved_sdim
+            self.in_plane = False
+            self.objects = outer
         if not dts:
             raise GeometryError(f"{wp.label}: the work plane is empty")
-        self._wp_transform(occ, dts, wp)
+        o, ex, ey, n = frame
+        # rigid motion (rotation + translation) keeps planes planar; affineTransform would make B-splines
+        R = np.column_stack([ex, ey, n])
+        ang = math.acos(max(-1.0, min(1.0, (np.trace(R) - 1) / 2)))
+        if ang > 1e-12:
+            if abs(ang - math.pi) < 1e-9:
+                axis = np.sqrt(np.maximum((np.diag(R) + 1) / 2, 0))
+                i = int(np.argmax(axis))
+                axis = R[:, i] + np.eye(3)[i]
+                axis /= np.linalg.norm(axis)
+            else:
+                axis = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]]) / (2 * math.sin(ang))
+            occ.rotate(dts, 0, 0, 0, *axis, ang)
+        if np.linalg.norm(o) > 0:
+            occ.translate(dts, *o)
         self.objects[wp.tag] = dts
-        self.wp_objects[wp.tag] = {"normal": self._wp_normal(wp), "node": wp}
+        self.wp_objects[wp.tag] = {"normal": tuple(n), "frame": frame, "node": wp}
 
     def _extrude(self, occ, f: Node):
         names, dts = self._input(f)
@@ -750,25 +997,17 @@ class GeometryBuilder:
 
     def _revolve(self, occ, f: Node):
         names, dts = self._input(f)
-        wp = None
+        frame = None
         for nm in names:
             if nm in self.wp_objects:
-                wp = self.wp_objects[nm]["node"]
+                frame = self.wp_objects[nm]["frame"]
         px, py = self.L(f, "px"), self.L(f, "py")
         dx, dy = self.N(f, "dx"), self.N(f, "dy")
-        # map the in-plane axis to global coordinates
-        def g(x, y):
-            plane = wp.get("plane", "xy") if wp else "xy"
-            off = self.L(wp, "offset") if wp else 0.0
-            if plane == "xy":
-                return (x, y, off)
-            if plane == "yz":
-                return (off, x, y)
-            return (y, off, x)
-        p = g(px, py)
-        q = np.array(g(px + dx, py + dy)) - np.array(p)
-        if wp is not None and wp.get("plane", "xy") != "xy":
-            q = q  # offsets cancel in the difference
+        if frame is None:
+            frame = (np.zeros(3), np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), np.array([0, 0, 1.0]))
+        o, ex, ey, _n = frame
+        p = o + px * ex + py * ey
+        q = dx * ex + dy * ey
         faces = [dt for dt in dts if dt[0] == 2]
         ang = self.A(f, "angle")
         out = occ.revolve(faces, *p, *q, min(ang, 2 * math.pi))
@@ -803,6 +1042,13 @@ class GeometryBuilder:
                 keys.append((tuple(round(v / tol) for v in b), t))
             keys.sort()
             res.bbox_of[level] = {i + 1: boxes[t] for i, (_, t) in enumerate(keys)}
+            if dim > 0:   # length/area/volume in SI
+                res.measure[level] = {}
+                for i, (_, t) in enumerate(keys):
+                    try:
+                        res.measure[level][i + 1] = gmsh.model.occ.getMass(dim, t) * self.ufac ** dim
+                    except Exception:
+                        res.measure[level][i + 1] = float("nan")
             res.numbers[level] = list(range(1, len(keys) + 1))
             res.tag_of[level] = {i + 1: t for i, (_, t) in enumerate(keys)}
             res.num_of[level] = {t: i + 1 for i, (_, t) in enumerate(keys)}
@@ -897,6 +1143,41 @@ def build_geometry(model: Model, geom: Node | None = None, upto: Node | None = N
         return GeometryBuilder(model, geom, overrides).build(upto=upto, display=display)
 
 
+def build_context_geometry(model: Model, node: Node, overrides=None) -> GeometryResult:
+    """Geometry a geometry feature *sees* (what COMSOL shows while you edit it):
+
+    * a feature inside a Work Plane -> the plane's 2D sketch built up to (excluding) the feature;
+    * any other geometry feature    -> the 3D sequence built up to (excluding) the feature, not finalized.
+    Entity numbers in this result are the ones face/vertex selections of the feature refer to."""
+    comp = model.component
+    geom = comp.child("geometry")
+    with session("context"):
+        gb = GeometryBuilder(model, geom, overrides)
+        import gmsh
+        occ = gmsh.model.occ
+        if node.parent is not None and node.parent.kind == "geom.workplane":
+            gb.sdim = 2
+            gb.in_plane = True
+            for f in node.parent.children:
+                if f is node:
+                    break
+                if f.enabled:
+                    gb._build_feature(occ, f)
+            occ.synchronize()
+            res = gb._number(list(gb.objects))
+        else:
+            seq = [f for f in geom.children if f.enabled and f.kind != "geom.finalize"]
+            for f in seq:
+                if f is node:
+                    break
+                gb._build_feature(occ, f)
+            occ.synchronize()
+            res = gb._number(list(gb.objects))
+        gb._tessellate(res)
+        res.messages = gb.messages
+        return res
+
+
 def object_names_before(geom: Node, node: Node) -> list[str]:
     """Names of objects that exist just before *node* in the sequence (for input pickers)."""
     alive: list[str] = []
@@ -905,6 +1186,9 @@ def object_names_before(geom: Node, node: Node) -> list[str]:
         if f is node:
             break
         if not f.enabled or f.kind == "geom.finalize":
+            continue
+        if f.kind in ("geom.fillet2d", "geom.chamfer2d"):   # replaces the modified objects
+            alive = [f.tag]
             continue
         consumed = []
         for key in ("input", "tools"):

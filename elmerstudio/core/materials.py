@@ -47,6 +47,10 @@ LIBRARY = {
     "Iron (soft magnetic)": ("Metals", {"rho": "7870", "k": "80.2", "Cp": "449", "E": "200e9", "nu": "0.29",
                                         "alpha": "11.8e-6", "sigma": "1.12e7", "epsr": "1", "mur": "4000", "eps": "0.3"},
                              (110, 115, 125), "Soft iron with constant relative permeability (linear)."),
+    "Titanium beta-21S": ("Metals", {"rho": "4940", "k": "7.5", "Cp": "710", "E": "105e9", "nu": "0.33",
+                                     "alpha": "7.06e-6", "sigma": "7.407e5", "epsr": "1", "mur": "1", "eps": "0.3"},
+                          (165, 160, 150), "Beta titanium alloy (Ti-15Mo-2.7Nb-3Al-0.2Si), handbook values at 20 degC; "
+                                           "resistivity 1.35 uOhm*m."),
     "Titanium Ti-6Al-4V": ("Metals", {"rho": "4430", "k": "6.7", "Cp": "526", "E": "113.8e9", "nu": "0.342",
                                       "alpha": "8.6e-6", "sigma": "5.8e5", "epsr": "1", "mur": "1", "eps": "0.3"},
                            (175, 170, 160), "Titanium alloy, grade 5."),

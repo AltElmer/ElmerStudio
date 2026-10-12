@@ -246,7 +246,7 @@ class SettingsWindow(QWidget):
             d.setObjectName("SettingsSubtitle")
             s.add_full(d)
         # selection
-        if node.selection is not None:
+        if node.selection is not None and (nt.selection_visible is None or nt.selection_visible(self._vis_props(node))):
             self._selection_section(node, nt)
         # equation
         if nt.equation:
@@ -285,7 +285,7 @@ class SettingsWindow(QWidget):
         sel = node.selection
         level = sel.level
         sec = self._section(f"{level.capitalize() if level != 'boundary' else 'Boundary'} Selection")
-        geo = self.ctx.geometry
+        geo = self.ctx.geometry_for(node) if hasattr(self.ctx, "geometry_for") else self.ctx.geometry
         avail = geo.numbers.get(level, []) if geo is not None else []
         row = QHBoxLayout()
         lab = QLabel("Selection:")

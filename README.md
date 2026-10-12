@@ -43,6 +43,16 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 To run on several cores, set *Study > Number of MPI processes*. This needs an MPI build of Elmer (`ElmerSolver_mpi` plus `mpiexec`); the mesh is partitioned with ElmerGrid.
 
+## COMSOL tutorials reproduced
+
+The two step-by-step models of *Introduction to COMSOL Multiphysics* are rebuilt with the same workflow and checked against what the tutorial text states (`tests/test_tutorial_busbar.py`, `tests/test_tutorial_wrench.py`, GUI walkthrough `tools/screenshot_tutorial.py`):
+
+| Tutorial | Workflow in Elmer Studio | Checked |
+|---|---|---|
+| **Busbar** (Joule heating) | xz work plane: rectangles, Difference, Fillet on *point 3* (r = tbb) and *point 6* (r = 2·tbb), Extrude wbb; face-parallel work planes on faces 8 and 4 with circles, Copy, Extrude −2·tbb; Copper + Titanium beta-21S; Electric Potential / Ground on the bolt faces; convective Heat Flux (htc) elsewhere; user mesh (mh, mh−mh/3, curvature 0.2); Parametric Sweep wbb = range(5,1,10) cm; Average coupling operator `aveop1(T)` in a Global Evaluation and a 1D Global plot | 7 domains ("domains 2–7 are the bolts"); temperature spread < 10 K; top bolt hottest; average temperature falls with width; Joule power = convective loss (0.4 %) |
+| **Wrench** (stationary solid mechanics) | geometry from parameters (COMSOL's `wrench.mphbin` is not public); Fixed Constraint on the socket; Boundary Load as **Total force** −F (150 N); von Mises plot, safety plot `solid.mises > 200[MPa]`, Volume Maximum / `maxop1`; mesh-convergence sweep on `hd` with Size hmax = h0/hd, hmin = h0/(4·hd), curvature 0.1, narrow regions 0.2 | mesh refines with hd; tip deflection converges (3.100 → 3.117 mm) and agrees with beam theory; peak stress located at the handle/head corner |
+
+Features added while following them: face-parallel and all quick work planes (xy, yz, zx, yx, zy, xz); 2D Fillet/Chamfer on clicked vertices; the plane sketch and the "geometry so far" shown with entity labels while picking; component couplings (Average, Integration, Maximum, Minimum); Global Evaluation and Global plots over a parametric sweep (parameter in its own unit); Max/Min with location; Total force loads; Multislice plots; COMSOL's definition of *resolution of narrow regions*.
 ## What is there
 
 | COMSOL concept | Elmer Studio | Elmer back end |

@@ -316,6 +316,18 @@ class SifContext:
                     break
         return self._mat_expr(node, key, domain, src_key)
 
+    def selection_measure(self, node: Node, level: str) -> float:
+        """Total length/area/volume (SI) of a feature's selection; 2D: per unit depth; axisymmetric: revolved."""
+        ents = node.selection.resolve(self.geo.numbers[level]) if node.selection else []
+        meas = self.geo.measure.get(level, {})
+        if self.axi:
+            total = 0.0
+            for e in ents:   # Pappus: revolved area = 2*pi*r_centroid*length (bbox centre as centroid estimate)
+                bb = self.geo.bbox_of[level][e]
+                total += 2 * math.pi * 0.5 * (bb[0] + bb[3]) * self.geo.scale * meas.get(e, 0.0)
+            return total
+        return float(sum(meas.get(e, 0.0) for e in ents))
+
     def pde_var(self, node: Node) -> str:
         ph = node if node.kind.startswith("physics.") else node.ancestor("physics.")
         return str(ph.get("depvar", "u")) if ph else "u"

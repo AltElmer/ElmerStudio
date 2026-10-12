@@ -343,11 +343,41 @@ class Solution:
                 names[s] = names[fk]
         return names
 
+    # component coupling operators (aveop1(T), intop1(...), maxop1, minop1), set by the model
+    operators: dict = {}
+
+    def _operator_funcs(self):
+        def make(kind, level, ents):
+            def op(arr):
+                arr = np.asarray(np.real(arr), float)
+                if arr.ndim == 0:
+                    arr = np.full(len(self.topo.nodes), float(arr))
+                if kind in ("maximum", "minimum"):
+                    sel = self._node_mask(level, ents)
+                    v = arr[sel] if sel is not None else arr
+                    return float(np.nanmax(v) if kind == "maximum" else np.nanmin(v))
+                return self._integrate_values(arr, level, ents, average=(kind == "average"))
+            return op
+        return {nm: make(k, lv, ents) for nm, (k, lv, ents) in self.operators.items()}
+
+    def _node_mask(self, level, ents):
+        if ents is None:
+            return None
+        g = self.bulk_grid() if level == "domain" else self.boundary_grid()
+        idname = "dom" if level == "domain" else "bnd"
+        cells = np.where(np.isin(g.cell_data[idname], list(ents)))[0]
+        if not len(cells):
+            return np.zeros(len(self.topo.nodes), bool)
+        sub = g.extract_cells(cells)
+        mask = np.zeros(len(self.topo.nodes), bool)
+        mask[np.asarray(sub.point_data["vtkOriginalPointIds"])] = True
+        return mask
+
     def evaluate(self, expr: str, i: int | None = None) -> np.ndarray:
         i = self.frame_index(i)
         names = self.names(i)
         e = _dotted(str(expr))
-        v = units.evaluate(e, names)
+        v = units.evaluate(e, names, self._operator_funcs())
         v = np.asarray(np.real(v), dtype=float)
         if v.ndim == 0:
             v = np.full(len(self.topo.nodes), float(v))
@@ -398,8 +428,9 @@ class Solution:
 
     # -- derived values
     def integrate(self, expr, i, level="domain", entities=None, average=False):
-        import pyvista as pv
-        vals = self.evaluate(expr, i)
+        return self._integrate_values(self.evaluate(expr, i), level, entities, average)
+
+    def _integrate_values(self, vals, level="domain", entities=None, average=False):
         g = self.bulk_grid() if level == "domain" else self.boundary_grid()
         idname = "dom" if level == "domain" else "bnd"
         if g.n_cells == 0:
@@ -414,28 +445,36 @@ class Solution:
             g = g.extract_cells(np.where(mask)[0])
         r = g.integrate_data()
         tot = float(r.point_data["f"][0])
-        size_key = "Volume" if "Volume" in r.cell_data else ("Area" if "Area" in r.cell_data else "Length")
+        dim = self.sdim if level == "domain" else self.sdim - 1
+        size_key = {3: "Volume", 2: "Area", 1: "Length"}.get(dim, "Volume")
         size = float(r.cell_data[size_key][0]) if size_key in r.cell_data else float("nan")
-        if self.sdim == 2 and level == "domain" and "Area" in r.cell_data:
-            size = float(r.cell_data["Area"][0])
-        if self.sdim == 2 and level == "boundary" and "Length" in r.cell_data:
-            size = float(r.cell_data["Length"][0])
         if average:
             return tot / size if size else float("nan")
         return tot
 
     def maxmin(self, expr, i, level="domain", entities=None):
+        r = self.maxmin_locations(expr, i, level, entities)
+        return r["max"], r["min"]
+
+    def maxmin_locations(self, expr, i, level="domain", entities=None):
+        """Max/min values and the coordinates (SI) where they occur, like COMSOL's Max/Min evaluation."""
         vals = self.evaluate(expr, i)
-        g = self.bulk_grid() if level == "domain" else self.boundary_grid()
-        idname = "dom" if level == "domain" else "bnd"
-        if entities is not None and g.n_cells:
-            mask = np.isin(g.cell_data[idname], list(entities))
-            cells = g.extract_cells(np.where(mask)[0])
-            pid = np.asarray(cells.point_data["vtkOriginalPointIds"]) if "vtkOriginalPointIds" in cells.point_data else np.arange(len(vals))
-            v = vals[pid]
-        else:
-            v = vals
-        return float(np.nanmax(v)), float(np.nanmin(v))
+        mask = self._node_mask(level, entities)
+        if mask is None:
+            mask = np.zeros(len(vals), bool)
+            g = self.bulk_grid() if level == "domain" else self.boundary_grid()
+            if g.n_cells:
+                mask[np.unique(np.asarray(g.extract_cells(np.arange(g.n_cells)).point_data["vtkOriginalPointIds"]))] = True
+            else:
+                mask[:] = True
+        idx = np.where(mask & np.isfinite(vals))[0]
+        if not len(idx):
+            nan = float("nan")
+            return {"max": nan, "min": nan, "xmax": [nan] * 3, "xmin": [nan] * 3}
+        imax = idx[np.argmax(vals[idx])]
+        imin = idx[np.argmin(vals[idx])]
+        P = self.topo.nodes * self.scale
+        return {"max": float(vals[imax]), "min": float(vals[imin]), "xmax": P[imax].tolist(), "xmin": P[imin].tolist()}
 
     def point_eval(self, expr, i, points):
         import pyvista as pv

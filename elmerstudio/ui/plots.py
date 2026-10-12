@@ -11,7 +11,7 @@ from ..core.results import Solution, auto_scale_deformation, colormap
 from .graphics import Scene
 from .settings import pretty_unit
 
-PLOT_NAMES = {"plot.surface": "Surface", "plot.volume": "Volume", "plot.slice": "Slice", "plot.isosurface": "Isosurface",
+PLOT_NAMES = {"plot.surface": "Surface", "plot.volume": "Volume", "plot.slice": "Slice", "plot.multislice": "Multislice", "plot.isosurface": "Isosurface",
               "plot.contour": "Contour", "plot.arrow": "Arrow Volume", "plot.streamline": "Streamline",
               "plot.mesh": "Mesh", "plot.line": "Line"}
 
@@ -99,7 +99,7 @@ def build_scene(pg: Node, sol: Solution, fi: int, sdim: int, axi=False) -> Scene
         nodes = sol.topo.nodes.copy()
         if disp is not None:
             nodes = nodes + disp
-        if k in ("plot.surface", "plot.volume", "plot.slice", "plot.isosurface", "plot.contour"):
+        if k in ("plot.surface", "plot.volume", "plot.slice", "plot.multislice", "plot.isosurface", "plot.contour"):
             expr = (f.get("expr") or "").strip() or default_expr(sol)
             try:
                 v, label, unit = _values(sol, expr, fi, f.get("unit", ""))
@@ -125,20 +125,26 @@ def build_scene(pg: Node, sol: Solution, fi: int, sdim: int, axi=False) -> Scene
                                           interpolate_before_map=True, lighting=sdim == 3, ambient=0.3, diffuse=0.75,
                                           specular=0.15)))
                 edge_source = g
-            elif k == "plot.slice":
+            elif k in ("plot.slice", "plot.multislice"):
                 g = sol.bulk_grid().copy()
                 g.points = nodes
                 g.point_data["f"] = v
-                axis = {"yz": "x", "zx": "y", "xy": "z"}[f.get("plane", "yz")]
-                n = max(1, int(f.get("nplanes", 5)))
-                try:
-                    sl = g.slice_along_axis(n=n, axis=axis)
-                    if isinstance(sl, pv.MultiBlock):
-                        sl = sl.combine(merge_points=False).extract_surface()
-                    sc.items.append((sl, dict(scalars="f", cmap=cmap, clim=clim, interpolate_before_map=True,
-                                              lighting=False)))
-                except Exception:
-                    pass
+                if k == "plot.slice":
+                    axes = [({"yz": "x", "zx": "y", "xy": "z"}[f.get("plane", "yz")], max(1, int(f.get("nplanes", 5))))]
+                else:
+                    axes = [(a, int(f.get(f"n{a}", 1) or 0)) for a in "xyz"]
+                for axis, n in axes:
+                    if n <= 0:
+                        continue
+                    try:
+                        sl = g.slice_along_axis(n=n, axis=axis)
+                        if isinstance(sl, pv.MultiBlock):
+                            sl = sl.combine(merge_points=False).extract_surface()
+                        if sl.n_points:
+                            sc.items.append((sl, dict(scalars="f", cmap=cmap, clim=clim, interpolate_before_map=True,
+                                                      lighting=False)))
+                    except Exception:
+                        pass
                 edge_source = g
             elif k == "plot.isosurface":
                 g = sol.bulk_grid().copy()
@@ -303,7 +309,20 @@ def _revolve_scene(sc: Scene, angle=225.0, resolution=60):
 
 
 # --------------------------------------------------------------------------- 1D
-def draw_1d(fig, pg: Node, model, get_solution, frame_sel):
+def _reduce(f: Node, s: Solution, expr, fi, model):
+    """Scalar for a Global graph: an operator expression (aveop1(T)) or a reduction of a field."""
+    how = f.get("reduce", "max")
+    if how == "point":
+        ev = lambda key: float(units.evaluate(f.get(key, "0"), model.parameters())) * s.scale  # noqa: E731
+        pt = [ev("px"), ev("py")] + ([ev("pz")] if s.sdim == 3 else [])
+        return float(s.point_eval(expr, fi, [pt])[0])
+    v = s.evaluate(expr, fi)
+    if how == "global" or np.ptp(v) == 0:
+        return float(np.nanmean(v))
+    return float({"max": np.nanmax, "min": np.nanmin, "avg": np.nanmean}[how](v))
+
+
+def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None):
     """Draw a 1D plot group into a matplotlib Figure."""
     fig.clear()
     ax = fig.add_subplot(111)
@@ -349,6 +368,23 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel):
             if sol is None:
                 continue
             expr = (f.get("expr") or "").strip() or default_expr(sol)
+            sweep, sw_label, sw_unit = get_sweep(ds) if get_sweep else ([], None, "")
+            if sweep:
+                fac = units.unit_info(sw_unit)[0] if sw_unit else 1.0
+                xs, ys = [], []
+                for val, s in sweep:
+                    try:
+                        y = _reduce(f, s, expr, s.frame_index("last"), model)
+                    except Exception:
+                        y = np.nan
+                    xs.append(val / fac)
+                    ys.append(y)
+                label, si = sol.describe(expr)
+                ax.plot(xs, ys, "o-", lw=1.6, ms=4, label=label)
+                ax.set_xlabel(pg.get("xlabel") or (f"{sw_label} ({pretty_unit(sw_unit)})" if sw_unit else str(sw_label)))
+                ylabels.append(f"{label} ({pretty_unit(si)})" if si else label)
+                lines += 1
+                continue
             xs, ys = [], []
             for i, fr in enumerate(sol.frames):
                 try:
@@ -382,15 +418,19 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel):
     if tt == "manual":
         ax.set_title(pg.get("title", ""), fontsize=10)
     elif tt == "auto":
-        ax.set_title("Line Graph: " + (ylabels[0] if ylabels else ""), fontsize=10)
+        kinds = {c.kind for c in pg.children if c.enabled}
+        head = "Global: " if kinds == {"plot.globalgraph"} else "Line Graph: "
+        ax.set_title(head + (ylabels[0] if ylabels else ""), fontsize=10)
     fig.tight_layout()
 
 
 # --------------------------------------------------------------------------- derived values
-def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities) -> tuple[list[str], list[list]]:
+def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities, sweep=None, sweep_label=None,
+                     sweep_unit="") -> tuple[list[str], list[list]]:
+    """Table for a Derived Values node. *sweep*: [(value_SI, Solution)] to evaluate over a parametric sweep."""
     kind = node.kind
     exprs = [r for r in (node.get("exprs") or []) if str(r.get("expr", "")).strip()]
-    if kind == "eval.global":
+    if kind == "eval.global" and not exprs:
         if sol.kind == "study.eigen":
             cols = ["Mode", "Eigenfrequency (Hz)", "Angular frequency (rad/s)"]
             rows = [[i + 1, fr.value, 2 * math.pi * fr.value] for i, fr in enumerate(sol.frames)]
@@ -399,8 +439,20 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities)
         return cols, [[fr.label or f"{i + 1}", fr.value] for i, fr in enumerate(sol.frames)]
     if not exprs:
         exprs = [{"expr": default_expr(sol), "unit": "", "descr": ""}]
-    head = {"study.time": "Time", "study.freq": "freq (Hz)", "study.eigen": "eigfreq (Hz)"}.get(sol.kind)
-    cols = ([head] if head else [])
+    # rows: (leading cells, solution, frame index)
+    head = {"study.time": f"Time ({sol.meta.get('tunit', 's')})", "study.freq": "freq (Hz)",
+            "study.eigen": "eigfreq (Hz)"}.get(sol.kind)
+    entries = []
+    if sweep and node.get("solnum", "last") == "all":
+        fac = units.unit_info(sweep_unit)[0] if sweep_unit else 1.0
+        for val, s in sweep:
+            entries.append(([val / fac if val is not None else float("nan")], s, s.frame_index("last")))
+        cols = [f"{sweep_label} ({pretty_unit(sweep_unit)})" if sweep_unit else str(sweep_label)]
+    else:
+        frames = sel_frames if kind != "eval.global" or node.get("solnum", "all") != "all" else range(len(sol.frames))
+        for fi in frames:
+            entries.append(([sol.frames[fi].value] if head else [], sol, fi))
+        cols = [head] if head else []
     for r in exprs:
         label, si = sol.describe(r["expr"])
         u = r.get("unit") or si
@@ -408,34 +460,44 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities)
             u = _int_unit(si, sol.sdim, "domain")
         elif kind == "eval.surfint":
             u = _int_unit(si, sol.sdim, "boundary")
-        cols.append(f"{r.get('descr') or label} ({pretty_unit(u)})" if u else (r.get("descr") or label))
+        name = r.get("descr") or label
+        cols.append(f"{name} ({pretty_unit(u)})" if u else name)
+        if kind == "eval.max":
+            cols.append("Location (x, y, z) (m)")
     rows = []
-    for fi in sel_frames:
-        row = [sol.frames[fi].value] if head else []
+    for lead, s, fi in entries:
+        row = list(lead)
         for r in exprs:
             e = r["expr"]
+            loc = None
             try:
                 if kind == "eval.volint":
-                    val = sol.integrate(e, fi, "domain", ctx_entities)
+                    val = s.integrate(e, fi, "domain", ctx_entities)
                 elif kind == "eval.surfint":
-                    val = sol.integrate(e, fi, "boundary", ctx_entities)
+                    val = s.integrate(e, fi, "boundary", ctx_entities)
                 elif kind == "eval.avg":
-                    val = sol.integrate(e, fi, "domain", ctx_entities, average=True)
+                    val = s.integrate(e, fi, "domain", ctx_entities, average=True)
                 elif kind == "eval.max":
-                    val = sol.maxmin(e, fi, "domain", ctx_entities)[0]
+                    mm = s.maxmin_locations(e, fi, "domain", ctx_entities)
+                    val, loc = mm["max"], mm["xmax"]
                 elif kind == "eval.point":
-                    ev = lambda key: float(units.evaluate(node.get(key, "0"), model.parameters())) * sol.scale  # noqa: E731
-                    pt = [ev("x"), ev("y")] + ([ev("z")] if sol.sdim == 3 else [])
-                    val = float(sol.point_eval(e, fi, [pt])[0])
+                    ev = lambda key: float(units.evaluate(node.get(key, "0"), model.parameters())) * s.scale  # noqa: E731
+                    pt = [ev("x"), ev("y")] + ([ev("z")] if s.sdim == 3 else [])
+                    val = float(s.point_eval(e, fi, [pt])[0])
+                elif kind == "eval.global":
+                    v = s.evaluate(e, fi)
+                    val = float(np.nanmean(v))          # operators like aveop1(T) are constant fields
                 else:
                     val = float("nan")
                 u = r.get("unit")
-                _l, si = sol.describe(e)
+                _l, si = s.describe(e)
                 if u and si and u != si and kind not in ("eval.volint", "eval.surfint"):
                     val = float(units.from_si(val, u))
             except Exception:
                 val = float("nan")
             row.append(val)
+            if kind == "eval.max":
+                row.append("(" + ", ".join(f"{c:.4g}" for c in (loc or [])[:s.sdim]) + ")" if loc else "")
         rows.append(row)
     return cols, rows
 

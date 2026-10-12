@@ -33,7 +33,32 @@ register(NodeType("component", "Component", "comp", "component", deletable=True,
                            readonly=True),
                   ]))
 register(NodeType("definitions", "Definitions", "defs", "definitions", label="Definitions", numbered=False,
-                  deletable=False, can_disable=False, children=["variables"]))
+                  deletable=False, can_disable=False,
+                  children=["variables", "cpl.average", "cpl.integration", "cpl.maximum", "cpl.minimum"]))
+# Component couplings: nonlocal operators usable in results expressions, e.g. aveop1(T)
+for _kind, _title, _prefix, _icon in (("cpl.average", "Average", "aveop", "average"),
+                                      ("cpl.integration", "Integration", "intop", "integration"),
+                                      ("cpl.maximum", "Maximum", "maxop", "maxmin"),
+                                      ("cpl.minimum", "Minimum", "minop", "maxmin")):
+    register(NodeType(_kind, _title, _prefix, _icon, selection="domain", selection_all=True,
+                      description=f"{_title} coupling operator: use <name>(expression) in results, e.g. {_prefix}1(T).",
+                      props=[Prop("opname", "Operator name:", "string", "", section="Operator Name"),
+                             Prop("level", "Geometric entity level:", "choice", "domain",
+                                  choices=[("domain", "Domain"), ("boundary", "Boundary")], section="Source Selection")]))
+
+
+def coupling_operators(model) -> dict:
+    """{operator name: (kind, level, entity numbers or None for all)} from Definitions > Component Couplings."""
+    out = {}
+    comp = model.component
+    defs = comp.child("definitions") if comp else None
+    for n in (defs.children if defs else []):
+        if n.kind.startswith("cpl.") and n.enabled:
+            name = (n.get("opname") or n.tag).strip()
+            sel = n.selection
+            ents = None if (sel is None or sel.all) else list(sel.entities)
+            out[name] = (n.kind.split(".", 1)[1], n.get("level", "domain"), ents)
+    return out
 register(NodeType("variables", "Variables", "var", "variables", props=[
     Prop("table", "", "table", [], section="Variables",
          columns=[("name", "Name"), ("expr", "Expression"), ("descr", "Description")]),
@@ -122,7 +147,7 @@ register(NodeType("results.export", "Export", "exps", "export", label="Export", 
 
 register(NodeType("dset.solution", "Solution", "dset", "solution", props=[
     Prop("study", "Study:", "study_ref", "", section="Solution"),
-    Prop("sweepidx", "Parameter value (sweep):", "int", 0, section="Solution"),
+    Prop("sweepidx", "Parameter value index (sweep, -1 = last):", "string", "-1", section="Solution"),
 ]))
 register(NodeType("dset.cutline", "Cut Line", "cln", "cut_line", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
@@ -161,8 +186,11 @@ register(NodeType("eval.point", "Point Evaluation", "pev", "point_evaluation", p
     _expr_tbl]))
 register(NodeType("eval.global", "Global Evaluation", "gev", "global_evaluation", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
-    Prop("what", "Quantity:", "choice", "auto",
-         choices=[("auto", "Eigenfrequencies / frequencies / times"), ("norms", "Solution norms")], section="Expressions"),
+    Prop("solnum", "Time/parameter selection:", "choice", "all", choices=[("last", "Last"), ("all", "All")],
+         section="Data"),
+    Prop("exprs", "", "expr_table", [], section="Expressions",
+         columns=[("expr", "Expression"), ("unit", "Unit"), ("descr", "Description")],
+         tip="Scalar expressions such as aveop1(T) or intop1(ec.Qrh); empty = eigenfrequencies/times"),
 ]))
 register(NodeType("table", "Table", "tbl", "table", props=[
     Prop("columns", "", "info", [], section="Data"), Prop("rows", "", "info", [], section="Data")]))
@@ -170,7 +198,7 @@ register(NodeType("table", "Table", "tbl", "table", props=[
 _dataset = Prop("data", "Dataset:", "dataset", "", section="Data")
 _solsel = Prop("solnum", "Solution selection:", "solnum", "last", section="Data")
 register(NodeType("pg3d", "3D Plot Group", "pg", "plot_group_3d", children=[
-    "plot.surface", "plot.volume", "plot.slice", "plot.isosurface", "plot.arrow", "plot.streamline", "plot.mesh",
+    "plot.surface", "plot.volume", "plot.slice", "plot.multislice", "plot.isosurface", "plot.arrow", "plot.streamline", "plot.mesh",
     "plot.line"], props=[
     _dataset, _solsel,
     Prop("title_type", "Title type:", "choice", "auto", choices=[("auto", "Automatic"), ("manual", "Manual"), ("none", "None")],
@@ -226,6 +254,10 @@ register(NodeType("plot.slice", "Slice", "slc", "slice_plot", children=_PLOT_CHI
     Prop("plane", "Plane type:", "choice", "yz", choices=[("yz", "yz-planes"), ("zx", "zx-planes"), ("xy", "xy-planes")],
          section="Plane Data"),
     Prop("nplanes", "Planes:", "int", 5, section="Plane Data")])))
+register(NodeType("plot.multislice", "Multislice", "mslc", "slice_plot", children=_PLOT_CHILD, props=_plot_props([
+    Prop("nx", "x-planes:", "int", 1, section="Multiplane Data"),
+    Prop("ny", "y-planes:", "int", 1, section="Multiplane Data"),
+    Prop("nz", "z-planes:", "int", 1, section="Multiplane Data")])))
 register(NodeType("plot.isosurface", "Isosurface", "iso", "isosurface", children=_PLOT_CHILD, props=_plot_props([
     Prop("levels", "Total levels:", "int", 5, section="Levels")])))
 register(NodeType("plot.contour", "Contour", "con", "contour", children=_PLOT_CHILD, props=_plot_props([
@@ -265,8 +297,9 @@ register(NodeType("plot.linegraph", "Line Graph", "lngr", "line_graph", props=[
     Prop("legend_text", "Legend:", "string", "", section="Legends")]))
 register(NodeType("plot.globalgraph", "Global", "glob", "global_evaluation", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
-    Prop("expr", "Expression (evaluated at a point or 'max'/'min'/'avg' of):", "rexpr", "", section="y-Axis Data"),
-    Prop("reduce", "Reduction:", "choice", "max", choices=[("max", "Maximum"), ("min", "Minimum"), ("avg", "Average"),
+    Prop("expr", "Expression (global, e.g. aveop1(T), or a field to reduce):", "rexpr", "", section="y-Axis Data"),
+    Prop("reduce", "Reduction:", "choice", "max", choices=[("global", "Global (scalar expression)"),
+                                                           ("max", "Maximum"), ("min", "Minimum"), ("avg", "Average"),
                                                            ("point", "At point")], section="y-Axis Data"),
     Prop("px", "x:", "string", "0", section="y-Axis Data", visible=lambda p: p.get("reduce") == "point"),
     Prop("py", "y:", "string", "0", section="y-Axis Data", visible=lambda p: p.get("reduce") == "point"),

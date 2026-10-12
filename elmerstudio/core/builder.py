@@ -216,9 +216,9 @@ def default_plots(m: Model, st: Node, step_kind: str) -> list[Node]:
             if step_kind == "eigen":
                 pg.props["solnum"] = "0"     # COMSOL shows the first eigenmode by default
             t = spec["type"]
-            kind = {"surface": "plot.surface", "volume": "plot.volume", "slice": "plot.slice",
+            kind = {"surface": "plot.surface", "volume": "plot.volume", "slice": "plot.slice", "multislice": "plot.multislice",
                     "isosurface": "plot.isosurface", "contour": "plot.contour"}[t]
-            if sd == 2 and kind in ("plot.volume", "plot.slice", "plot.isosurface"):
+            if sd == 2 and kind in ("plot.volume", "plot.slice", "plot.multislice", "plot.isosurface"):
                 kind = "plot.surface" if kind != "plot.isosurface" else "plot.contour"
             f = m.create(kind, pg)
             f.props["expr"] = spec["expr"]

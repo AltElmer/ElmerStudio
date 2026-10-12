@@ -122,6 +122,7 @@ class GraphicsView(QWidget):
         self.b_axes = self._tool("axes", "Show Axis Orientation", self.set_axes, True)
         self.b_axes.setChecked(True)
         self.b_grid = self._tool("grid", "Show Grid", self.set_grid, True)
+        self.b_labels = self._tool("legend", "Show Labels (entity numbers)", self.set_labels, True)
         self._sep()
         self._tool("snapshot", "Image Snapshot", self.snapshot_dialog)
         self.tb.addStretch(1)
@@ -248,9 +249,10 @@ class GraphicsView(QWidget):
             self.entityClicked.emit(self.level, ent, ctrl)
 
     # ------------------------------------------------------------------ geometry scene
-    def show_geometry(self, geo, level=None, selected=(), material_colors=None, reset_camera=None):
+    def show_geometry(self, geo, level=None, selected=(), material_colors=None, reset_camera=None, labels=None):
         if not self._ok:
             return
+        self._labels_level = labels or (self._labels_level if getattr(self, "labels_on", False) else None)
         import pyvista as pv
         self.mode = "geometry"
         self.geo = geo
@@ -325,9 +327,53 @@ class GraphicsView(QWidget):
             self._actors["points"] = a
         self._recolor(render=False)
         self._apply_wire()
+        self._draw_labels(geo, self._labels_level or (level if getattr(self, "labels_on", False) else None))
         self._camera_for(geo.bbox, sd, reset_camera)
         self._update_grid()
         p.render()
+
+    def _draw_labels(self, geo, level):
+        """Entity numbers at entity centres (COMSOL 'Show labels'), for picking by number."""
+        try:
+            self.plotter.remove_actor("labels")
+        except Exception:
+            pass
+        if not level or geo is None:
+            return
+        disp = geo.display
+        pts, txt = [], []
+        if level == "point":
+            for num, xyz in sorted(disp.get("point", {}).items()):
+                pts.append(np.asarray(xyz, float))
+                txt.append(str(num))
+        else:
+            face_level = "boundary" if geo.sdim == 3 else "domain"
+            curve_level = "edge" if geo.sdim == 3 else "boundary"
+            src = disp.get(face_level if level == face_level else curve_level if level == curve_level else "", {})
+            if level == "domain" and geo.sdim == 3:   # 3D domains: bounding-box centres
+                for num, bb in sorted(geo.bbox_of.get("domain", {}).items()):
+                    pts.append(0.5 * (np.array(bb[:3]) + np.array(bb[3:])))
+                    txt.append(str(num))
+            for num, (P, conn) in sorted(src.items()):
+                if level == "domain" and geo.sdim == 3:
+                    break
+                c = P[conn].reshape(-1, 3).mean(axis=0)
+                k = int(np.argmin(np.linalg.norm(P - c, axis=1)))       # snap to a vertex on the entity
+                pts.append(P[k] if conn.shape[1] == 2 else c)
+                txt.append(str(num))
+        if pts:
+            import pyvista as pv
+            self.plotter.add_point_labels(pv.PolyData(np.array(pts)), txt, font_size=12, point_size=1,
+                                          text_color="black", shape_color="lightyellow", shape="rect",
+                                          shape_opacity=0.9, margin=2, bold=True, always_visible=True,
+                                          name="labels", show_points=False)
+
+    def set_labels(self, on):
+        self.labels_on = on
+        if self.mode == "geometry" and self.geo is not None:
+            self._labels_level = None
+            self._draw_labels(self.geo, self.level or ("boundary" if self.geo.sdim == 3 else "domain") if on else None)
+            self.plotter.render()
 
     def set_selection_state(self, level, selected, listed=()):
         self.level = level

@@ -61,6 +61,9 @@ register(NodeType("mesh.size", "Size", "size", "mesh_size", selection="domain", 
          visible=lambda p: p.get("mode") == "custom"),
     Prop("hcurve", "Curvature factor:", default="0.6", section="Element Size Parameters",
          visible=lambda p: p.get("mode") == "custom"),
+    Prop("hnarrow", "Resolution of narrow regions:", default="0.5", section="Element Size Parameters",
+         visible=lambda p: p.get("mode") == "custom",
+         tip="Approximate number of element layers in narrow regions (higher = finer)"),
 ]))
 register(NodeType("mesh.ftet", "Free Tetrahedral", "ftet", "free_tet", selection="domain", selection_all=True, props=[]))
 register(NodeType("mesh.ftri", "Free Triangular", "ftri", "free_tri", selection="domain", selection_all=True, props=[]))
@@ -180,6 +183,8 @@ class Mesher:
                             h1 = gb.L(ch, "hmax")
                             h0 = gb.L(ch, "hmin")
                             hc = gb.N(ch, "hcurve")
+                            if ch.get("scope", "entire") == "entire":
+                                hnarrow = gb.N(ch, "hnarrow") if "hnarrow" in ch.props else hnarrow
                         else:
                             p = _preset(ch.get("preset", NORMAL))
                             h1, h0, hc = p[1] * L, p[2] * L, p[4]
@@ -204,14 +209,15 @@ class Mesher:
             gmsh.option.setNumber("Mesh.SecondOrderLinear", 0)
             gmsh.option.setNumber("Mesh.HighOrderOptimize", 0)
             lv = levels_for(sd)
-            # resolution of narrow regions: at least `layers` elements across each domain's thinnest side
-            layers = max(1, int(round(hnarrow * 6)))
+            # resolution of narrow regions = approximate number of element layers across a domain's thinnest
+            # side (COMSOL reference manual); below 1 it does not force refinement
+            layers = float(hnarrow)
             point_h: dict[int, float] = {}
             for num, tag in geo.tag_of["domain"].items():
                 b = geo.bbox_of["domain"][num]
                 sides = [b[3] - b[0], b[4] - b[1]] + ([b[5] - b[2]] if sd == 3 else [])
                 sides = [s for s in sides if s > 0]
-                if not sides:
+                if not sides or layers <= 0:
                     continue
                 hd = min(hmax, min(sides) / layers)
                 if hd < hmax * 0.999:

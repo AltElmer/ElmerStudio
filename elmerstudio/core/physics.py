@@ -270,16 +270,26 @@ feature("solid.symmetry", "Symmetry", "sym", "feature_boundary", "boundary", "bc
 
 
 def _solid_bload(n, ctx, d=None):
-    if n.get("type", "force") == "pressure":
+    t = n.get("type", "force")
+    if t == "pressure":
         return {"Normal Force": ctx.value(f"-({n.get('p', '0')})")}
+    if t == "total":   # total force spread uniformly over the selected boundaries
+        area = ctx.selection_measure(n, "boundary")
+        if not area > 0:
+            raise ValueError(f"{n.label}: total force needs a boundary selection with nonzero area")
+        return {f"Force {i + 1}": ctx.value(f"({n.get('Ft' + c, '0')})/({area!r})") for i, c in enumerate("xyz"[:ctx.sdim])}
     return {f"Force {i + 1}": ctx.value(n.get(f"F{c}", "0")) for i, c in enumerate("xyz"[:ctx.sdim])}
 
 
 feature("solid.bload", "Boundary Load", "bndl", "feature_boundary", "boundary", "bc", _solid_bload,
         props=[Prop("type", "Load type:", "choice", "force",
-                    choices=[("force", "Force per unit area"), ("pressure", "Pressure")], section="Force"),
+                    choices=[("force", "Force per unit area"), ("total", "Total force"), ("pressure", "Pressure")],
+                    section="Force"),
                *[Prop(f"F{c}", f"F_A {c}:", default="0", unit="N/m^2", section="Force",
                       visible=(lambda cc: (lambda p: p.get("type", "force") == "force" and (cc != "z" or p.get("__sdim", 3) == 3)))(c))
+                 for c in "xyz"],
+               *[Prop(f"Ft{c}", f"F_tot {c}:", default="0", unit="N", section="Force",
+                      visible=(lambda cc: (lambda p: p.get("type") == "total" and (cc != "z" or p.get("__sdim", 3) == 3)))(c))
                  for c in "xyz"],
                Prop("p", "Pressure:", default="0", unit="Pa", section="Force", symbol="p",
                     visible=lambda p: p.get("type") == "pressure")],
@@ -378,8 +388,8 @@ define_physics(PhysicsDef(
     boundary=["es.ground", "es.pot", "es.scd", "es.zc"],
     mat_props=["epsr"], solvers=_es_solvers, conflicts=("ec",),
     plots=lambda ph, sd, st: [
-        {"label": "Electric Potential (es)", "type": "slice" if sd == 3 else "surface", "expr": "V", "cmap": "RainbowLight", "dims": sd},
-        {"label": "Electric Field Norm (es)", "type": "slice" if sd == 3 else "surface", "expr": "normE", "cmap": "RainbowLight", "dims": sd}],
+        {"label": "Electric Potential (es)", "type": "multislice" if sd == 3 else "surface", "expr": "V", "cmap": "RainbowLight", "dims": sd},
+        {"label": "Electric Field Norm (es)", "type": "multislice" if sd == 3 else "surface", "expr": "normE", "cmap": "RainbowLight", "dims": sd}],
     description="Electric field and potential in dielectrics. Elmer StatElecSolver.",
     equation=r"$-\nabla\cdot(\varepsilon_0\varepsilon_r\nabla V) = \rho_V$"))
 
@@ -420,8 +430,7 @@ define_physics(PhysicsDef(
     domain=["ec.cc", "ec.init"], boundary=["ec.ground", "ec.pot", "ec.ncd", "ec.ins"],
     mat_props=["sigma"], solvers=_ec_solvers, conflicts=("es",),
     plots=lambda ph, sd, st: [
-        {"label": "Electric Potential (ec)", "type": "surface", "expr": "V", "cmap": "RainbowLight", "dims": sd},
-        {"label": "Current Density (ec)", "type": "slice" if sd == 3 else "surface", "expr": "normJ", "cmap": "RainbowLight", "dims": sd}],
+        {"label": "Electric Potential (ec)", "type": "multislice" if sd == 3 else "surface", "expr": "V", "cmap": "RainbowLight", "dims": sd}],
     description="Stationary electric currents in conductors. Elmer StatCurrentSolver.",
     equation=r"$-\nabla\cdot(\sigma\nabla V) = Q_{j,v}$"))
 

@@ -684,6 +684,9 @@ class MainWindow(QMainWindow):
             return
         self._push_undo()
         node.props[key] = value
+        if node.kind.startswith("cpl.") and key == "level" and node.selection is not None:
+            node.selection.level = value
+            node.selection.entities = []
         if node.kind == "mesh.size" and key == "scope" and node.selection is not None and value != "entire":
             node.selection.level = value
             node.selection.entities = []
@@ -757,7 +760,9 @@ class MainWindow(QMainWindow):
             return
         self._push_undo()
         ents = list(node.selection.entities)
-        if ent in ents:
+        if REGISTRY[node.kind].single_select:
+            ents = [ent]
+        elif ent in ents:
             ents.remove(ent)
         else:
             ents.append(ent)
@@ -773,17 +778,56 @@ class MainWindow(QMainWindow):
         target = node or show
         if target is None or target.selection is None:
             return
-        if self.geo is None:
+        geo = self.geometry_for(target)
+        if geo is None:
             return
         level = target.selection.level
-        if self.sdim() == 2 and level == "edge":
+        if geo.sdim == 2 and level == "edge":
             level = "boundary"
-        ents = target.selection.resolve(self.geo.numbers.get(level, []))
-        if self.graphics.mode != "geometry":
-            self.graphics.show_geometry(self.geo, level if node else None, ents)
+        ents = self._display_entities(target, geo, level)
+        if self.graphics.mode != "geometry" or self.graphics.geo is not geo:
+            self.graphics.show_geometry(geo, level if node else None, ents,
+                                        labels=level if self._needs_context(target) else None)
         else:
             self.graphics.set_selection_state(level if node else None, ents)
             self.graphics.level = level if node else None
+
+    def _display_entities(self, node: Node, geo, level) -> list:
+        """Entities to highlight: the picked selection, else numbers typed in the feature's fields."""
+        ents = node.selection.resolve(geo.numbers.get(level, []))
+        if ents:
+            return ents
+        if node.kind == "geom.workplane" and node.get("ptype") == "face":
+            return [int(node.get("face", 0) or 0)]
+        if node.kind in ("geom.fillet2d", "geom.chamfer2d"):
+            return [int(float(x)) for x in str(node.get("points", "")).replace(",", " ").split() if x.strip()]
+        return ents
+
+    # -- context geometry (what a geometry feature "sees": the sequence before it, or its work-plane sketch)
+    def _needs_context(self, node: Node | None) -> bool:
+        if node is None or self.model.component is None:
+            return False
+        if node.kind == "geom.workplane":
+            return node.get("ptype") == "face"
+        return node.parent is not None and node.parent.kind == "geom.workplane"
+
+    def geometry_for(self, node: Node | None):
+        if not self._needs_context(node):
+            return self.geo
+        key = (id(node), hash(self.model.snapshot()))
+        cache = getattr(self, "_ctx_geo", {})
+        if key not in cache:
+            from ..core.geometry import build_context_geometry
+            try:
+                QApplication.setOverrideCursor(Qt.WaitCursor)
+                cache = {key: build_context_geometry(self.model, node)}   # keep only the latest
+            except Exception as exc:
+                self.messages.add(f"{node.label}: {exc}", "error")
+                return self.geo
+            finally:
+                QApplication.restoreOverrideCursor()
+            self._ctx_geo = cache
+        return cache[key]
 
     # -- tree operations
     def create_node(self, kind: str, parent: Node, index=None, select=True, **props) -> Node:
@@ -795,6 +839,8 @@ class MainWindow(QMainWindow):
         if n.selection is not None:
             if kind == "mesh.distribution":
                 n.selection.level = "edge" if self.sdim() == 3 else "boundary"
+            if kind.startswith("cpl."):
+                n.props["opname"] = n.tag          # aveop1, intop1, ... as in COMSOL
             if kind.startswith("mp.") or kind == "mesh.ftet" or kind == "mesh.ftri" or kind == "mesh.fquad":
                 n.selection.all = True
             if kind == "material":
@@ -1032,16 +1078,61 @@ class MainWindow(QMainWindow):
                          key=lambda p: tuple(int(x) for x in re.findall(r"\d+", os.path.basename(p))))
         if not folders:
             return None
-        sweep = int(dset.get("sweepidx", 0) or 0)
+        sweep = int(dset.get("sweepidx", -1) if dset.get("sweepidx", -1) not in ("", None) else -1)
+        if sweep < 0:   # COMSOL default: the last parameter value of a sweep
+            sweep = max(int(re.findall(r"\d+", os.path.basename(f))[-2]) for f in folders)
         chosen = [f for f in folders if os.path.basename(f).startswith(f"sol_{sweep}_")] or folders
         folder = chosen[-1]
+        return self._load_solution(folder)
+
+    def _load_solution(self, folder):
         if folder not in self.sol_cache:
             try:
                 self.sol_cache[folder] = Solution(folder)
             except Exception as exc:
                 self.messages.add(f"Could not load solution {folder}: {exc}", "error")
                 return None
-        return self.sol_cache[folder]
+        sol = self.sol_cache[folder]
+        from ..core.nodes import coupling_operators
+        sol.operators = coupling_operators(self.model)
+        return sol
+
+    def sweep_info(self, dset: Node | None):
+        """(parameter name, unit) of the dataset study's parametric sweep."""
+        if dset is not None and dset.kind in ("dset.cutline", "dset.cutpoint"):
+            dset = self.model.by_tag(dset.get("data", "")) or dset
+        st = self.model.by_tag(dset.get("study", "")) if dset is not None else None
+        sw = B.study_sweep(st) if st is not None else None
+        if sw is None:
+            return None, ""
+        return sw.get("pname", ""), str(sw.get("punit", "") or "")
+
+    def sweep_solutions(self, dset: Node | None) -> list:
+        """[(parameter value, Solution)] over a parametric sweep (last study step), or [] without a sweep."""
+        if dset is None:
+            return []
+        if dset.kind in ("dset.cutline", "dset.cutpoint"):
+            dset = self.model.by_tag(dset.get("data", "")) or dset
+        st = self.model.by_tag(dset.get("study", ""))
+        if st is None:
+            return []
+        out = []
+        for f in glob.glob(os.path.join(self.workdir, st.tag, "sol_*_*")):
+            if not os.path.isfile(os.path.join(f, "meta.json")):
+                continue
+            vi, si = (int(x) for x in re.findall(r"\d+", os.path.basename(f))[-2:])
+            out.append((vi, si, f))
+        if not out:
+            return []
+        last = max(si for _vi, si, _f in out)
+        res = []
+        for vi, si, f in sorted(out):
+            if si != last:
+                continue
+            sol = self._load_solution(f)
+            if sol is not None and sol.meta.get("sweep_param"):
+                res.append((sol.meta.get("sweep_value"), sol))
+        return res
 
     def frame_labels(self, node):
         sol = self.solution_of(self._dataset_for(node))
@@ -1121,6 +1212,15 @@ class MainWindow(QMainWindow):
 
     def _show_geometry_for(self, node: Node):
         if self.model.component is None:
+            return
+        if self._needs_context(node):
+            geo = self.geometry_for(node)
+            if geo is not None:
+                self.gstack.setCurrentIndex(0)
+                level = node.selection.level if node.selection is not None else None
+                ents = self._display_entities(node, geo, level) if level else []
+                self.graphics.show_geometry(geo, None, ents, labels=level)
+                self.current_plot = None
             return
         if self.geo is None or (self.geo_stale and not node.kind.startswith("geom.") and node.kind != "geometry"):
             self.build_geometry(silent=True, then=lambda: self._show_geometry_for(node))
@@ -1813,7 +1913,8 @@ class MainWindow(QMainWindow):
                     return None, -1, 1.0
                 return sol, sol.frame_index(pg.get("solnum", "last")), sol.scale
             try:
-                draw_1d(self.plot1d.fig, pg, self.model, get_sol, pg.get("solnum", "last"))
+                draw_1d(self.plot1d.fig, pg, self.model, get_sol, pg.get("solnum", "last"),
+                        get_sweep=lambda d: (self.sweep_solutions(d), *self.sweep_info(d)))
             except Exception as exc:
                 self.messages.add(f"{pg.label}: {exc}", "error")
             self.plot1d.draw()
@@ -1847,8 +1948,10 @@ class MainWindow(QMainWindow):
         ents = None
         if node.selection is not None and self.geo is not None:
             ents = node.selection.resolve(self.geo.numbers.get(node.selection.level, []))
+        sweep = self.sweep_solutions(ds)
+        sw_label, sw_unit = self.sweep_info(ds)
         try:
-            cols, rows = evaluate_derived(node, self.model, sol, sel, ents)
+            cols, rows = evaluate_derived(node, self.model, sol, sel, ents, sweep or None, sw_label, sw_unit)
         except Exception as exc:
             self.messages.add(f"{node.label}: {exc}", "error")
             return

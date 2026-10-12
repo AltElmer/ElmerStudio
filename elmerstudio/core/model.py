@@ -50,6 +50,8 @@ class NodeType:
     selection: str | None = None    # domain | boundary | edge | point | None
     selection_all: bool = False     # default "All <level>s"
     selection_locked: bool = False  # default features: selection not editable
+    selection_visible: Callable[[dict], bool] | None = None   # show the selection section only when True
+    single_select: bool = False     # clicking replaces the selection (e.g. a work plane's planar face)
     children: Callable[["Node"], list[str]] | list[str] | None = None
     deletable: bool = True
     can_disable: bool = True
