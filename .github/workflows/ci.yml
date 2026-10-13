@@ -57,7 +57,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: failed-cases-linux
-          path: /tmp/es_*/
+          path: |
+            /tmp/es_*/
+            /tmp/elmerstudio_tests_*/
           retention-days: 7
           if-no-files-found: ignore
 

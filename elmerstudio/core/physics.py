@@ -665,7 +665,9 @@ def _cd_solvers(ph, ctx):
         cond = "Diffusion Coefficient"
     s.update(ctx.solver_settings(ph, nl))
     flux = {"Equation": "Electrolyte Current", "Procedure": ("FluxSolver", "FluxSolver"), "Calculate Flux": True,
-            "Flux Variable": "phil", "Flux Coefficient": cond, **linsys("iterative", "CG", "ILU0", 1e-10, 500),
+            "Flux Variable": "phil", "Flux Coefficient": cond,
+            # a mass-matrix projection: direct unless large (CG+ILU0 broke down on Elmer 26.2 devel, small 2D case)
+            **(linsys("iterative", "CG", "ILU0", 1e-10, 500) if ctx.n_nodes > 100_000 else linsys("direct", "UMFPack")),
             "Exec Solver": "After Timestep",        # once, on the converged (coupled) solution
             "__post__": True}
     return [s, flux]

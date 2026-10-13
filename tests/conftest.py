@@ -12,9 +12,9 @@ collect_ignore = ["test_gui_smoke.py"]
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _solver_scratch():
-    """Every case folder the tests create (tempfile.mkdtemp) goes into one directory removed at the end: a full
-    run writes about 1 GB of meshes and results."""
+def _solver_scratch(request):
+    """Every case folder the tests create (tempfile.mkdtemp) goes into one directory, removed at the end when every
+    test passed (a full run writes about 1 GB); kept after a failure so the case can be inspected (CI uploads it)."""
     import shutil
     import tempfile
     d = tempfile.mkdtemp(prefix="elmerstudio_tests_")
@@ -22,7 +22,8 @@ def _solver_scratch():
     tempfile.tempdir = d
     yield d
     tempfile.tempdir = old
-    shutil.rmtree(d, ignore_errors=True)
+    if request.session.testsfailed == 0:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
