@@ -24,7 +24,7 @@ Use them to see how a model of a given kind is set up: open the nodes one by one
 [.gallery]
 --
 .Busbar: temperature
-image::ROOT:screenshots/busbar_5_results.png[Busbar temperature]
+image::ROOT:screenshots/busbar_6_results2.png[Busbar temperature]
 
 .Cantilever: an eigenmode
 image::ROOT:screenshots/cantilever_5_results.png[Cantilever eigenmode]
@@ -67,7 +67,7 @@ image::ROOT:screenshots/busbar_3_material.png[Busbar material,role=screenshot]
 .The mesh
 image::ROOT:screenshots/busbar_4_mesh.png[Busbar mesh,role=screenshot]
 
-.The second default plot group
-image::ROOT:screenshots/busbar_6_results2.png[Busbar second plot,role=screenshot]
+.After Compute: the first default plot group, the electric potential as a multislice
+image::ROOT:screenshots/busbar_5_results.png[Busbar electric potential,role=screenshot]
 
 The xref:busbar.adoc[Busbar tutorial] builds the full COMSOL tutorial geometry, with work planes and fillets, step by step.

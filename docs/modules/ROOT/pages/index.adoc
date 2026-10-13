@@ -16,7 +16,7 @@ You never write an Elmer `.sif` file, a gmsh script or an ElmerGrid command. Geo
 [.buttons]
 xref:installation.adoc[Install,role=btn-primary] xref:quick-start.adoc[Quick start in 15 minutes,role=btn] xref:tutorials:index.adoc[Tutorials,role=btn]
 
-image::screenshots/busbar_5_results.png[Elmer Studio showing the temperature in a busbar after a Joule heating simulation]
+image::screenshots/busbar_6_results2.png[Elmer Studio showing the temperature in a busbar after a Joule heating simulation]
 --
 
 == Where to start

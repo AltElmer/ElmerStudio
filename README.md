@@ -8,7 +8,7 @@ original icons and no COMSOL assets.
 
 **Documentation: <https://altelmer.github.io/ElmerStudio/>** covers installation, a quick start, tutorials, the user guide, keyboard shortcuts and a complete settings reference. The source is AsciiDoc in [`docs/`](docs/); see *Contributing* in the docs for building it.
 
-![Busbar Joule heating](docs/modules/ROOT/images/screenshots/busbar_5_results.png)
+![Busbar Joule heating](docs/modules/ROOT/images/screenshots/busbar_6_results2.png)
 
 | | |
 |---|---|
