@@ -1,0 +1,44 @@
+= Materials
+:description: Adding library and blank materials, the Material Contents table, and properties that depend on the solution.
+
+== Adding a material
+
+* menu:Home[Add Material] (or menu:Materials[Add Material]) opens the *Add Material* window with the material library by category. Select a material and click *Add to Component*.
+* menu:Materials[Blank Material] adds a material with no values, to fill in yourself.
+
+The first material you add applies to *all domains*. Later materials start with an empty selection: click the domains they apply to. Where two materials share a domain, the lower one wins.
+
+.Add Material window and a material's Settings
+image::ROOT:screenshots/ui_materials_window.png[Material library,role=screenshot]
+
+== Material Contents
+
+The _Material Contents_ table lists every property with its symbol, value and unit. A green check marks the properties that the physics in the model need on this material's domains. Properties without a value are greyed out.
+
+Edit a value directly in the table. Values are SI unless you write a unit: `+7850[kg/m^3]+`, `+200[GPa]+`.
+
+.Copper in the Quick Start: thermal conductivity, density and heat capacity are required by Heat Transfer
+image::ROOT:screenshots/qs_3_material.png[Material Contents table,role=screenshot]
+
+== Properties as expressions
+
+Any property can be an expression of parameters, coordinates, time and the dependent variables. For example:
+
+[cols="1,2",options="header"]
+|===
+|Property |Expression
+|Thermal conductivity |`+k0*(1+0.002*(T-293.15[K]))+`
+|Electrical conductivity |`+sigma0/(1+alpha_r*(T-T0))+`
+|Density of a graded layer |`+rho0*(1+0.1*z/H)+`
+|Measured data |`+k_tab(T)+` (an Interpolation function)
+|===
+
+Elmer Studio translates such expressions into Elmer's MATC code. When a property depends on the solution, the solver for that physics switches to nonlinear iteration.
+
+NOTE: Library values are constants at 20 °C. COMSOL's library has temperature-dependent data for many materials; here, enter an expression or an Interpolation function where the dependence matters.
+
+== The library
+
+The built-in library has 20 materials (air, water, metals, semiconductors, polymers, fluids and gases, concrete, …) with density, thermal and mechanical, electrical, magnetic and acoustic properties. The full list with values is in xref:reference:materials.adoc[Reference › Materials].
+
+_Appearance › Color_ sets the colour the material has in the Graphics window.

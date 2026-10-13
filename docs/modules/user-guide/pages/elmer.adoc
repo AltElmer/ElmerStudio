@@ -1,0 +1,79 @@
+= Elmer under the hood
+:description: How Elmer Studio turns a model into an Elmer case, where the files are, and how to take a case elsewhere.
+
+You never need this page to build and solve models. It explains what Elmer Studio does on your behalf, for checking its work, running a case outside the GUI, or reporting a problem.
+
+== From model to Elmer case
+
+When you compute a study, each run (each parameter value of a sweep) gets its own *case folder*:
+
+[cols="1,3",options="header"]
+|===
+|File |Contents
+|`case.sif` |The Elmer solver input file: header, simulation settings, constants, bodies, materials, body forces, initial conditions, equations, solvers and boundary conditions.
+|`ELMERSOLVER_STARTINFO` |Tells ElmerSolver which `.sif` to run.
+|`mesh/` |The Elmer mesh: `mesh.header`, `mesh.nodes`, `mesh.elements`, `mesh.boundary`, `mesh.names`.
+|`results/` |Elmer's output, as VTU files (`.pvtu` for parallel runs).
+|`solver.log` |ElmerSolver's complete output.
+|`meta.json`, `mesh.npz` |What Elmer Studio needs to read the results back: the study, sweep values, selections and the mesh topology.
+|===
+
+menu:Study[Open Case Folder] opens the folder of the selected study. The folders live in a temporary working directory while the model is open. Saving the model stores the solutions in the `.esm` file. The working directory is removed when you close the model.
+
+== How the model is translated
+
+[cols="1,3",options="header"]
+|===
+|Model |Elmer
+|Domains with the same material and physics features |Bodies, each with its `Material`, `Equation`, `Body Force` and `Initial Condition`
+|Boundary features |`Boundary Condition` sections on the selected boundaries (later features override earlier ones)
+|Physics interfaces |`Solver` sections: the Elmer module, its variable, linear and nonlinear settings, and the extra keywords you added
+|Multiphysics couplings |Keywords that connect the solvers (for example a Joule heat source), solved in one steady-state or time loop
+|Parameters |Numbers in SI, written into the expressions
+|Expressions that depend on space, time or the solution |MATC functions (`Variable … Real MATC "…"`), with `stmin`/`stmax` helpers for two-argument min/max
+|Interpolation functions |Elmer tables (`Real` with pairs of values)
+|Study step |`Simulation Type` Steady state / Transient / Scanning, eigen analysis settings
+|===
+
+The Elmer solver behind each interface is listed on xref:physics.adoc[Physics interfaces]. Where it matters, Elmer Studio also chooses:
+
+* *the linear solver*: direct (UMFPACK) for small models, iterative (BiCGStab with ILU) for large 3D ones;
+* *nonlinear iteration* when a property or a boundary value depends on the solution;
+* *Newton linearization* for electrode kinetics, with line search (see xref:electrochemistry.adoc[Electrochemistry]);
+* *boundary fluxes* from reaction loads, which are exactly conservative, for heat flow and electrode currents.
+
+== Seeing and exporting the input
+
+* menu:Study[Show Elmer Input File] shows the `.sif` of a study without running it.
+* menu:File[Export Elmer Case] (also on the Developer tab) writes a self-contained case folder: `mesh/`, `case.sif` and `ELMERSOLVER_STARTINFO`. Run it anywhere with Elmer installed:
++
+[source,bash]
+----
+cd my_case
+ElmerSolver case.sif
+----
+
+The exported case is plain Elmer, with nothing specific to Elmer Studio, so you can hand it to colleagues who use Elmer directly, run it on a cluster, or study and edit it.
+
+== Adding Elmer keywords the GUI doesn't have
+
+Two places take raw Elmer keywords:
+
+* the physics interface's _Additional Elmer solver keywords_, for its `Solver` section;
+* a *Solver* node's _Additional SIF keywords_ under the study's *Solver Configurations*.
+
+The lines are appended verbatim, so any Elmer feature can be reached without leaving the GUI.
+
+== The Elmer installation
+
+menu:File[Preferences...] (or menu:Developer[Elmer Installation]) shows which Elmer is used and lets you change it. Elmer Studio supports:
+
+* the official CSC installers and distribution packages;
+* MPI builds (`ElmerSolver_mpi`) for parallel runs;
+* a from-source CMake *build tree* of elmerfem. Elmer Studio finds the solver, its modules and runtime libraries inside it. This is how you use a newer Elmer, or one with your own changes, without installing it.
+
+*Detect* reports the solver version and what it can do beyond Elmer 9.0 (for example the diffusion-current term of StatCurrentSolve, or a Fortran compiler for user solvers). Elmer Studio uses such features only when they are present.
+
+== When Elmer stops with an error
+
+The *Messages* pane quotes Elmer's own `ERROR::` line, and *Log* has the full output. The case folder keeps the `.sif`, the mesh and `solver.log`. Those three files are what to attach to a bug report.

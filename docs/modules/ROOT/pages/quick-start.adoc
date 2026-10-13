@@ -1,0 +1,175 @@
+= Quick start: your first model
+:description: Build, solve and check a 3D heat conduction model in about 15 minutes, entirely in the GUI.
+:page-math: true
+
+In this tutorial you model a copper bar. One end is held at 20 °C, a heat flux of 100 kW/m² enters the other end, and all other faces are insulated. Heat flows along the bar, so the temperature rises linearly from the cold end to the hot end. The answer is easy to check by hand, so you can see that the whole chain works: geometry, material, physics, mesh, Elmer and post-processing.
+
+.What you will learn
+* Start a model with the Model Wizard.
+* Define parameters with units.
+* Create geometry and pick faces in the Graphics window.
+* Add a material and boundary conditions.
+* Mesh, solve, plot along a line, and evaluate a maximum.
+
+.Model at a glance
+[cols="1,2"]
+|===
+|Space dimension |3D
+|Physics |Heat Transfer in Solids (`+ht+`)
+|Study |Stationary
+|Solve time |about 1 second (511 nodes)
+|Expected result |maximum temperature 45 °C at the hot end
+|===
+
+== 1. Create the model
+
+. Start Elmer Studio. The *New* window opens. (Later, use menu:File[New] or kbd:[Ctrl+N].)
++
+.The New window: Model Wizard, Blank Model or an Application Library example
+image::screenshots/ui_new.png[New window,role=screenshot,width=640]
+. Click *Model Wizard*.
+. Under _Select Space Dimension_, click *3D*.
+. Under _Select Physics_, expand *Heat Transfer*, select *Heat Transfer in Solids (ht)* and click *Add*. It appears under _Added physics interfaces_.
++
+.Choosing the physics in the Model Wizard
+image::screenshots/ui_wizard_2_physics.png[Model Wizard, Select Physics,role=screenshot,width=640]
+. Click *Study*, select *Stationary* and click *Done*.
+
+The Model Builder now holds an empty model with the usual nodes: *Global Definitions*, *Component 1* (with *Geometry 1*, *Materials*, *Heat Transfer in Solids*, *Mesh 1*), *Study 1* and *Results*. The Heat Transfer interface already contains its default features: *Solid 1*, *Initial Values 1* and *Thermal Insulation 1* on all exterior boundaries.
+
+TIP: COMSOL users will recognise every node. xref:comsol-users.adoc[Coming from COMSOL] lists the few differences.
+
+== 2. Parameters
+
+Parameters keep the model easy to change. Values may carry units in square brackets. Elmer Studio converts everything to SI before Elmer sees it.
+
+. Click menu:Home[Parameters], or select *Global Definitions › Parameters 1* in the Model Builder.
+. Type into the table (click an empty row to add a line):
++
+[cols="1,2,3",options="header"]
+|===
+|Name |Expression |Description
+|`+L+` |`+10[cm]+` |Bar length
+|`+W+` |`+2[cm]+` |Bar width
+|`+H+` |`+1[cm]+` |Bar height
+|`+T0+` |`+20[degC]+` |Temperature of the cold end
+|`+q0+` |`+1e5[W/m^2]+` |Heat flux into the hot end
+|===
+
+The _Value_ column shows each parameter's evaluated value.
+
+.Parameters with units
+image::screenshots/qs_1_parameters.png[Parameters table,role=screenshot]
+
+== 3. Geometry
+
+. Click menu:Geometry[Block] (in the _Primitives_ group). *Block 1* appears under *Geometry 1*.
+. In the Settings window, under _Size and Shape_, enter _Width_ `+L+`, _Depth_ `+W+` and _Height_ `+H+`. Leave the position at the origin.
+. Click menu:Geometry[Build All], or press kbd:[F8].
+
+The Graphics window shows the bar, 10 cm long in x. The *Messages* pane reports `1 domains, 6 boundaries, 12 edges, 8 points`.
+
+.The bar after Build All
+image::screenshots/qs_2_block.png[Block geometry,role=screenshot]
+
+TIP: kbd:[F7] (*Build Selected*) builds the geometry up to the selected node, and kbd:[F8] builds everything. *Form Union* at the end of the sequence is added for you.
+
+== 4. Material
+
+. Click menu:Home[Add Material]. The *Add Material* window opens on the right.
+. Expand *Built-in*, select *Copper* and click *Add to Component*.
+
+*Copper* appears under *Materials* and applies to all domains. Its Settings window has a _Material Contents_ table. Each property the physics needs (here thermal conductivity, density and heat capacity) is marked as present. Copper's thermal conductivity is `+400+` W/(m·K).
+
+.Copper, with the properties the physics uses
+image::screenshots/qs_3_material.png[Material settings,role=screenshot]
+
+== 5. Boundary conditions
+
+You select boundaries by clicking them in the Graphics window. Hover a face to highlight it in red; click to add it to the selection (blue). Click it again to remove it. See xref:user-guide:selections.adoc[Selections] for more.
+
+=== Cold end: fixed temperature
+
+. In the Model Builder, right-click *Heat Transfer in Solids* and choose menu:Boundaries[Temperature]. Or use menu:Physics[Boundaries > Temperature].
+. Click the end face at x = 0 (boundary *1*, the small face on the left). Its number appears in the selection list.
+. Set _Temperature_ T~0~ to `+T0+`.
+
+.Temperature 1 on boundary 1
+image::screenshots/qs_4_temperature.png[Temperature boundary condition,role=screenshot]
+
+=== Hot end: heat flux
+
+. Right-click *Heat Transfer in Solids* and choose menu:Boundaries[Heat Flux].
+. Rotate the view (drag with the left mouse button) until you see the far end of the bar, at x = L, and click it (boundary *6*).
+. Keep _Flux type_ *General inward heat flux* and set _Heat flux_ q~0~ to `+q0+`.
+
+.Heat Flux 1 on boundary 6, the far end of the bar
+image::screenshots/qs_5_heat_flux.png[Heat flux boundary condition,role=screenshot]
+
+The four long faces keep the default *Thermal Insulation*. A later feature overrides an earlier one on the same boundary, as in COMSOL.
+
+== 6. Mesh
+
+. Click menu:Home[Build Mesh].
+
+The default mesh is _physics-controlled_ with element size *Normal*: 226 quadratic tetrahedra and 511 nodes. The *Messages* pane reports the counts and the minimum element quality. Change the size with menu:Home[Element Size], or add your own *Size* and *Free Tetrahedral* nodes (see xref:user-guide:mesh.adoc[Mesh]).
+
+.The mesh
+image::screenshots/qs_6_mesh.png[Mesh,role=screenshot]
+
+== 7. Solve
+
+. Click menu:Home[Compute], or press kbd:[Ctrl+=].
+
+Elmer Studio writes the Elmer input files, runs ElmerSolver and loads the result. While it runs, the *Progress* pane and the *Convergence Plot* tab show its progress. When it is done, two default plot groups appear under *Results*: *Temperature (ht)* and *Isothermal Contours (ht)*. The temperature plot opens.
+
+.Temperature: cold (dark) at x = 0, hot (light) at x = L
+image::screenshots/qs_7_temperature.png[Temperature plot,role=screenshot]
+
+== 8. Plot the temperature along the bar
+
+. Click menu:Results[Cut Line] (in the _Datasets_ group). *Cut Line 1* appears under *Results › Datasets*.
+. Enter _Point 1_: x `+0+`, y `+W/2+`, z `+H/2+`; _Point 2_: x `+L+`, y `+W/2+`, z `+H/2+`.
+. Click menu:Results[1D Plot Group]. It comes with a *Line Graph 1*.
+. Select *Line Graph 1*. Set _Dataset_ to *Cut Line 1*, _y-axis expression_ to `+T+` and _Unit_ to *°C*.
+. Click *Plot* at the top of the Settings window.
+
+.Temperature along the centre line of the bar
+image::screenshots/qs_8_line_graph.png[Line graph of temperature,role=screenshot]
+
+The graph is a straight line from 20 °C to 45 °C.
+
+== 9. Evaluate the maximum
+
+. Click menu:Results[Volume Maximum] (in the _Evaluation_ group).
+. In the _Expressions_ table, enter `+T+` with unit `+degC+`.
+. Click *Evaluate*.
+
+The *Table* pane shows the maximum, `45`, and where it is: at x = 0.1 m, on the hot end.
+
+.Volume Maximum: 45 °C at x = L
+image::screenshots/qs_9_maximum.png[Volume Maximum in the Table pane,role=screenshot]
+
+== 10. Check the result
+
+With insulated sides, all the heat q~0~ flows along the bar. Fourier's law then gives a linear profile:
+
+[latexmath]
+++++
+T(x) = T_0 + \frac{q_0\,x}{k}, \qquad T(L) = 20\ ^\circ\mathrm{C} + \frac{10^5\ \mathrm{W/m^2}\times 0.1\ \mathrm{m}}{400\ \mathrm{W/(m\,K)}} = 45\ ^\circ\mathrm{C}
+++++
+
+Elmer Studio's answer is exactly this, because quadratic elements represent a linear field without error.
+
+== 11. Save
+
+Press kbd:[Ctrl+S] and choose a file name. The model is saved as an `.esm` file, together with its solution, so the plots are still there when you open it again.
+
+== Where next
+
+* *Change a parameter* (for example `+q0+`), then press kbd:[Ctrl+=]. The geometry, mesh and solution update.
+* *Sweep it:* right-click *Study 1*, add a *Parametric Sweep* over `+q0+`, and plot the maximum temperature against it with a Global Evaluation. The xref:tutorials:busbar.adoc[Busbar tutorial] shows how.
+* *See the Elmer input:* menu:Study[Show Elmer Input File] shows the `.sif` that was generated.
+* Learn the desktop in xref:user-interface.adoc[The desktop] and xref:keyboard-shortcuts.adoc[Keyboard and mouse], or continue with the xref:tutorials:index.adoc[Tutorials].
+
+TIP: `tools/screenshot_docs.py` in the source repository builds this exact model in the real GUI. It recreates these screenshots and checks the 45 °C.

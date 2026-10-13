@@ -1,0 +1,61 @@
+= Parameters, variables and functions
+:description: Parameters with units, Definitions variables, analytic and interpolation functions, and coupling operators.
+
+== Parameters
+
+*Global Definitions › Parameters 1* (menu:Home[Parameters]) is a table of named values that you can use everywhere: in geometry dimensions, materials, physics settings, mesh sizes, study settings and result expressions.
+
+[cols="1,2,1,3",options="header"]
+|===
+|Name |Expression |Value |Description
+|`+L+` |`+10[cm]+` |10 cm |Length
+|`+A+` |`+L*W+` |0.002 |Area (SI: m²)
+|`+T0+` |`+20[degC]+` |20 °C |Reference temperature
+|`+n+` |`+1500[rpm]+` |1500 rpm |Rotation speed
+|===
+
+* A parameter can use earlier and later parameters, built-in constants and functions. The order doesn't matter, but circular definitions are an error.
+* Values are stored in SI. The _Value_ column shows the value in the unit the expression ends with, or in SI when there is none.
+* A parameter that can't be evaluated shows `(error)` in red.
+* The buttons under the table move, delete and clear rows, and *Load* or *Save* the table as a text file.
+* A *Parametric Sweep* changes parameters from run to run (xref:studies.adoc#sweep[Studies › Parametric Sweep]). Geometry, mesh and physics that use them follow.
+
+The full syntax (operators, functions, constants and units) is in xref:reference:expressions.adoc[Expressions and units].
+
+== Variables
+
+*Component 1 › Definitions › Variables* (menu:Home[Variables]) defines named expressions that may depend on space, time and the solution. For example:
+
+[cols="1,2,3",options="header"]
+|===
+|Name |Expression |Description
+|`+r+` |`+sqrt(x^2+y^2)+` |Distance from the z axis
+|`+k_T+` |`+k0*(1+0.002*(T-293.15[K]))+` |Temperature-dependent conductivity
+|`+diam+` |`+intop1(R+u) - intop2(-R+u)+` |Deformed diameter (with integration couplings)
+|===
+
+Use a variable in material properties and physics settings, where it is expanded into the expression Elmer evaluates, and in any result expression.
+
+== Functions
+
+Add functions under *Global Definitions* with menu:Definitions[Analytic] or menu:Definitions[Interpolation].
+
+Analytic:: A _Function name_, its _Arguments_ (comma-separated) and an _Expression_, for example `+ramp(t) = min(t/10[s], 1)+`. Call it as `+ramp(t)+` in any setting.
+Interpolation:: A table of points (t, f(t)) under a _Function name_. Use it for measured data, for example a polarization curve `+i_meas(eta)+` or a property table `+k_tab(T)+`. Elmer interpolates linearly between the points. Interpolation functions work inside any expression in physics settings, for example `+2*k_tab(T)+`.
+
+== Coupling operators
+
+Coupling operators (menu:Definitions[...] or right-click *Definitions*) turn a field into a number, over a selection:
+
+[cols="1,1,3",options="header"]
+|===
+|Operator |Default name |Returns
+|Average |`+aveop1+` |The average of an expression over the selected domains, boundaries or points.
+|Integration |`+intop1+` |The integral. On a single point, the value at that point.
+|Maximum |`+maxop1+` |The maximum.
+|Minimum |`+minop1+` |The minimum.
+|===
+
+Select the _Geometric entity level_ (domain, boundary or point) and the entities, then use the operator in result expressions: `+aveop1(T)+` in a Global Evaluation or a Global plot over a parametric sweep, or `+intop1(u) - intop2(u)+` in a Definitions variable. The xref:tutorials:busbar.adoc[Busbar] and xref:tutorials:postprocessing.adoc[Postprocessing] tutorials use them.
+
+NOTE: In Elmer Studio, coupling operators are evaluated on the solution, in results. They are not available inside physics settings, where COMSOL would make them nonlocal couplings of the equations.

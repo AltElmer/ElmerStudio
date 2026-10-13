@@ -8,3 +8,5 @@ dist/
 tools/icon_sheet_*.png
 .venv-build/
 packaging/icons/
+node_modules/
+.cache/

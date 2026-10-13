@@ -6,13 +6,15 @@ Graphics window with entity selection, Model Wizard, material library, studies a
 Elmer Studio is an independent project. It is not affiliated with COMSOL AB, and it uses
 original icons and no COMSOL assets.
 
-![Busbar Joule heating](docs/screenshots/busbar_5_results.png)
+**Documentation: <https://altelmer.github.io/ElmerStudio/>** covers installation, a quick start, tutorials, the user guide, keyboard shortcuts and a complete settings reference. The source is AsciiDoc in [`docs/`](docs/); see *Contributing* in the docs for building it.
+
+![Busbar Joule heating](docs/modules/ROOT/images/screenshots/busbar_5_results.png)
 
 | | |
 |---|---|
-| ![Selection](docs/screenshots/busbar_2_physics_selection.png) | ![Mesh](docs/screenshots/busbar_4_mesh.png) |
-| ![Eigenfrequencies](docs/screenshots/cantilever_5_results.png) | ![Laminar flow](docs/screenshots/flow_cylinder_5_results.png) |
-| ![Material contents](docs/screenshots/ui_materials_window.png) | ![Model Wizard](docs/screenshots/ui_wizard_2_physics.png) |
+| ![Selection](docs/modules/ROOT/images/screenshots/busbar_2_physics_selection.png) | ![Mesh](docs/modules/ROOT/images/screenshots/busbar_4_mesh.png) |
+| ![Eigenfrequencies](docs/modules/ROOT/images/screenshots/cantilever_5_results.png) | ![Laminar flow](docs/modules/ROOT/images/screenshots/flow_cylinder_5_results.png) |
+| ![Material contents](docs/modules/ROOT/images/screenshots/ui_materials_window.png) | ![Model Wizard](docs/modules/ROOT/images/screenshots/ui_wizard_2_physics.png) |
 
 ## Download
 
@@ -56,7 +58,7 @@ Features added while following them: face-parallel and all quick work planes (xy
 
 ### Essentials of Postprocessing and Visualization
 
-The guide's own models are COMSOL files, so stand-ins carry the same workflow (`tests/test_tutorial_postprocessing.py`, GUI walkthrough `tools/screenshot_postprocessing.py`, screenshots `docs/screenshots/tutorial_post_*.png`):
+The guide's own models are COMSOL files, so stand-ins carry the same workflow (`tests/test_tutorial_postprocessing.py`, GUI walkthrough `tools/screenshot_postprocessing.py`, screenshots `docs/modules/ROOT/images/screenshots/tutorial_post_*.png`):
 
 | Walkthrough | Workflow in Elmer Studio | Checked |
 |---|---|---|
@@ -68,7 +70,7 @@ The guide's own models are COMSOL files, so stand-ins carry the same workflow (`
 Added for these: datasets Cut Plane, Parametric Extrusion 2D, Revolution 2D and Mirror (chainable, e.g. a mirrored cut plane); Point Graph, Table Graph, Polar Plot Group, Annotation with `eval(expr, unit)`; Selection and Color Expression subnodes; surface uniform coloring and wireframe; symmetric color ranges; slice planes by coordinates with shift; filled/line/tube contours with level labels; arrow placement on a grid with normalized lengths; streamline tubes/ribbons and start-point control; colored and tube line plots; line styles and markers for 1D graphs; legends with optional max/min; derived values named after the space dimension (*Surface Maximum* in 2D); circles built from four arcs with vertices at 0°, 90°, 180° and 270°, as in COMSOL; parameters and Definitions variables usable in result expressions.
 ### Acoustics: loudspeaker isosurfaces, BEM-style postprocessing, spherical scatterer
 
-From the Essentials guide (*vented loudspeaker enclosure*) and the blog post *How to Use the Boundary Element Method in Acoustics Modeling* (`tests/test_tutorial_acoustics.py`, GUI walkthrough `tools/screenshot_acoustics.py`, screenshots `docs/screenshots/tutorial_acoustics_*.png`; both models are in the Application Libraries):
+From the Essentials guide (*vented loudspeaker enclosure*) and the blog post *How to Use the Boundary Element Method in Acoustics Modeling* (`tests/test_tutorial_acoustics.py`, GUI walkthrough `tools/screenshot_acoustics.py`, screenshots `docs/modules/ROOT/images/screenshots/tutorial_acoustics_*.png`; both models are in the Application Libraries):
 
 | Walkthrough | Workflow in Elmer Studio | Checked |
 |---|---|---|
@@ -96,7 +98,7 @@ Added for these: Spherical Wave Radiation (with an optional incident plane wave)
 | 1D cell, every kinetics type, vs i = i_loc(V − iL/σ) | exact to 1e-9 (current and nodal local current density, corners included) |
 | tabulated i(η) through an Interpolation function | 1e-6 |
 | polarization sweep (V–I curve) | exact at every voltage |
-| Newman's disc electrode, axisymmetric, R = 1/(4σa) (with the far-field term) | 0.03 % |
+| Newman's disc electrode, axisymmetric, R = 1/(4σa) (with the far-field term) | 0.06 % |
 | sinusoidal anode (Parametric Curve + Convert to Solid, Mapped mesh): current modulation a·k·coth(kL) | 0.02 % |
 
 Added with it:
@@ -177,7 +179,7 @@ Other test suites:
 - `tests/test_examples.py` solves all 9 examples.
 - `tests/test_runner_results.py` covers the parametric sweep, integrals, point/line evaluation and the save/load round trip.
 - `tests/test_gui_smoke.py` drives the real main window through nearly every command and fails on any exception or error message.
-- `tools/screenshot_tour.py` regenerates the screenshots in `docs/screenshots/`.
+- `tools/screenshot_tour.py` regenerates the screenshots in `docs/modules/ROOT/images/screenshots/`.
 
 ## Scripting
 
@@ -227,7 +229,7 @@ These are deliberately listed, so nobody assumes they exist:
   - structural transient and frequency response;
   - contact;
   - Form Assembly with identity pairs;
-  - named selections;
+  - named selections other than Box Selections;
   - probes;
   - animations;
   - boundary elements (BEM) and perfectly matched layers: open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;
@@ -237,7 +239,6 @@ These are deliberately listed, so nobody assumes they exist:
   - LiveLink-style CAD sync;
   - the Application Builder.
 - **Partly supported:**
-  - mesh element growth rate is not exposed;
   - boundary-layer meshing is not exposed;
   - materials are constant (20 °C) unless you enter an expression;
   - the physics-controlled mesh does not refine automatically for physics, apart from the fluid and acoustics calibrations;

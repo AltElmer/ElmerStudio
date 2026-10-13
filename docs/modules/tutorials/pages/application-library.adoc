@@ -1,0 +1,73 @@
+= Application Library examples
+:description: Nine ready-to-solve models that come with Elmer Studio, and what each one shows.
+
+The Application Libraries are complete models, ready to solve. Open one from the *New* window, from menu:File[Application Libraries], or from the command line with `elmerstudio --example KEY`. Then press kbd:[Ctrl+=] to compute it. Each solves in seconds to a minute.
+
+Use them to see how a model of a given kind is set up: open the nodes one by one and read their Settings.
+
+[cols="2,1,1,2,4",options="header"]
+|===
+|Example |Key |Space |Physics and study |What it shows
+|Busbar - Joule heating |`busbar` |3D |Electric Currents + Heat Transfer (Joule Heating), stationary |Blocks, union and cylindrical holes; voltage and ground on the leg ends; convective cooling; the Electromagnetic Heating coupling.
+|Heat sink |`heat_sink` |3D |Heat Transfer in Solids, stationary |A fin *Array*; a heat flux `+P0/(area)+` into the base; convective cooling on all other faces.
+|Cantilever beam - eigenfrequencies |`cantilever` |3D |Solid Mechanics, eigenfrequency |A steel beam fixed at one end; six eigenmodes. The first frequency agrees with Euler–Bernoulli theory (40.80 vs 40.77 Hz).
+|Flow past a cylinder |`flow_cylinder` |2D |Laminar Flow, stationary |A channel with a cylinder at Re = 20: inlet velocity, outlet, default walls; a finer mesh.
+|Parallel-plate capacitor |`capacitor` |2D |Electrostatics, stationary |Two plates in an air box (Difference); potential and ground on the plates; fringing fields.
+|Coil with iron core |`coil` |2D axisymmetric |Magnetic Fields, stationary |Coil and iron core in air; External Current Density; magnetic flux density in r-z.
+|Sphere quenching |`sphere` |2D axisymmetric |Heat Transfer in Solids, time dependent |A half-disc sector revolved into a steel sphere at 600 °C, cooled by convection for 300 s.
+|Loudspeaker radiation |`loudspeaker` |3D |Pressure Acoustics, frequency domain |A piston on a closed box in a sphere of air; Spherical Wave Radiation; Exterior Field Calculation; radiation patterns.
+|Spherical scatterer |`scatterer` |2D axisymmetric |Pressure Acoustics, frequency domain |A rigid sphere in an incident plane wave; the scattered field against the analytic series.
+|===
+
+== Gallery
+
+[.gallery]
+--
+.Busbar: temperature
+image::ROOT:screenshots/busbar_5_results.png[Busbar temperature]
+
+.Cantilever: an eigenmode
+image::ROOT:screenshots/cantilever_5_results.png[Cantilever eigenmode]
+
+.Flow past a cylinder: velocity
+image::ROOT:screenshots/flow_cylinder_5_results.png[Flow velocity]
+
+.Capacitor: electric potential
+image::ROOT:screenshots/capacitor_5_results.png[Capacitor potential]
+
+.Sphere quenching: temperature
+image::ROOT:screenshots/sphere_5_results.png[Sphere temperature]
+
+.Heat sink: isosurfaces and streamlines
+image::ROOT:screenshots/tutorial_post_heatsink_7_isosurface_streamlines.png[Heat sink]
+
+.Coil: revolved flux density
+image::ROOT:screenshots/tutorial_post_coil_10_revolution.png[Coil]
+
+.Loudspeaker: pressure isosurfaces
+image::ROOT:screenshots/tutorial_acoustics_1_isosurfaces.png[Loudspeaker]
+
+.Scatterer: sound pressure level
+image::ROOT:screenshots/tutorial_acoustics_7_scatterer_spl_revolution.png[Scatterer]
+--
+
+== A walk through one example
+
+The busbar, stage by stage, as the Graphics window shows it when you select each node:
+
+.Geometry
+image::ROOT:screenshots/busbar_1_geometry.png[Busbar geometry,role=screenshot]
+
+.Electric Potential 1 with its boundary selected
+image::ROOT:screenshots/busbar_2_physics_selection.png[Busbar boundary selection,role=screenshot]
+
+.Copper and its Material Contents
+image::ROOT:screenshots/busbar_3_material.png[Busbar material,role=screenshot]
+
+.The mesh
+image::ROOT:screenshots/busbar_4_mesh.png[Busbar mesh,role=screenshot]
+
+.The second default plot group
+image::ROOT:screenshots/busbar_6_results2.png[Busbar second plot,role=screenshot]
+
+The xref:busbar.adoc[Busbar tutorial] builds the full COMSOL tutorial geometry, with work planes and fillets, step by step.

@@ -1,0 +1,12 @@
+    <link rel="icon" href="{{{uiRootPath}}}/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+    {{#if page.attributes.math}}
+    <script>
+      window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+                         options: { ignoreHtmlClass: 'nostem|nolatexmath' } };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+    {{/if}}

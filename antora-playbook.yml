@@ -1,0 +1,35 @@
+# Documentation site: npm ci && npx antora antora-playbook.yml  ->  build/site/index.html
+# CI (.github/workflows/docs.yml) builds it and publishes build/site to the gh-pages branch.
+site:
+  title: Elmer Studio
+  url: https://altelmer.github.io/ElmerStudio
+  start_page: ROOT::index.adoc
+  robots: allow
+content:
+  sources:
+  - url: .
+    branches: HEAD
+    start_path: docs
+    edit_url: https://github.com/AltElmer/ElmerStudio/edit/main/{path}
+antora:
+  extensions:
+  - require: '@antora/lunr-extension'
+    index_latest_only: true
+asciidoc:
+  attributes:
+    page-toclevels: 2
+    sectanchors: ''
+    idprefix: ''
+    idseparator: '-'
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
+    snapshot: true
+  supplemental_files: docs/ui
+output:
+  dir: build/site
+runtime:
+  fetch: true
+  log:
+    level: warn
+    failure_level: warn

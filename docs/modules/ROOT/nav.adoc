@@ -1,0 +1,7 @@
+* Getting started
+** xref:index.adoc[Introduction]
+** xref:installation.adoc[Installation]
+** xref:quick-start.adoc[Quick start: your first model]
+** xref:user-interface.adoc[The desktop]
+** xref:keyboard-shortcuts.adoc[Keyboard and mouse]
+** xref:comsol-users.adoc[Coming from COMSOL]

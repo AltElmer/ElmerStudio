@@ -36,7 +36,7 @@ def main():
     import warnings
     warnings.filterwarnings("ignore")
     example =sys.argv[1] if len(sys.argv) > 1 else "busbar"
-    out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "docs", "screenshots")
+    out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "docs", "modules", "ROOT", "images", "screenshots")
     os.makedirs(out, exist_ok=True)
     app = QApplication(sys.argv[:1])
     from elmerstudio.ui import theme
@@ -53,6 +53,7 @@ def main():
         """Widget-tree grab (works on a locked/headless desktop) + VTK framebuffer composited in."""
         from PySide6.QtCore import QPoint, QRectF
         from PySide6.QtGui import QImage, QPainter
+        w.settings.refresh()              # show the values this script set, not the ones the window was opened with
         app.processEvents()
         pm = w.grab()
         pl = w.graphics.plotter

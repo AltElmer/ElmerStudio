@@ -1,0 +1,66 @@
+= Physics interfaces
+:description: Adding physics interfaces and features, default features, overriding, multiphysics couplings, and the Elmer solvers behind each interface.
+
+== Adding physics
+
+Physics come from the Model Wizard, or from menu:Home[Add Physics] at any time. Each interface appears under the component with its *default features*. For Heat Transfer in Solids these are *Solid 1* (the domain equation), *Initial Values 1* and *Thermal Insulation 1* on exterior boundaries.
+
+Add features with menu:Physics[Domains] and menu:Physics[Boundaries], or by right-clicking the interface. The ribbon lists the features of the interface that is selected, or that the selected node belongs to.
+
+Each feature's Settings window has:
+
+* its *Selection* (xref:selections.adoc[Selections]);
+* an *Equation* section with the equation it contributes;
+* its settings, with symbols and SI units. Every field is an expression.
+
+== The interfaces
+
+[cols="2,3,2",options="header"]
+|===
+|Interface |Features |Elmer solver
+|xref:reference:physics-ht.adoc[Heat Transfer in Solids] (ht) |Solid, Fluid (prescribed or Laminar-Flow velocity), Heat Source, Temperature, Heat Flux (general or convective), Surface-to-Ambient Radiation, Symmetry, Thermal Insulation |HeatSolver + FluxSolver
+|xref:reference:physics-solid.adoc[Solid Mechanics] (solid) |Linear Elastic Material, Body Load, Gravity, Rotating Frame, Fixed Constraint, Prescribed Displacement, Roller, Symmetry, Boundary Load (force per area, or total force), Spring Foundation, Free; plane stress or plane strain in 2D |StressSolver (stationary, eigenfrequency)
+|xref:reference:physics-es.adoc[Electrostatics] (es) |Charge Conservation, Space Charge Density, Ground, Electric Potential, Surface Charge Density, Zero Charge |StatElecSolver
+|xref:reference:physics-ec.adoc[Electric Currents] (ec) |Current Conservation, Ground, Electric Potential, Normal Current Density, Electric Insulation |StatCurrentSolver
+|xref:reference:physics-mf.adoc[Magnetic Fields] (mf), 2D and 2D axisymmetric |Ampère's Law, External Current Density, Magnetic Insulation, Magnetic Potential, Perfect Magnetic Conductor |MagnetoDynamics2D + CalcFields
+|xref:reference:physics-spf.adoc[Laminar Flow] (spf) |Fluid Properties, Volume Force, Gravity, Wall (no slip or slip), Inlet (velocity or pressure), Outlet, Symmetry, Open Boundary; Stokes flow option |FlowSolve (stabilized P1-P1)
+|xref:reference:physics-acpr.adoc[Pressure Acoustics, Frequency Domain] (acpr) |Pressure Acoustics (domain), Sound Hard Boundary (Wall), Sound Soft Boundary, Pressure, Normal Acceleration, Impedance, Plane Wave Radiation, Spherical Wave Radiation (with incident plane wave), Exterior Field Calculation |HelmholtzSolver
+|xref:reference:physics-tds.adoc[Transport of Diluted Species] (tds) |Transport Properties (diffusion, convection by a given or Laminar-Flow velocity), Reactions, Concentration, Flux (including mass transfer), Electrode Surface Coupling, No Flux, Symmetry, Outflow |ModelPDE
+|xref:reference:physics-cd.adoc[Secondary Current Distribution] (cd) |Electrolyte, Current Source, Electrode Surface (primary, Butler–Volmer, linearized, Tafel, limiting current, user-defined kinetics), Electrolyte Potential, Electrolyte Current Density, Insulation, Symmetry |StatCurrentSolve, HeatSolve or ModelPDE, + FluxSolver. See xref:electrochemistry.adoc[Electrochemistry].
+|xref:reference:physics-pde.adoc[Coefficient Form PDE] (pde) |c, a, f, d~a~, β coefficients; Dirichlet, Flux/Source, Zero Flux |ModelPDE
+|===
+
+== Defaults and overriding
+
+* Default domain features cover all domains. Default boundary features cover the *exterior* boundaries, as in COMSOL.
+* A feature lower in the tree overrides earlier ones on the boundaries they share.
+* Default features can't be deleted or disabled, but any feature can override them.
+
+== Interface settings
+
+Select the interface node itself (for example *Heat Transfer in Solids (ht)*) for settings of the whole interface. The details depend on the interface:
+
+* _Discretization_: the element order, linear or quadratic. The mesh follows it by default.
+* model options, such as 2D plane stress or plane strain in Solid Mechanics, or primary or secondary current distribution;
+* the choice of Elmer solver, where there is one (see xref:electrochemistry.adoc[Electrochemistry]);
+* _Additional Elmer solver keywords_: lines appended verbatim to this interface's `Solver` section in the `.sif`, for anything the GUI doesn't expose.
+
+== Multiphysics
+
+menu:Home[Multiphysics] adds couplings between two interfaces in the model. They appear under *Multiphysics*:
+
+[cols="1,2,2",options="header"]
+|===
+|Coupling |Couples |Effect
+|Electromagnetic Heating |Electric Currents → Heat Transfer |The Joule heat Q = J·E is a heat source.
+|Thermal Expansion |Heat Transfer → Solid Mechanics |Thermal strain α(T − T~ref~).
+|Nonisothermal Flow |Laminar Flow ↔ Heat Transfer |Convection of heat by the flow, and Boussinesq buoyancy.
+|===
+
+The Model Wizard entries *Joule Heating* and *Thermal Stress* add both interfaces with their coupling. Coupled physics are solved together in one Elmer run, iterating between the solvers until the coupling converges (xref:studies.adoc#coupling[Studies › Coupled physics]).
+
+== Nonlinear problems
+
+A model becomes nonlinear when a material property or a boundary value depends on the solution (for example k(T), radiation, or electrode kinetics). Elmer Studio detects this from the expressions and makes the solver iterate. The iteration settings are in the study's solver configuration (xref:studies.adoc#solver[Studies › Solver configurations]).
+
+Every interface's features and settings are in the xref:reference:index.adoc[Reference].

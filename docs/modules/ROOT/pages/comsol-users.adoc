@@ -1,0 +1,63 @@
+= Coming from COMSOL
+:description: How COMSOL Multiphysics concepts map to Elmer Studio, and the differences to know about.
+
+Elmer Studio follows COMSOL's workflow, layout and names on purpose. If you know COMSOL, you already know most of it. This page lists what corresponds to what, and the few places where it differs.
+
+NOTE: Elmer Studio is independent of COMSOL AB. It does not read or write `.mph` files.
+
+== Concept map
+
+[cols="2,2,2",options="header"]
+|===
+|COMSOL |Elmer Studio |Elmer behind it
+|Model Builder, Settings, Graphics, Messages/Progress/Log/Table |The same windows, dockable; menu:Home[Reset Desktop] |—
+|Ribbon tabs, Quick Access Toolbar, File menu |The same tabs and groups |—
+|Model Wizard, Blank Model, Application Libraries |The same; 9 example models |—
+|`.mph` file |`.esm` file (zip of the model and its solutions) |—
+|Parameters, Variables, Analytic/Interpolation functions |The same, with units in brackets |MATC expressions, tables
+|Component couplings (Average, Integration, Maximum, Minimum) |The same, used in results |—
+|Geometry sequence, Work Plane, Extrude/Revolve, Booleans, transforms, Fillet/Chamfer, Import, Form Union |The same |gmsh / OpenCASCADE
+|Named selections (Box) |Box Selection |—
+|Materials with Material Contents |The same; 20 library materials |`Material` sections
+|Physics interfaces and features, default features on exterior boundaries |The same |Elmer solver modules
+|Multiphysics couplings |Electromagnetic Heating, Thermal Expansion, Nonisothermal Flow |Coupled solvers
+|Physics-controlled mesh, Size, Free Tetrahedral/Triangular/Quad, Mapped, Distribution |The same, including growth rate and narrow regions |gmsh → Elmer mesh
+|Stationary, Time Dependent, Eigenfrequency, Frequency Domain |The same |Steady, Transient (BDF), Eigen (ARPACK), Scanning
+|Parametric Sweep (specified / all combinations) |The same |One Elmer run per value
+|Solver Configurations |Solver Configurations with one Solver node per Elmer solver |Linear/nonlinear solver keywords
+|Datasets, plot groups, plots, derived values, tables, export |The same names |VTU results
+|Method/Java shell |menu:Developer[Run Python Script] |—
+|"Show equation view" |*Equation* section on each feature; menu:Study[Show Elmer Input File] |`.sif`
+|===
+
+== Variable names
+
+Result variables use COMSOL's scoped names where possible: `+T+`, `+ht.tfluxMag+`, `+solid.mises+`, `+solid.disp+`, `+es.normE+`, `+ec.normJ+`, `+mf.normB+`, `+spf.U+`, `+acpr.p_t+`, `+acpr.Lp+`, `+cd.phil+`, `+cd.iloc+`, `+cd.es1.Itot+`. The full list is in xref:reference:result-variables.adoc[Result variables].
+
+== Differences to know
+
+[cols="1,3",options="header"]
+|===
+|Topic |In Elmer Studio
+|Units in expressions |Converted to SI, but dimensional consistency isn't checked. `+1[m] + 1[s]+` isn't an error.
+|Materials |Library values are constants at 20 °C. Use expressions or Interpolation functions for temperature dependence.
+|Coupling operators |Evaluated on results. They can't appear inside the equations.
+|Form Assembly |Not available; geometries are a union (or separate objects without identity pairs).
+|Boundary-layer meshes |Not exposed.
+|Adaptive mesh refinement |Not available.
+|Magnetic fields |2D and 2D axisymmetric only; no 3D A–V formulation.
+|Turbulence, contact, structural transient and frequency response |Not available yet.
+|Acoustic BEM and PMLs |Open domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation.
+|Probes and animations |Not available yet.
+|Application Builder, LiveLink |Not available.
+|Integrals over quadratic elements |Use linearized cells (about 0.1 % on smooth fields), except boundary fluxes from reaction loads (electrode currents, heat flows), which are exact.
+|===
+
+The complete list is on xref:known-limitations.adoc[Known limitations].
+
+== Habits that carry over
+
+* Later features override earlier ones on shared boundaries.
+* kbd:[F7] / kbd:[F8] build, kbd:[Ctrl+=] computes, kbd:[F2] renames, kbd:[F3]/kbd:[F4] disable and enable.
+* Entity numbers follow position, so numbers in COMSOL instructions usually match.
+* Parameters with units, sweeps, couplings and Global Evaluations work as you expect.

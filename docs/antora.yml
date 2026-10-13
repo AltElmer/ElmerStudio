@@ -1,0 +1,21 @@
+name: ROOT
+title: Elmer Studio
+version: ~
+start_page: ROOT:index.adoc
+nav:
+- modules/ROOT/nav.adoc
+- modules/tutorials/nav.adoc
+- modules/user-guide/nav.adoc
+- modules/reference/nav.adoc
+- modules/ROOT/nav-about.adoc
+asciidoc:
+  attributes:
+    experimental: ''
+    stem: latexmath
+    icons: font
+    page-pagination: ''
+    hide-uri-scheme: ''
+    url-repo: https://github.com/AltElmer/ElmerStudio
+    url-releases: https://github.com/AltElmer/ElmerStudio/releases
+    url-elmer: https://www.elmerfem.org
+    app-version: 1.0.0

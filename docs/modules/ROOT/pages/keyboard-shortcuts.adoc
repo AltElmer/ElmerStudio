@@ -1,0 +1,65 @@
+= Keyboard and mouse
+:description: Every keyboard shortcut and mouse action in Elmer Studio.
+
+The tooltip of every toolbar and ribbon button shows its shortcut. On macOS, kbd:[Ctrl] is kbd:[Cmd].
+
+== Keyboard shortcuts
+
+[cols="1,2,3",options="header"]
+|===
+|Keys |Command |Where it applies
+3+h|Files
+|kbd:[Ctrl+N] |New |Opens the *New* window (Model Wizard, Blank Model, examples).
+|kbd:[Ctrl+O] |Open... |Opens an `.esm` model.
+|kbd:[Ctrl+S] |Save |Saves the model and its solutions.
+|kbd:[Ctrl+Shift+S] |Save As... |
+3+h|Editing the model
+|kbd:[Ctrl+Z] |Undo |Any change to the model tree or a setting.
+|kbd:[Ctrl+Y] |Redo |
+|kbd:[Delete] |Delete |The selected node.
+|kbd:[F2] |Rename |The selected node's label.
+|kbd:[Ctrl+Shift+D] |Duplicate |The selected node (with its children).
+|kbd:[F3] |Disable |The selected node; it is ignored when building and solving.
+|kbd:[F4] |Enable |
+|kbd:[Ctrl+Up] |Move Up |The selected node within its parent. The order matters for geometry sequences and for features that override each other.
+|kbd:[Ctrl+Down] |Move Down |
+3+h|Building and solving
+|kbd:[F7] |Build Selected |Builds the geometry up to and including the selected geometry node.
+|kbd:[F8] |Build All |Acts on the selected node: builds the mesh on a mesh node, computes on a study node, plots on a plot group or plot, evaluates a derived value, and builds the whole geometry anywhere else. Double-clicking a node does the same.
+|kbd:[Ctrl+=] |Compute |Solves the current study.
+3+h|View
+|kbd:[F5] |Zoom Extents |Fits the model into the Graphics window.
+|kbd:[F1] |Documentation |Opens this documentation in your web browser. The *?* button at the right of the ribbon does the same; menu:File[About Elmer Studio] shows the version and the Elmer in use.
+|===
+
+Standard keys work in the Model Builder tree as in any tree view: the arrow keys move through it, and kbd:[Right] and kbd:[Left] expand and collapse branches.
+
+[#mouse]
+== Mouse in the Graphics window
+
+[cols="1,2",options="header"]
+|===
+|Action |3D models
+|Left-drag |Rotate
+|Right-drag |Pan
+|Wheel |Zoom
+|Left-click |Select or deselect the entity under the cursor (when a selection list is active)
+|Hover |Highlight the entity under the cursor in red; the status bar names it (for example `Boundary 6`)
+|===
+
+In 2D and 2D axisymmetric models there is nothing to rotate, so left-drag pans as well.
+
+A click selects only when the mouse didn't move. A small drag rotates or pans without changing the selection.
+
+== Selecting entities
+
+. Select a feature with a selection, for example *Temperature 1*, in the Model Builder. Its selection list becomes *active*: the green button next to the list is on, and the Graphics window shows the selection level (domains, boundaries, edges or points).
+. Hover to find the entity, then click it to add it (blue). Click a blue entity to remove it.
+. Use *Select All* or *Clear Selection* in the Graphics toolbar, or the *+*, *−* and clear buttons beside the list.
+. Turn on *Transparency* to reach faces behind others, and *Show Labels* to see the entity numbers.
+
+For selections that should survive geometry changes, use a geometry *Box Selection*. See xref:user-guide:selections.adoc[Selections].
+
+== Context menus
+
+Right-click any node in the Model Builder for what you can add to it and do with it. The same commands as the ribbon, filtered to that node. On a physics interface the menu is split into *Domains* and *Boundaries*. On *Geometry* it's split into *Primitives*, *Booleans and Partitions*, *Transforms* and *Other*.

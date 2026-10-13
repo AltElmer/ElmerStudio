@@ -1,0 +1,39 @@
+= Known limitations
+:description: What Elmer Studio does not do yet, compared with COMSOL, listed so that nobody assumes it does.
+
+This list is deliberately explicit.
+
+== Not available yet
+
+* 3D magnetic fields (A–V formulation);
+* turbulence;
+* structural transient and frequency-response analysis;
+* contact;
+* Form Assembly with identity pairs;
+* probes;
+* animations;
+* acoustic boundary elements (BEM) and perfectly matched layers. Open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;
+* exterior field calculation in 2D planar models (it would need Hankel functions);
+* result filters, dataset joins, and Combined/Array datasets;
+* adaptive mesh refinement;
+* LiveLink-style CAD synchronisation;
+* the Application Builder;
+* reading or writing COMSOL `.mph` files.
+
+== Partly supported
+
+* Boundary-layer meshing is not exposed.
+* Library materials have constant properties at 20 °C, unless you enter an expression.
+* The physics-controlled mesh refines automatically only for laminar flow and acoustics.
+* With an incident plane wave the acoustic solution is the total field. The exterior field is then most accurate when integrated over the scatterer's surface.
+* Coupling operators work in results, not inside the equations.
+* In the electrochemistry interfaces, there is no electrode (solid-phase) domain, total-current or total-power electrode condition, or double-layer capacitance.
+
+== Approximations
+
+* Integrals over quadratic elements use linearized cells (about 0.1 % on smooth fields). Boundary fluxes from reaction loads, such as electrode currents and heat flows, are exact.
+* Expressions with units are converted to SI, but their dimensions aren't checked.
+
+== Parallel computing
+
+MPI runs need an MPI-enabled Elmer. The Windows `-nompi` builds of Elmer run serially.

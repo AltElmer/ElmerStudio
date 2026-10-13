@@ -1,0 +1,209 @@
+= Acoustics
+:description: Solve frequency-domain pressure acoustics, compute the exterior field beyond the mesh, and plot isosurfaces, grids, spirals, radiation patterns and directivity.
+:page-math: true
+:page-pagination:
+
+This tutorial covers Pressure Acoustics, Frequency Domain (`+acpr+`) in Elmer Studio: radiation and scattering problems, the field outside the meshed air domain, and the far-field plots used for loudspeakers. It follows the vented-loudspeaker part of the COMSOL guide _Essentials of Postprocessing and Visualization_ and the COMSOL blog post _How to Use the Boundary Element Method in Acoustics Modeling_, with stand-in models.
+
+What you will learn:
+
+* close an air domain with *Spherical Wave Radiation* and drive it with a *Normal Acceleration* or an incident plane wave;
+* compute the pressure anywhere outside the mesh with *Exterior Field Calculation*;
+* plot isosurfaces with a filled level legend, a Grid 3D dataset with a Multislice, and a Parametric Curve 3D;
+* draw a Radiation Pattern (polar and 3D) and a Directivity plot over frequency;
+* check the method against two closed-form solutions: a pulsating sphere and a rigid spherical scatterer.
+
+The checked numbers come from `tests/test_tutorial_acoustics.py`. The screenshots come from the GUI walkthrough `tools/screenshot_acoustics.py`.
+
+NOTE: Elmer has no boundary elements. Where COMSOL couples FEM with BEM or uses a perfectly matched layer, Elmer Studio closes the air domain with Spherical Wave Radiation and evaluates the field outside it with the Exterior Field Calculation, a Kirchhoff–Helmholtz integral over a closed surface of the FEM domain. Elmer's HelmholtzSolver uses the e^iωt^ convention, as COMSOL does.
+
+== Concepts
+
+[cols="1,3",options="header"]
+|===
+|Feature or variable |What it does
+|*Spherical Wave Radiation* |Boundary condition for outgoing spherical waves (3D, 2D axisymmetric) or cylindrical waves (2D) from the _Source location_. Optionally adds an incident plane wave, _Incident pressure field_ *Plane wave*, for scattering in the total-field formulation.
+|*Exterior Field Calculation* |Kirchhoff–Helmholtz integral over the selected closed surface. Provides `+acpr.efc1.pext+` (pressure, real part), `+acpr.efc1.abs_pext+` and `+acpr.efc1.Lp_pext+` (sound pressure level) for the first such feature. Inside the mesh these variables take the computed pressure, outside it the integral. With an incident plane wave they describe the scattered field.
+|`+acpr.p_t+`, `+acpr.p_im+` |Total acoustic pressure, real and imaginary part.
+|`+acpr.Lp+` |Sound pressure level of the computed pressure, in dB (re 20 µPa, from the RMS value).
+|`+acpr.p_s+`, `+acpr.Lp_s+` |Scattered pressure (real part) and its level, available when an incident plane wave is defined.
+|===
+
+See xref:reference:physics-acpr.adoc[] for every setting and xref:user-guide:physics.adoc[] for how physics features are added.
+
+TIP: The physics-controlled mesh of an acoustics model is calibrated to at most λ/5 at the highest study frequency, so a frequency sweep refines the mesh for its top frequency.
+
+== Pulsating sphere: verification
+
+A sphere of radius a = 0.1 m oscillates radially in air. The air between the sphere and an outer sphere of radius 0.6 m is modeled in 2D axisymmetry. The exact pressure is
+
+latexmath:[p(r) = \rho c\, u\, \frac{ika}{1+ika}\,\frac{a}{r}\,e^{-ik(r-a)}]
+
+with u = a~n~/(iω) the velocity amplitude for the normal acceleration a~n~ = 1 m/s², and k = ω/c.
+
+=== Model
+
+. Click menu:File[New], choose *Model Wizard*, then *2D Axisymmetric*. Under *Acoustics* select *Pressure Acoustics, Frequency Domain (acpr)*, click *Add*, then *Study*, choose *Frequency Domain* and click *Done*.
+. Click menu:Geometry[Circle]: _Radius_ `+0.6+`, _Sector angle_ `+180+`, _Rotation_ `+-90+`. This is the half disk on the r ≥ 0 side of the axis.
+. Click menu:Geometry[Circle]: _Radius_ `+0.1+`.
+. Click menu:Geometry[Difference]: the half disk in _Objects to add_, the small circle in _Objects to subtract_. Press kbd:[F8].
+. Click menu:Home[Add Material] and add *Air*. In its _Material Contents_ table set _Speed of sound_ to `+343+` and _Density_ to `+1.2+` (the values the reference solution uses).
+. Click menu:Physics[Boundaries > Normal Acceleration] and click the arcs of the small sphere. Keep _Inward normal acceleration_ at `+1+`.
+. Click menu:Physics[Boundaries > Spherical Wave Radiation] and click the arcs of the outer sphere. Keep the _Source location_ at the origin.
+. Click menu:Physics[Boundaries > Exterior Field Calculation] and click the arcs of the outer sphere.
+. Click *Mesh 1* and set _Element size_ to *Extremely fine*.
+. Click *Step 1: Frequency Domain* and set _Frequencies_ to `+250 500 1000+`. Click menu:Home[Compute].
+
+=== Plots
+
+The default plot groups show the acoustic pressure and the sound pressure level in the r-z plane. To see the field beyond the mesh, click menu:Results[Polar Plot Group], delete *Line Graph (Polar) 1* (right-click, *Delete*), select the plot group and click menu:Results[Radiation Pattern]. Set _Evaluation distance_ to `+3[m]+`, five times the mesh radius. A pulsating sphere radiates equally in every direction, so the curve is a circle.
+
+=== Check the results
+
+`test_pulsating_sphere_radiation_and_exterior_field` checks at 250, 500 and 1000 Hz:
+
+* In the mesh, for 0.2 m < r < 0.5 m, the computed pressure agrees with the exact solution within 0.2 % of its maximum.
+* The Kirchhoff–Helmholtz integral over the outer boundary gives the pressure at r = 3 m (five times the mesh radius, nine directions from −80° to 80°) within 1.5 %.
+
+`test_pulsating_sphere_3d_exterior_field` repeats the problem in 3D: an outer sphere of 0.5 m, the default (λ/5) physics-controlled mesh, 500 Hz, and the Exterior Field Calculation on the outer surface. At four points 1.8 m to 2.1 m from the center (about four times the mesh radius) the exterior field agrees with the exact solution within 2 %.
+
+== Spherical scatterer: BEM benchmark
+
+A rigid sphere of radius 0.25 m sits in a plane wave of amplitude 1 Pa traveling along +z. COMSOL publishes this case as a BEM benchmark; here the air domain (radius 1 m) is FEM, the incident wave enters through the Spherical Wave Radiation boundary, and the scattered field beyond the mesh comes from an Exterior Field Calculation on the sphere surface.
+
+=== Model and study
+
+. Click menu:File[Application Libraries > Spherical scatterer - acoustic scattering benchmark (2D axisymmetric)].
+. Look at the physics features under *Pressure Acoustics, Frequency Domain*:
+** *Spherical Wave Radiation 1* on the outer arc, with _Incident pressure field_ *Plane wave*, _Pressure amplitude_ `+1[Pa]+` and _Wave direction_ *+z direction*;
+** *Exterior Field Calculation 1* on the sphere surface;
+** the sphere surface itself keeps the default *Sound Hard Boundary (Wall)*.
+. The study computes 500 Hz and 1400 Hz (ka ≈ 2.3 and 6.4). Click menu:Home[Compute].
+
+NOTE: With an incident plane wave, the variables `+acpr.p_s+` and `+acpr.Lp_s+` give the scattered field (total minus incident) inside the mesh, and `+acpr.efc1.Lp_pext+` gives the scattered field anywhere.
+
+=== Revolution 2D plot
+
+. Click menu:Results[Revolution 2D]. Set _Dataset_ to *Study 1/Solution 1*, _Start angle_ to `+-90+`, _Revolution angle_ to `+270+` and _Number of layers_ to `+72+`.
+. Click menu:Results[3D Plot Group], rename it `+Sound Pressure Level, 500 Hz+` and set _Dataset_ to *Revolution 2D 1*. In the solution list below it, which reads _Parameter value (freq (Hz))_ for this study, choose *freq=500 Hz*.
+. In *Surface 1* set _Expression_ to `+acpr.Lp+`. Click *Plot*.
+
+.Total sound pressure level around the scatterer at 500 Hz, revolved through 270°
+image::ROOT:screenshots/tutorial_acoustics_7_scatterer_spl_revolution.png["3D view of the revolved air domain around the sphere colored by sound pressure level from 87 to 96 dB at 500 Hz",role=screenshot]
+
+=== Polar plot of the scattered field
+
+. Click menu:Results[Polar Plot Group] and rename it `+Scattered field at 3 m+`. Right-click *Line Graph (Polar) 1* and choose *Delete*.
+. Select the plot group and click menu:Results[Radiation Pattern]. _Expression_ is `+acpr.efc1.Lp_pext+` by default.
+. Set _Evaluation distance_ to `+3[m]+`, _Number of angles_ to `+181+`, _Start angle_ to `+-90+`, _End angle_ to `+90+` and _Parameter values (indices from 1, empty = current)_ to `+1 2+`. Click *Plot*.
+
+In an axisymmetric model the angle runs in the r-z half plane, so 90° is the +z axis, the direction in which the incident wave travels. At 1400 Hz the scattered field has a strong lobe in that direction.
+
+.Scattered sound pressure level at 3 m for 500 Hz and 1400 Hz
+image::ROOT:screenshots/tutorial_acoustics_8_scatterer_scattered_polar.png["Polar Radiation Pattern of the exterior-field sound pressure level at 3 m for 500 Hz and 1400 Hz from -90 to 90 degrees",role=screenshot]
+
+=== Check the results
+
+`test_spherical_scatterer_benchmark` compares with the analytic series for a rigid sphere, at 500 Hz and 1400 Hz:
+
+* `+acpr.p_s+` (with its imaginary part) inside the mesh, for 1.2a < r < 0.8R, agrees within 5 % of its maximum.
+* `+acpr.efc1.Lp_pext+` at 3 m, beyond the mesh, on 13 angles from 0° to 180°, agrees within 0.8 dB.
+
+== Loudspeaker radiation
+
+The stand-in loudspeaker is a closed box of 20 × 20 × 30 cm with a piston of 6 cm radius on its top face, radiating into a sphere of air of radius 0.5 m. The piston has a normal acceleration of 1 m/s². The outer sphere has Spherical Wave Radiation and an Exterior Field Calculation, so the field is available far beyond the mesh.
+
+=== Model and study
+
+. Click menu:File[Application Libraries > Loudspeaker radiation - 3D acoustics, exterior field and radiation patterns].
+. Click *Step 1: Frequency Domain* and set _Frequencies_ to `+200 300 450 650 900+` (the screenshots use these five frequencies; the example's own list also works).
+. Click menu:Home[Compute]. In the run shown in the screenshots the solve took about two minutes.
+
+=== Isosurfaces of the pressure
+
+. Click menu:Results[3D Plot Group] and rename it `+Acoustic Pressure, Isosurfaces+`. Right-click *Surface 1* and choose *Delete*.
+. Select the plot group and click menu:Results[Isosurface]. Set _Expression_ to `+acpr.p_t+`, _Total levels_ to `+8+` and _Color table_ to *Wave*. _Legend type_ is *Filled* by default: the legend shows one block per level interval. Click *Plot*.
+
+.Isosurfaces of the acoustic pressure at 900 Hz, with a filled level legend
+image::ROOT:screenshots/tutorial_acoustics_1_isosurfaces.png["Nested isosurfaces of the total acoustic pressure above the box outline, with a blocked red-white-blue legend",role=screenshot]
+
+=== Grid 3D and Multislice beyond the mesh
+
+A Grid 3D dataset is a regular grid of points. Inside the mesh it takes the computed values; the exterior-field variables are defined everywhere, so the grid can reach beyond the air domain.
+
+. Click menu:Results[Grid 3D]. Set _Dataset_ to *Study 1/Solution 1*. Set _x minimum (empty = dataset bounds)_ to `+-1.5+`, _x maximum_ to `+1.5+` and _x resolution (points)_ to `+35+`, and the same for y and z.
+. Click menu:Results[3D Plot Group] and rename it `+Sound Pressure Level, Grid 3D+`.
+. In *Surface 1* set _Expression_ to `+acpr.Lp+`. Right-click *Surface 1*, choose *Selection* and click the box and piston faces, everything except the outer sphere.
+. Select the plot group and click menu:Results[Multislice]. Set its _Dataset_ to *Grid 3D 1*, _Expression_ to `+acpr.efc1.Lp_pext+`, _x-planes_ to `+1+`, _y-planes_ to `+1+` and _z-planes_ to `+0+`. Click *Plot*.
+
+A plot can use its own dataset inside a plot group, so the Multislice draws on the grid while the Surface draws on the solution.
+
+.Sound pressure level on two planes of a 3 m grid, three times the size of the mesh
+image::ROOT:screenshots/tutorial_acoustics_2_grid3d_multislice.png["Two orthogonal slices through a 3 m grid colored by exterior-field sound pressure level, with the loudspeaker box at the center",role=screenshot]
+
+=== Parametric Curve 3D: a spiral around the speaker
+
+. Click menu:Results[Parametric Curve 3D] and rename it `+Spiral+`. Set _Dataset_ to *Study 1/Solution 1*, _Minimum_ to `+0+`, _Maximum_ to `+1+` and _Resolution (points)_ to `+600+`.
+. Under _Expressions_ set
+** _x_: `+(0.6+0.6*s)*cos(8*pi*s)+`
+** _y_: `+(0.6+0.6*s)*sin(8*pi*s)+`
+** _z_: `+-0.9+1.8*s+`
++
+The spiral starts at a radius of 0.6 m, outside the 0.5 m mesh, and widens to 1.2 m while it rises from z = −0.9 m to 0.9 m.
+. Click menu:Results[3D Plot Group] and rename it `+Sound Pressure Level along a spiral+`. In *Surface 1* set _Expression_ to `+acpr.Lp+` and add a *Selection* with the box and piston faces, as above.
+. Select the plot group and click menu:Results[Line]. Set _Dataset_ to *Spiral*, _Expression (empty = uniform color)_ to `+acpr.efc1.Lp_pext+`, _Line type_ to *Tube* and _Tube radius (fraction of model size)_ to `+0.012+`. Click *Plot*.
+
+.Exterior-field sound pressure level along the spiral
+image::ROOT:screenshots/tutorial_acoustics_3_parametric_curve_spiral.png["A tube spiral around the loudspeaker box colored by sound pressure level from about 26 to 33 dB",role=screenshot]
+
+=== Radiation Pattern, polar
+
+. Click menu:Results[Polar Plot Group] and rename it `+Radiation Pattern+`. Right-click *Line Graph (Polar) 1* and choose *Delete*.
+. Select the plot group and click menu:Results[Radiation Pattern]. Keep _Expression_ `+acpr.efc1.Lp_pext+`.
+. Set _Evaluation distance_ to `+1[m]+`, _Plane_ to *xz-plane (angle from x toward z)*, _Number of angles_ to `+181+`, _Start angle_ to `+0+`, _End angle_ to `+360+` and _Parameter values (indices from 1, empty = current)_ to `+1 3 5+`. Click *Plot*.
+
+Parameter values 1, 3 and 5 are 200 Hz, 450 Hz and 900 Hz. The piston faces +z, which is 90° in this plane. The pattern is almost round at 200 Hz and loses level toward the back (270°) as the frequency rises.
+
+.Radiation pattern at 1 m in the xz-plane for 200, 450 and 900 Hz
+image::ROOT:screenshots/tutorial_acoustics_4_radiation_pattern_polar.png["Polar plot of the exterior-field sound pressure level at 1 m for three frequencies, with a dip toward 270 degrees at 900 Hz",role=screenshot]
+
+=== Radiation Pattern, 3D
+
+. Click menu:Results[3D Plot Group] and rename it `+Radiation Pattern 3D+`.
+. In *Surface 1* set _Expression_ to `+acpr.Lp+`, _Coloring_ to *Uniform*, _Color_ to *Gray* and clear _Color legend_. Add a *Selection* with the box and piston faces.
+. Select the plot group and click menu:Results[Radiation Pattern]. Set _Evaluation distance_ to `+1[m]+`, _Number of angles_ to `+180+` and _Dynamic range (3D pattern)_ to `+30+`. Click *Plot*.
+
+In a 3D plot group the Radiation Pattern is drawn on a sphere of directions: the distance from the center follows the level, and values more than the dynamic range below the maximum are drawn at the center.
+
+.3D radiation pattern at 900 Hz
+image::ROOT:screenshots/tutorial_acoustics_5_radiation_pattern_3d.png["Closed 3D radiation pattern surface colored by sound pressure level, larger toward +z",role=screenshot]
+
+=== Directivity
+
+. Select *Results* and click menu:Results[Directivity]. Elmer Studio adds a 1D Plot Group with a Directivity plot. Rename the plot group to `+Directivity+`.
+. Set _Evaluation distance_ to `+1[m]+`, _Number of angles_ to `+91+`, _Start angle (from the axis)_ to `+-180+`, _End angle_ to `+180+` and _Contour levels_ to `+13+`. Keep _Reference axis_ *+z* and _Normalization_ *On-axis value = 0 dB*. Click *Plot*.
+
+The Directivity plot shows the level against angle and frequency (on a logarithmic axis), normalized so the on-axis value is 0 dB at every frequency.
+
+.Directivity: level versus angle from the +z axis and frequency
+image::ROOT:screenshots/tutorial_acoustics_6_directivity.png["Filled contour map of the normalized exterior-field level, angle from -180 to 180 degrees against frequency 200 to 900 Hz; the level falls off the axis at high frequency",role=screenshot]
+
+
+=== Check the results
+
+`test_loudspeaker_postprocessing` solves the loudspeaker at 300 Hz and 800 Hz and checks at 800 Hz:
+
+* A Grid 3D dataset from −1.5 m to 1.5 m (13 points per axis) gives finite `+acpr.efc1.Lp_pext+` everywhere.
+* No jump at the edge of the mesh: in eight directions, the level at 0.47 m (computed in the mesh) and at 0.53 m (Kirchhoff–Helmholtz integral) differ by less than 2 dB. Spherical spreading alone accounts for 1.0 dB.
+* Far away the level falls by 3 dB to 9 dB per doubling of distance (median at about 1 m minus median at about 2 m), around the −6 dB of spherical spreading.
+* The polar Radiation Pattern is labeled _Exterior-field sound pressure level_ in dB, and the level in front (+z) exceeds the level behind by more than 1 dB.
+* The 3D Radiation Pattern draws in a 3D plot group.
+* The Directivity is 0 dB on the axis at both frequencies (to 1e-9), and no direction more than 60° off the axis is louder than 0.5 dB.
+* The level along a spiral (Parametric Curve 3D) is finite and varies along the curve.
+* Isosurfaces with 8 levels have a filled legend of 9 blocks.
+
+== Where to go next
+
+* xref:postprocessing.adoc[] covers datasets, derived values, coupling operators and 1D, 2D, 3D and polar plot groups in general.
+* xref:application-library.adoc[] lists every example model.
+* xref:reference:plots.adoc[] and xref:reference:datasets.adoc[] list every setting of the Radiation Pattern, Directivity, Grid 3D and Parametric Curve 3D.

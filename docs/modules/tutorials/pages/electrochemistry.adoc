@@ -1,0 +1,366 @@
+= Electrochemistry: current distribution
+:description: Build secondary, primary and tertiary current distribution models in the GUI and check them against closed-form solutions.
+:page-math: true
+:page-pagination:
+
+Four small models, each with a closed-form answer, take you through the *Secondary Current Distribution* interface.
+They are the models of the regression suite `+tests/test_electrochemistry.py+`, built here by hand in the GUI.
+The numbers in each *Check the results* section are the ones the tests assert.
+
+If you know COMSOL's Electrochemistry Module, the workflow will feel familiar: same interface, feature and variable names.
+Elmer Studio is an independent project; the solver underneath is Elmer.
+Background on every feature is in xref:user-guide:electrochemistry.adoc[].
+
+.What you will learn
+* Set up an electrolyte with an Electrode Surface (Butler–Volmer kinetics) and a counter electrode.
+* Read the electrode current `+cd.es1.Itot+` with a Global Evaluation.
+* Compute a polarization curve with a Parametric Sweep and plot it.
+* Model a primary current distribution in 2D axisymmetry and refine the mesh at an electrode edge.
+* Couple the kinetics to a concentration with Transport of Diluted Species (tertiary current distribution).
+* Build a wavy electrode from a Parametric Curve and mesh it with a graded Mapped mesh.
+
+== Tutorial 1: a 1D cell with Butler–Volmer kinetics
+
+A strip of electrolyte, 100 µm wide and L = 200 µm long, with conductivity σ = 20 S/m.
+The anode at the bottom has Butler–Volmer kinetics with i~0~ = 50 A/m² and α~a~ = α~c~ = 0.5 at 298.15 K.
+The top boundary is held at φ~l~ = 0, like a counter electrode with fast kinetics.
+The side walls are insulated, so the current flows straight up and the model is one-dimensional.
+
+The current density is uniform, so the ohmic drop is iL/σ and the overpotential at the anode is η = V − iL/σ.
+The current density therefore solves
+
+[latexmath]
+++++
+i = i_{loc}\!\left(V - \frac{iL}{\sigma}\right),\qquad
+i_{loc}(\eta) = i_0\left(e^{\alpha_a f\eta}-e^{-\alpha_c f\eta}\right),\quad f=\frac{F}{RT}
+++++
+
+which has one root that you can find with any calculator.
+
+=== Create the model
+
+. Choose menu:File[New] (kbd:[Ctrl+N]) and click *Model Wizard*.
+. Click *2D*.
+. Open *Electrochemistry > Primary and Secondary Current Distribution*, select *Secondary Current Distribution* and click *Add*.
+. Click *Study*, select *Stationary* and click *Done*.
+
+=== Parameters and geometry
+
+. In the Model Builder, select *Global Definitions > Parameters 1* and add the parameter `+Vapp+` with expression `+0.1[V]+` (description: cell voltage).
+. Click menu:Geometry[Rectangle].
+Set _Width_ to `+1e-4+` and _Height_ to `+2e-4+` (the default length unit is m).
+. Press kbd:[F8] to build all.
+The Messages window reports 1 domain, 4 boundaries and 4 points.
+
+=== Physics
+
+. Under *Secondary Current Distribution*, select *Electrolyte 1*.
+Set _Electrical conductivity_ to `+User defined+` and enter `+20[S/m]+`.
+. Choose menu:Physics[Boundaries > Electrode Surface].
+Click the bottom boundary (boundary 2) in the Graphics window.
+. In *Electrode Surface 1*, set:
+** _Electric potential (of the electrode)_: `+Vapp+`
+** _Kinetics expression type_: `+Butler-Volmer+`
+** _Exchange current density_: `+50[A/m^2]+`
+** Keep _Anodic transfer coefficient_ and _Cathodic transfer coefficient_ at `+0.5+`, _Temperature_ at `+298.15[K]+` and _Equilibrium potential_ at `+0[V]+`.
+. Choose menu:Physics[Boundaries > Electrolyte Potential], click the top boundary and keep _Electrolyte potential_ at `+0[V]+`.
+
+The side walls keep the default *Insulation 1*.
+
+.Electrode Surface with Butler-Volmer kinetics on the bottom boundary of the strip
+image::ROOT:screenshots/tutorial_echem_1_cell_electrode_surface.png[Electrode Surface settings with Electric potential Vapp and Butler-Volmer kinetics,role=screenshot]
+
+TIP: Note the electrode's _Name_, `+es1+`, in the Label section.
+Its results are called `+cd.es1.Itot+`, `+cd.es1.eta+`, and so on, as in COMSOL.
+
+=== Compute one point
+
+. Click menu:Home[Compute] (kbd:[Ctrl+=]).
+The default mesh is fine: the solution is linear in y.
+. Click menu:Results[Global Evaluation].
+In _Expressions_, enter `+cd.es1.Itot+` with the description `+Anode current per unit depth+`, then click *Evaluate*.
+
+`+cd.es1.Itot+` is a current per metre of depth in a 2D model, here `+0.0321245+` A/m.
+Divided by the 100 µm width, that is i = 321.245 A/m².
+
+=== Sweep the cell voltage: a polarization curve
+
+. Select *Study 1* and click menu:Study[Parametric Sweep].
+. In *Parametric Sweep 1*, set _Parameter name_ to `+Vapp+`, _Parameter value list_ to `+range(0.05,0.05,0.25)+` and _Parameter unit_ to `+V+`.
+Keep _Reuse solution from previous step_ at `+Automatic+`: each voltage starts from the previous solution.
+. Compute again.
+. Select *Global Evaluation 1*, check that _Time/parameter selection_ is `+All+` and click *Evaluate*.
+The table now has one row per voltage.
+
+.Electrolyte potential at 0.25 V and the anode current for every swept voltage
+image::ROOT:screenshots/tutorial_echem_2_cell_polarization_table.png[Global Evaluation of cd.es1.Itot over the sweep with the electrolyte potential plot,role=screenshot]
+
+[start=5]
+. With *Global Evaluation 1* still selected, click menu:Results[Global].
+Elmer Studio adds a *1D Plot Group* with a *Global* plot.
+. In the *Global* plot, set _Expression_ to `+cd.es1.Itot+`, _Reduction_ to `+Global (scalar expression)+` and _Marker_ to `+Circle+`, then click *Plot*.
+The x-axis is the swept parameter, `+Vapp (V)+`.
+. Rename the plot group *Polarization curve* (kbd:[F2]).
+
+.Polarization curve: anode current against cell voltage
+image::ROOT:screenshots/tutorial_echem_3_cell_polarization_curve.png[Global plot of cd.es1.Itot against Vapp,role=screenshot]
+
+=== Check the results
+
+[cols="1,2,2,2",options="header"]
+|===
+|Vapp (V) |`+cd.es1.Itot+` (A/m) |i = Itot / 100 µm (A/m²) |Ohmic drop iL/σ (V)
+|0.05 |0.0110186 |110.186 |0.00110
+|0.10 |0.0321245 |321.245 |0.00321
+|0.15 |0.0790964 |790.964 |0.00791
+|0.20 |0.174406 |1744.06 |0.01744
+|0.25 |0.336699 |3366.99 |0.03367
+|===
+
+* Every current matches the root of latexmath:[i = i_{loc}(V - iL/\sigma)]; the test requires 1e-8 and the run agrees to about 1e-12.
+* The maximum of the electrolyte potential at 0.25 V is the ohmic drop, 0.03367 V, on the anode.
+* `+cd.iloc+` at every anode node, corners included, equals i (to 1e-8), and `+cd.nIl+` on the top boundary carries the same current out.
+* The curve rises monotonically and bends upward: Butler–Volmer kinetics dominate at low voltage, the ohmic drop grows with the current.
+
+TIP: Try the other kinetics on the same cell: _Linearized Butler-Volmer_, _Anodic Tafel equation_, _Butler-Volmer with limiting current_ (with _Limiting current density_ `+100[A/m^2]+`) or a primary electrode.
+The regression test checks each one against the same equation, with the matching i~loc~(η), to 1e-9.
+For a primary electrode, η = 0 and i = σV/L = 10 000 A/m² at 0.1 V.
+
+TIP: For tabulated polarization data, add menu:Definitions[Interpolation] with _Function name_ `+pol+` and the (η, i) pairs, choose _Kinetics expression type_ `+User defined i(eta)+` and enter `+pol(eta)+`.
+On this cell, with the points (0, 0), (0.05, 40), (0.1, 150), (0.2, 600), (0.3, 2000) and Vapp = 0.3 V, the current agrees with the piecewise-linear root to 1e-6.
+
+== Tutorial 2: Newman's disc electrode (2D axisymmetric)
+
+A disc electrode of radius a = 1 mm lies flush in an insulating plane, under an electrolyte with σ = 5 S/m.
+For a primary current distribution, Newman's classic result for the resistance between the disc and infinity is 1/(4σa).
+Here the counter electrode is a hemisphere of radius R = 30 mm, which removes the far-field part 1/(2πσR):
+
+[latexmath]
+++++
+R_{cell} = \frac{1}{4\sigma a} - \frac{1}{2\pi\sigma R} = 50 - 1.061 = 48.939\ \Omega
+++++
+
+At 1 V on the disc the current is 1/R~cell~ = 0.020434 A.
+The current density is singular at the disc edge, so this model is a test of the mesh as much as of the physics.
+
+=== Create the model and geometry
+
+. Choose menu:File[New], *Model Wizard*, *2D Axisymmetric*, add *Secondary Current Distribution*, choose *Stationary* and click *Done*.
+The r axis is horizontal and z vertical.
+. Click menu:Geometry[Circle].
+Set _Radius_ to `+0.03+` and _Sector angle_ to `+90+`: a quarter disc that becomes a hemisphere when revolved.
+. Click menu:Geometry[Rectangle].
+Set _Width_ to `+1e-3+` and _Height_ to `+2.5e-4+`.
+This small rectangle only splits the bottom boundary at r = a, so the disc is a boundary of its own.
+. Click menu:Geometry[Union] and select both objects as _Input objects_.
+Keep _Keep interior boundaries_ on.
+. Press kbd:[F8].
+
+=== Physics
+
+. Select *Secondary Current Distribution* and set _Current distribution type_ to `+Primary+`.
+. In *Electrolyte 1*, set _Electrical conductivity_ to `+User defined+`, `+5[S/m]+`.
+. Add menu:Physics[Boundaries > Electrode Surface] on the disc, the bottom boundary from r = 0 to r = a (boundary 2).
+Set _Electric potential (of the electrode)_ to `+1[V]+`.
+The kinetics settings are ignored for a primary distribution.
+. Add menu:Physics[Boundaries > Electrolyte Potential] on the quarter-circle arc and keep `+0[V]+`.
+
+The rest of the bottom and the symmetry axis keep the default *Insulation 1*.
+
+.Primary current distribution: the interface setting overrides the electrode kinetics
+image::ROOT:screenshots/tutorial_echem_4_disc_primary_interface.png[Secondary Current Distribution settings with Current distribution type Primary,role=screenshot]
+
+=== Mesh
+
+The geometry is 30 mm across and the singular edge needs elements of a few micrometres.
+
+. Click menu:Mesh[Size].
+Elmer Studio switches *Mesh 1* to a user-controlled mesh and adds *Size 1*, *Free Triangular 1* and a second Size node, *Size 2*.
+. In *Size 1* (_Geometric entity level_ `+Entire geometry+`), set _Element size_ to `+Custom+` and:
+** _Maximum element size_: `+0.0025+`
+** _Minimum element size_: `+2.5e-6+`
+** _Curvature factor_: `+0.3+`
+** _Resolution of narrow regions_: `+1+`
+** keep _Maximum element growth rate_ at `+1.3+`.
+. In *Size 2*, set _Geometric entity level_ to `+Point+` and select the point at r = a, z = 0 (the disc edge).
+Set _Element size_ to `+Custom+`, _Maximum element size_ `+5e-6+`, _Minimum element size_ `+2.5e-6+`.
+. Click menu:Mesh[Size] again for *Size 3*.
+Set _Geometric entity level_ to `+Boundary+`, select the disc (boundary 2), _Element size_ `+Custom+`, _Maximum element size_ `+4e-5+`, _Minimum element size_ `+2.5e-6+`.
+. Click menu:Mesh[Build Mesh].
+
+.The mesh: coarse in the bulk, graded down to a few micrometres at the disc edge
+image::ROOT:screenshots/tutorial_echem_5_disc_mesh.png[Free triangular mesh refined at the disc electrode,role=screenshot]
+
+IMPORTANT: The _Maximum element growth rate_ grades the local sizes into the domain.
+Without it, a refined disc edge sits inside coarse elements; during development that put the disc resistance off by 6 to 46 %.
+
+=== Compute and evaluate
+
+. Compute (kbd:[Ctrl+=]).
+. Click menu:Results[Global Evaluation] and enter two expressions:
+** `+cd.es1.Itot+`, description `+Disc current+`
+** `+1/cd.es1.Itot+`, description `+Resistance V/I+` (the disc is at 1 V)
+. Click *Evaluate*.
+
+.Electrolyte potential, concentrated around the disc, and the disc current and resistance
+image::ROOT:screenshots/tutorial_echem_6_disc_potential_current.png[Global Evaluation of the disc current and resistance,role=screenshot]
+
+. Click menu:Results[Surface Integration].
+In a 2D model this boundary integral is called *Line Integration*.
+Select the disc boundary, enter `+cd.iloc+` and click *Evaluate*.
+_Compute integral in revolved geometry_ is on by default, so the result is the disc current again.
+
+=== Check the results
+
+* `+cd.es1.Itot+` = 0.020445 A and V/I = 48.911 Ω, against 48.939 Ω from the formula: about 0.06 % low.
+The regression test requires better than 0.5 %.
+* The *Line Integration* of `+cd.iloc+` over the disc, in the revolved geometry, equals `+cd.es1.Itot+` (the test requires 1e-9).
+* `+cd.es1.Itot+` already includes the factor 2π of the revolution: Elmer's axisymmetric loads are per radian.
+
+== Tutorial 3: tertiary current distribution in a Nernst layer
+
+This model adds a concentration to the kinetics.
+The same 1D cell geometry idea is used: an anode at the bottom, a reference at φ~l~ = 0 at the top, L = 200 µm apart.
+The first δ = 2 µm above the anode are a Nernst diffusion layer; above it the bulk is well mixed at concentration c~b~.
+
+* Kinetics are linear: i~loc~ = (σ/Λ) η, a charge-transfer resistance Λ/σ with Λ = 15 µm.
+* The dissolved product (ν = 1, n = 2) accumulates in the layer and raises the equilibrium potential by the linearized Nernst term latexmath:[E_{eq} = \frac{RT}{nF}\,\frac{c-c_b}{c_b}].
+* c~b~ is chosen so that the concentration resistance equals that of a layer βδ thick, with β = 2.
+
+Three resistances in series give
+
+[latexmath]
+++++
+i = \frac{\sigma V}{L + \Lambda + \beta\delta},\qquad
+\beta = \frac{\sigma R T}{n^2F^2 D c_b}
+++++
+
+With σ = 20 S/m, V = 0.02 V and D = 1e-9 m²/s, that is i = 1826.48 A/m².
+Without the concentration term it would be 1860.47 A/m².
+
+=== Create the model
+
+. menu:File[New], *Model Wizard*, *2D*.
+. Add *Electrochemistry > Primary and Secondary Current Distribution > Secondary Current Distribution* and *Chemical Species Transport > Transport of Diluted Species*.
+. Choose *Stationary* and click *Done*.
+. In *Parameters 1*, enter:
++
+[cols="1,2,3",options="header"]
+|===
+|Name |Expression |Description
+|`+sig+` |`+20[S/m]+` |Electrolyte conductivity
+|`+Vc+` |`+0.02[V]+` |Electrode potential
+|`+Lam+` |`+15e-6[m]+` |Polarization length Λ
+|`+Dc+` |`+1e-9[m^2/s]+` |Diffusion coefficient
+|`+nel+` |`+2+` |Electrons per reaction
+|`+cb+` |`+665.712[mol/m^3]+` |Bulk concentration (β = 2)
+|`+Tk+` |`+298.15[K]+` |Temperature
+|===
+. Add two rectangles with menu:Geometry[Rectangle]:
+** *Rectangle 1* (Nernst layer): _Width_ `+20e-6+`, _Height_ `+2e-6+`.
+** *Rectangle 2* (bulk): _Width_ `+20e-6+`, _Height_ `+198e-6+`, _y_ `+2e-6+`.
+. Press kbd:[F8]. The geometry has two domains that share the boundary at y = δ.
+
+=== Current distribution
+
+. In *Electrolyte 1*, set _Electrical conductivity_ to `+User defined+` and `+sig+`.
+. With *Secondary Current Distribution* selected, choose menu:Physics[Boundaries > Electrode Surface] and select the bottom boundary (y = 0).
+The Physics ribbon adds features to the interface that is selected in the Model Builder, or that contains the selected feature.
+Set:
+** _Electric potential (of the electrode)_: `+Vc+`
+** _Kinetics expression type_: `+User defined i(eta)+`
+** _Local current density i(eta)_: `+sig/Lam*eta+`
+** _Equilibrium potential_: `+R_const*Tk/(nel*F_const)*(c-cb)/cb+`
+. Add an *Electrolyte Potential* on the top boundary (y = 200 µm), `+0[V]+`.
+
+=== Species transport
+
+. Select *Transport of Diluted Species*.
+In _Domain Selection_, choose `+Manual+` and keep only the thin lower domain, the Nernst layer.
+. In *Transport Properties 1*, set _Diffusion coefficient_ to `+Dc+`.
+. In *Initial Values 1*, set _Concentration_ to `+cb+`.
+. Right-click *Transport of Diluted Species* and choose *Boundaries > Electrode Surface Coupling*.
+Select the anode (y = 0) and set:
+** _Electrode surface (name of a Current Distribution feature)_: `+es1+`
+** _Stoichiometric coefficient_: `+1+`
+** _Number of participating electrons_: `+nel+`
+. With *Transport of Diluted Species* selected, add menu:Physics[Boundaries > Concentration] on the boundary between the layer and the bulk (y = δ), with _Concentration_ `+cb+`.
+
+=== Study and compute
+
+. Select *Step 1: Stationary* and set _Max coupling iterations_ to `+100+` and _Coupling tolerance_ to `+1e-11+`.
+Keep _Coupling damping factor_ at `+1+`.
+. Compute.
+. Evaluate `+cd.es1.Itot+` with a *Global Evaluation*.
+. Click menu:Results[Volume Maximum] (in 2D: *Surface Maximum*), select the Nernst layer domain and evaluate `+c+`.
+
+=== Check the results
+
+* `+cd.es1.Itot+` = 0.0365297 A/m, that is 1826.48 A/m² over the 20 µm width, equal to σV/(L + Λ + βδ) to 1e-8.
+* The maximum of `+c+`, on the anode, is c~b~ + iδ/(nFD) = 684.64 mol/m³ (the test requires 1e-6).
+* The current is 1.8 % below σV/(L + Λ): the concentration resistance is there.
+
+TIP: If a coupled model oscillates instead of converging, lower the _Coupling damping factor_.
+A loop gain G > 1 between the two interfaces needs a factor below 2/(1 + G).
+
+== Tutorial 4: current modulation over a sinusoidal anode
+
+A wavy anode y = a cos(kx), with amplitude a = 1 µm and wavelength λ = 100 µm, faces a flat counter electrode L = 200 µm away.
+For a primary distribution and a small amplitude, Wagner's analysis gives a current density of the form i~0~(1 + m cos kx), with
+
+[latexmath]
+++++
+m = a\,k\coth(kL),\qquad k = \frac{2\pi}{\lambda}
+++++
+
+Here m = 0.06283: the crests, nearer the counter electrode, carry 6.3 % more than the mean.
+
+=== Geometry from a parametric curve
+
+. Create a *2D* model with *Secondary Current Distribution* and a *Stationary* study.
+. Select *Geometry 1* and set _Length unit_ to `+µm+`.
+. In *Parameters 1*, add `+lam+` = `+100+`, `+a0+` = `+1+` and `+L+` = `+200+`.
+Plain numbers in geometry settings are in the geometry length unit.
+. Click menu:Geometry[Parametric Curve].
+Keep _Parameter name_ `+s+` from `+0+` to `+1+`, and set _x_ to `+lam*s+`, _y_ to `+a0*cos(2*pi*s)+` and _Number of interpolation points_ to `+81+`.
+. Click menu:Geometry[Polygon].
+Set _Type_ to `+Open curve+`, _x_ to `+lam lam 0 0+` and _y_ to `+a0 L L a0+`.
+The polygon runs from the end of the wave up the right side, across the top and down the left side to the start of the wave.
+. Click menu:Geometry[Convert to Solid] and select the curve and the polygon as _Input objects_.
+. Press kbd:[F8].
+The geometry has 1 domain, 4 boundaries and 4 points: the wavy anode (boundary 1), the left side (2), the top (3) and the right side (4).
+
+=== Physics and mesh
+
+. Set _Current distribution type_ to `+Primary+` and _Electrical conductivity_ in *Electrolyte 1* to `+User defined+`, `+20[S/m]+`.
+. Add an *Electrode Surface* on the anode with _Electric potential (of the electrode)_ `+0[V]+`.
+. Add an *Electrolyte Potential* on the top with `+-0.02[V]+`.
+. Click menu:Mesh[Mapped].
+The mesh becomes user-controlled with *Size 1*, *Free Triangular 1* and *Mapped 1*.
+Select *Free Triangular 1* and press kbd:[Delete].
+. Add three *Distribution* nodes with menu:Mesh[Distribution]:
+** anode and top (boundaries 1 and 3): _Number of elements_ `+80+`;
+** right side (4): _Number of elements_ `+60+`, _Element ratio_ `+20+`;
+** left side (2): _Number of elements_ `+60+`, _Element ratio_ `+20+`, _Reverse direction_ on.
+. Build the mesh (menu:Mesh[Build Mesh]).
+Opposite sides have the same counts, as a Mapped mesh requires.
+The element ratio grades both sides so that the smallest elements are at the anode; if the Graphics window shows the grading the wrong way on a side, toggle its _Reverse direction_.
+It has 80 × 60 = 4800 quadratic quadrilaterals; menu:Mesh[Statistics] shows the counts.
+
+=== Compute and check the results
+
+Compute, then evaluate `+cd.es1.Itot+` with a *Global Evaluation*.
+
+* `+cd.es1.Itot+` = 0.2000 A/m, the flat-cell value σ·0.02 V/L·λ, to 0.02 % (the test requires 0.1 %).
+* The nodal `+cd.iloc+` on the anode ranges from about 1875 A/m² in the troughs to 2126 A/m² on the crests.
+* The regression test fits i~0~ + i~1~ cos kx through the anode values: i~1~/i~0~ matches a k coth(kL) = 0.06283 within 0.02 % (the test requires 0.2 %).
+
+TIP: To sweep the amplitude, for example `+a0+` = `+1 0+` µm, select the electrodes with Box Selections (menu:Geometry[Box Selection], _y maximum_ `+L/2+` for the anode, _y minimum_ `+L/2+` for the top) instead of boundary numbers.
+A change of shape can renumber the boundaries (the regression test sees this when the amplitude of a wavy anode goes to zero); Box Selections are re-evaluated on every run's geometry.
+See xref:user-guide:electrochemistry.adoc[].
+
+== Where to go next
+
+* xref:user-guide:electrochemistry.adoc[] explains every feature, the Newton–Robin solution of the kinetics and the coupling settings.
+* xref:reference:physics-cd.adoc[] and xref:reference:physics-tds.adoc[] list all settings with their defaults.
+* xref:user-guide:studies.adoc[] covers parametric sweeps in general.

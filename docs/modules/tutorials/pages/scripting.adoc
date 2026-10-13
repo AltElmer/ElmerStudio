@@ -1,0 +1,98 @@
+= Scripting a model in Python
+:description: Build, solve and evaluate models from Python, headless or inside the running GUI.
+
+The GUI is built on a Python model layer. You can use that layer yourself: to generate many variants of a model, to run studies in batch, or to automate a step in the GUI. This page rebuilds the xref:ROOT:quick-start.adoc[Quick start] bar in a script.
+
+== Headless: build, solve, evaluate
+
+Run this with the Python environment Elmer Studio uses (from source: `.venv`; with the wheel, the environment you installed it into):
+
+[source,python]
+----
+import tempfile
+
+from elmerstudio.core import builder as B
+from elmerstudio.core.elmer import find_elmer
+from elmerstudio.core.geometry import build_geometry
+from elmerstudio.core.results import Solution
+from elmerstudio.core.study_runner import StudyRunner
+
+# 1. a 3D model with Heat Transfer in Solids and a Stationary study (what the Model Wizard does)
+m = B.new_model("3D", ["ht"], "stationary")
+m.global_defs.child("params").props["table"] = [
+    {"name": "L", "expr": "10[cm]", "descr": "Bar length"},
+    {"name": "W", "expr": "2[cm]", "descr": "Bar width"},
+    {"name": "H", "expr": "1[cm]", "descr": "Bar height"},
+    {"name": "T0", "expr": "20[degC]", "descr": "Cold end"},
+    {"name": "q0", "expr": "1e5[W/m^2]", "descr": "Heat flux into the hot end"},
+]
+
+# 2. geometry: one block
+geom = m.component.child("geometry")
+m.create("geom.block", geom, index=0, w="L", d="W", h="H")
+geo = build_geometry(m, display=False)
+
+# 3. material
+B.add_material(m, "Copper", all_domains=True)
+
+# 4. boundary conditions, selected by position
+ht = m.component.child("physics.ht")
+B.add_feature(m, ht, "ht.temperature", geo.select("boundary", xmax=0), T0="T0")
+B.add_feature(m, ht, "ht.heatflux", geo.select("boundary", xmin=0.1), q0="q0")
+
+# 5. mesh and solve (the default physics-controlled mesh is built on the way)
+work = tempfile.mkdtemp(prefix="bar_")
+folders = StudyRunner(m, m.studies()[0], work, find_elmer()).run()
+
+# 6. results
+sol = Solution(folders[-1])
+T = sol.evaluate("T", sol.frame_index("last"))
+print(f"maximum temperature: {T.max() - 273.15:.4f} degC")   # 45.0000
+----
+
+It prints `maximum temperature: 45.0000 degC`, the same as the GUI.
+
+How the pieces map to the GUI:
+
+[cols="2,3",options="header"]
+|===
+|Script |GUI
+|`+B.new_model(sdim, physics, study)+` |Model Wizard. `sdim` is `"3D"`, `"2D"` or `"2Daxi"`. Physics are tags such as `"ht"`, `"solid"`, `"ec"`, `"cd"`, `"tds"`, or `"@jh"` for Joule Heating. The study is `"stationary"`, `"time"`, `"eigen"` or `"freq"`.
+|`+m.create(kind, parent, **settings)+` |Adding a node from the ribbon or a context menu. The kinds and setting keys are the node types of the xref:reference:index.adoc[Reference].
+|`+build_geometry(m)+` and `+geo.select(level, xmin=..., ...)+` |Build All, and clicking entities. `select` finds entities by bounding box, in the geometry length unit.
+|`+B.add_material(m, name, ...)+` |Add Material from the library.
+|`+B.add_feature(m, physics, kind, entities, **settings)+` |Adding a physics feature and selecting its entities.
+|`+StudyRunner(...).run()+` |Compute. It returns one case folder per run (one per sweep value).
+|`+Solution(folder).evaluate(expr, frame)+` |Any result expression, as a NumPy array at the mesh nodes.
+|===
+
+Settings are the same strings you type in the GUI, units and all. To find a node kind and its keys, open the node in the GUI and look it up in the reference, or read `elmerstudio/core/nodes.py`, `physics.py` and `geometry.py`.
+
+TIP: To keep the model with its solution, add `from elmerstudio.core import project` and `project.save(m, "bar.esm", work)`, then open `bar.esm` in the GUI. The tests in `tests/` (for example `tests/test_tutorial_busbar.py`) are complete scripted versions of the tutorials.
+
+== Inside the GUI: Run Python Script
+
+menu:Developer[Run Python Script] runs a `.py` file inside the running Elmer Studio, on the open model. The script sees these names:
+
+[cols="1,3",options="header"]
+|===
+|Name |What it is
+|`model` |The open model (the same object as `m` above)
+|`B` (or `builder`) |The builder functions
+|`app` |The main window, with the GUI's own commands: `app.build_geometry()`, `app.build_mesh()`, `app.compute()`, `app.plot(node)`, `app.add_plot_group("pg1d")`, …
+|`units` |Unit and expression helpers
+|===
+
+After the script the Model Builder refreshes, and a script error is shown in *Messages* with the traceback in *Log*. A script run can be undone with kbd:[Ctrl+Z].
+
+For example, this script adds a parametric sweep over the heat flux to the Quick Start model and solves it:
+
+[source,python]
+----
+st = model.studies()[0]
+model.create("study.sweep", st, index=0, pname="q0", pvalues="range(2e4,2e4,1e5)", punit="W/m^2")
+app.tree.refresh()
+app.compute(st)
+----
+
+Then add a *Global Evaluation* of `+maxop1(T)+` (with a Maximum coupling operator on all domains) to see the maximum temperature rise linearly with q0.

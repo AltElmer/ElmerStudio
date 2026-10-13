@@ -1,0 +1,212 @@
+= Wrench: Stationary Solid Mechanics
+:description: Model a steel wrench under a hand load in Elmer Studio, find where the stress exceeds 200 MPa, and run a mesh convergence study.
+:page-pagination:
+
+A steel ring wrench grips a hexagonal bolt head while a 150 N hand force pushes down on the end of the handle.
+You compute the stress and deflection, mark the regions where the stress exceeds 200 MPa, and refine the mesh in a parametric sweep to see which results converge and which do not.
+
+.What you will learn
+* Build a 3D part from a parametric 2D sketch (circle, rectangle, polygon, Booleans) and an extrusion.
+* Apply a fixed constraint and a load given as a total force.
+* Plot von Mises stress and a "safety" plot made from a logical expression.
+* Find a maximum and its location with a Volume Maximum and a Maximum coupling operator.
+* Run a mesh convergence study by sweeping a parameter that controls the element size.
+
+.Model at a glance
+[cols="1,2"]
+|===
+|Space dimension |3D
+|Physics |Solid Mechanics (solid), linear elastic
+|Study |Stationary, with a Parametric Sweep over the mesh divider `+hd+` (4 meshes)
+|Mesh |Quadratic tetrahedra, from about 2 300 nodes (`+hd+` = 1) to 12 200 nodes (`+hd+` = 4)
+|Solve time |About 20 seconds for all four meshes (one recorded run: 19.9 s)
+|===
+
+TIP: COMSOL users know this model as the wrench from _Introduction to COMSOL Multiphysics_. COMSOL imports the wrench from its own geometry file, which is not public, so this tutorial builds a comparable hex-socket wrench from parameters. Loads, materials, plots and the convergence study follow the same workflow. Elmer Studio is an independent project and is not affiliated with COMSOL.
+
+== Start a new model
+
+. Click menu:File[New] (kbd:[Ctrl+N]) and choose *Model Wizard*.
+. On *Select Space Dimension*, choose *3D*.
+. On *Select Physics*, expand *Structural Mechanics*, select *Solid Mechanics (solid)* and click *Add*.
+. Click *Study*, select *General Studies › Stationary* and click *Done*.
+
+*Solid Mechanics (solid)* comes with *Linear Elastic Material 1*, *Initial Values 1* and *Free 1*: every boundary is free until you add a constraint or a load.
+
+== Parameters
+
+. Click menu:Home[Parameters].
+. In the Settings window, enter the following rows in the table:
++
+[cols="1,2,3",options="header"]
+|===
+|Name |Expression |Description
+|F |`+150[N]+` |Applied load
+|hd |`+1+` |Element size divider
+|h0 |`+1[cm]+` |Starting element size
+|R |`+18[mm]+` |Head outer radius
+|AF |`+17[mm]+` |Hex across flats
+|Rc |`+AF/sqrt(3)+` |Hex circumradius
+|Lh |`+150[mm]+` |Handle length
+|W |`+12[mm]+` |Handle width
+|T |`+6[mm]+` |Wrench thickness
+|===
+
+The _Value_ column shows each value in SI units, for example `+0.00981495+` for `+Rc+`.
+`+hd+` has no unit: it only divides the element size later on.
+
+== Geometry
+
+The wrench is sketched in the xy-plane: a round head of radius `+R+`, a straight handle reaching to x = `+Lh+`, and a hexagonal hole for the bolt.
+The sketch is then extruded by the thickness `+T+`.
+See xref:user-guide:geometry.adoc[Geometry] and xref:reference:geometry.adoc[] for the feature settings.
+
+. Click *Geometry 1*, then click menu:Geometry[Work Plane]. Keep _Plane type_ `+Quick+` and _Plane_ `+xy-plane+`.
+. Right-click *Work Plane 1* and choose *Primitives › Circle*. Set _Radius_ to `+R+`.
+. Right-click *Work Plane 1* and choose *Primitives › Rectangle*. Set _Width_ `+Lh+`, _Height_ `+W+`, _x_ `+0+` and _y_ `+-W/2+`.
+. Right-click *Work Plane 1* and choose *Booleans and Partitions › Union*. In *Union 1* check `+c1+` and `+r1+` under _Input objects_ and clear _Keep interior boundaries_.
+. Right-click *Work Plane 1* and choose *Primitives › Polygon*. Keep _Type_ `+Solid+` and enter the six corners of the hexagon. The coordinates are separated by spaces, so do not put spaces inside an expression:
+** _x_: `+Rc*cos(0*pi/3) Rc*cos(1*pi/3) Rc*cos(2*pi/3) Rc*cos(3*pi/3) Rc*cos(4*pi/3) Rc*cos(5*pi/3)+`
+** _y_: `+Rc*sin(0*pi/3) Rc*sin(1*pi/3) Rc*sin(2*pi/3) Rc*sin(3*pi/3) Rc*sin(4*pi/3) Rc*sin(5*pi/3)+`
+. Right-click *Work Plane 1* and choose *Booleans and Partitions › Difference*. In *Difference 1* check `+uni1+` under _Objects to add_ and `+pol1+` under _Objects to subtract_.
+. Click *Difference 1*, then click menu:Geometry[Extrude]. *Extrude 1* takes `+wp1+` as input. Set _Distance from work plane_ to `+T+`.
+. Click *Geometry 1* and press kbd:[F8] (*Build All Objects*).
+
+The Geometry Statistics in the Settings window report 1 domain and 12 boundaries.
+Boundaries 4 to 9 are the six flats of the hexagonal hole; boundary 12 is the end face of the handle at x = 150 mm.
+
+.The finished wrench geometry: a 150 mm handle, 6 mm thick
+image::ROOT:screenshots/tutorial_wrench_1_geometry.png["Settings of Geometry 1 with 1 domain and 12 boundaries; the Graphics window shows the wrench with its hexagonal hole",role=screenshot]
+
+== Materials
+
+. Click menu:Home[Add Material].
+. In the *Add Material* window, select *Built-in › Structural steel* and click *Add to Component*.
+
+Being the first material, *Structural steel* covers the whole wrench.
+Its Young's modulus is 200 GPa and its Poisson's ratio 0.3.
+
+== Physics
+
+The bolt holds the socket in place; the hand pushes the handle end down, perpendicular to the wrench.
+
+. Click *Solid Mechanics (solid)* and click menu:Physics[Boundaries > Fixed Constraint].
+. In *Fixed Constraint 1*, click the six flats of the hexagonal hole, boundaries 4, 5, 6, 7, 8 and 9. Zoom in with the mouse wheel to reach them.
++
+.Fixed Constraint 1 on the six hexagon flats
+image::ROOT:screenshots/tutorial_wrench_2_fixed_constraint.png["Settings of Fixed Constraint 1 with boundaries 4 to 9; the flats of the hexagonal hole are highlighted in blue",role=screenshot]
+. Click *Solid Mechanics (solid)* again and click menu:Physics[Boundaries > Boundary Load].
+. In *Boundary Load 1*, click the end face of the handle, boundary 12.
+. Set _Load type_ to `+Total force+` and _F_tot z_ to `+-F+`. Leave _F_tot x_ and _F_tot y_ at `+0+`.
++
+.Boundary Load 1: a total force of −F in z on the handle end
+image::ROOT:screenshots/tutorial_wrench_3_boundary_load_total_force.png["Settings of Boundary Load 1 with boundary 12, Load type Total force and F_tot z equal to -F",role=screenshot]
+
+NOTE: With _Load type_ `+Total force+`, Elmer Studio divides the force by the area of the selected faces, so the 150 N are spread evenly over the 72 mm² end face. Elmer itself only knows forces per unit area; the conversion happens when the input file is written.
+
+All other boundaries stay free (*Free 1*).
+The settings are listed in xref:reference:physics-solid.adoc[].
+
+== Mesh
+
+The element size is tied to the parameters, so that sweeping `+hd+` refines the mesh.
+
+. On the *Mesh* ribbon, click menu:Mesh[Free Tetrahedral]. *Mesh 1* switches to a user-controlled sequence with *Size 1* and *Free Tetrahedral 1*.
+. Click *Size 1*. Set _Element size_ to `+Custom+`, then set:
+** _Maximum element size_: `+h0/hd+`
+** _Minimum element size_: `+h0/(4*hd)+`
+** _Curvature factor_: `+0.1+`
+** _Resolution of narrow regions_: `+0.2+`
+. Click menu:Mesh[Build Mesh].
+
+With `+hd+` = 1 the maximum element size is 1 cm and the mesh is coarse: about 1 000 elements.
+_Resolution of narrow regions_ uses COMSOL's definition, the approximate number of element layers across a narrow region.
+
+.Size 1 with the element size tied to h0 and hd
+image::ROOT:screenshots/tutorial_wrench_4_mesh_size.png["Settings of Size 1 with Custom element size, maximum h0/hd, minimum h0/(4*hd), curvature factor 0.1 and resolution of narrow regions 0.2",role=screenshot]
+
+See xref:user-guide:mesh.adoc[].
+
+== Study
+
+. Click *Study 1* and click menu:Home[Compute] (kbd:[Ctrl+=]).
+
+The solution takes a few seconds. *Results* gets a *Stress (solid)* plot group.
+
+== Results
+
+=== Von Mises stress
+
+. Click *Stress (solid)*. The plot shows the von Mises stress on the deformed shape of the wrench (the deformation is scaled up so you can see it).
+
+The stress is highest in the handle next to the head, where the bending moment is largest and the cross-section changes.
+
+=== Safety plot
+
+Show where the von Mises stress exceeds 200 MPa:
+
+. Click menu:Results[3D Plot Group]. A new plot group with a *Surface* plot is added.
+. In the plot group, change _Label_ to `+Safety+`.
+. Click its *Surface 1* and set _Expression_ to `+solid.mises > 200[MPa]+`.
+. Click *Plot*.
+
+A comparison returns 1 where it is true and 0 elsewhere: red marks the region above 200 MPa, blue the rest.
+
+.Safety plot: red where the von Mises stress exceeds 200 MPa
+image::ROOT:screenshots/tutorial_wrench_6_safety_plot.png["Safety plot group with a Surface of solid.mises greater than 200 MPa; the red region is on the handle next to the head",role=screenshot]
+
+=== Maximum stress and its location
+
+. Click menu:Results[Volume Maximum]. In *Volume Maximum 1*, enter `+solid.mises+` in the _Expression_ column of the _Expressions_ table and `+MPa+` in _Unit_.
+. Click *Evaluate*. The Table window shows the maximum von Mises stress and its location (x, y, z).
+. Right-click *Definitions* under *Component 1* and choose *Maximum*. In *Maximum 1* set _Operator name_ to `+maxop1+`.
+. Click menu:Results[Global Evaluation], enter `+maxop1(solid.mises)+` as expression and click *Evaluate*. The value equals the Volume Maximum.
+
+TIP: Like COMSOL's component couplings, `+maxop1(...)+` can be used in any result expression, for example in an Annotation or a Global plot.
+
+See xref:reference:derived-values.adoc[] and xref:user-guide:definitions.adoc[].
+
+== Mesh convergence study
+
+A single mesh does not tell you how accurate a result is. Refine the mesh by sweeping `+hd+`.
+
+. Click *Study 1* and click menu:Study[Parametric Sweep].
+. In *Parametric Sweep 1* set _Parameter name_ to `+hd+`, _Parameter value list_ to `+range(1,1,4)+` and leave _Parameter unit_ empty.
+. Click menu:Home[Compute]. The mesh is rebuilt for each value of `+hd+`; the maximum element size goes from 10 mm down to 2.5 mm.
+. Click *Stress (solid)* to see the finest solution.
++
+.Von Mises stress on the finest mesh (hd = 4); the messages list the four meshes and the solution time
+image::ROOT:screenshots/tutorial_wrench_5_stress_von_mises.png["Stress (solid) plot group with a Volume plot of the von Mises stress on the deformed wrench, peaking where the handle meets the head",role=screenshot]
+. Click *Volume Maximum 1*, set _Time/parameter selection_ to `+All+` and click *Evaluate*. The table now has one row per value of `+hd+`.
++
+.Volume Maximum of the von Mises stress for each mesh, with its location
+image::ROOT:screenshots/tutorial_wrench_7_volume_maximum.png["Settings of Volume Maximum 1 with expression solid.mises in MPa; the table lists hd, the maximum von Mises stress and its location",role=screenshot]
+. Plot the tip deflection against `+hd+`: click menu:Results[Global]. In *Global 1*, set _Expression (global, e.g. aveop1(T), or a field to reduce)_ to `+w+` and _Reduction_ to `+Minimum+`, then click *Plot*.
++
+`+w+` is the z-displacement; its minimum is the downward deflection of the handle tip.
++
+.Tip deflection against the mesh divider hd
+image::ROOT:screenshots/tutorial_wrench_8_tip_deflection_vs_hd.png["1D Plot Group with a Global plot of the minimum of w against hd, levelling off near -3.117 mm",role=screenshot]
+
+See xref:user-guide:studies.adoc[], xref:user-guide:results.adoc[] and xref:reference:plots.adoc[].
+
+== Check the results
+
+These are the checks in `+tests/test_tutorial_wrench.py+`, which builds this model and runs the convergence sweep.
+The numbers in brackets are from one recorded run.
+
+* *The mesh refines with every step of `+hd+`*: the node count increases strictly (2 319, 5 206, 7 881 and 12 200 nodes).
+* *`+maxop1(solid.mises)+` equals the Volume Maximum* of `+solid.mises+` for every mesh (to a relative 1e-12).
+* *The tip deflection agrees with beam theory*: it lies between 0.85 and 1.05 times the cantilever value F·L³/(3·E·I), with L = 150 mm − 17 mm/√3 measured from the socket corners and I = W·T³/12. Beam theory gives 3.19 mm; the model gives 3.100 mm at `+hd+` = 1 and 3.117 mm at `+hd+` = 4 (0.97 to 0.98 of the beam value; the head is stiffer than a slender beam).
+* *The tip deflection converges*: it grows with every refinement and each change is smaller than the first (3.100, 3.112, 3.116, 3.117 mm).
+* *A small region exceeds 200 MPa*: between 0 and 20 % of the volume (7.9 % on the coarsest mesh, 4.9 % on the finest).
+* *The peak stress sits at the corner where the handle meets the head* (about x = 17.4 mm, y = 6 mm).
+
+IMPORTANT: The maximum von Mises stress does not converge (348, 410, 409 and 384 MPa in the recorded run). This stand-in wrench has a sharp re-entrant corner between handle and head, where the elastic stress is singular: refining the mesh does not settle it. COMSOL's wrench has fillets there, which is why its maximum stress converges. Judge convergence on quantities such as the deflection, or round the corner with a fillet.
+
+== What next
+
+* Round the handle/head corner: add a menu:Geometry[Fillet] on the two vertical edges where the handle meets the head, compute the sweep again, and compare the maximum stress per mesh with the sharp-corner values above.
+* Change `+F+` and compute again; in this linear model all stresses and displacements scale with the load.
+* Try the xref:busbar.adoc[] tutorial for a coupled electric and thermal model with a parametric sweep.
+* Keyboard shortcuts are listed in xref:ROOT:keyboard-shortcuts.adoc[].

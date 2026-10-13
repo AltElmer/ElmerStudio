@@ -1,0 +1,91 @@
+= Contributing
+:description: Developing Elmer Studio, running the tests, and building and writing this documentation.
+
+Elmer Studio is free software under the GPL (version 2 or later). Bug reports, fixes, new physics features, tutorials and documentation are welcome on {url-repo}[GitHub].
+
+== Code layout
+
+[source,text]
+----
+elmerstudio/core   GUI-independent: model tree and node registry, units and expressions, geometry (gmsh/OCC),
+                   meshing and the Elmer mesh writer, physics -> SIF generator, Elmer runner, results, examples
+elmerstudio/ui     PySide6: ribbon, Model Builder, schema-driven Settings, VTK graphics, plots, panes, wizard
+tests/             regression tests (real Elmer runs) and the GUI smoke test
+tools/             screenshot walkthroughs, reference generator, icon sheet
+docs/              this documentation (Antora component)
+packaging/         PyInstaller bundles and installers
+----
+
+Settings windows are generated from the node registry (`NodeType` and `Prop` in `elmerstudio/core/model.py`). A new feature usually means registering a node type with its properties and writing its translation to Elmer keywords.
+
+== Running the tests
+
+[source,bash]
+----
+pip install -r requirements.txt pytest
+pytest tests -v                     # solver tests are skipped without Elmer
+python tests/test_gui_smoke.py      # drives the real main window
+----
+
+CI runs the tests on Linux (with Elmer from the CSC PPA), Windows and macOS on every push.
+
+== Building the documentation
+
+The documentation is AsciiDoc in `docs/`, built into a website with https://antora.org[Antora]. You need Node.js 18 or newer.
+
+[source,bash]
+----
+npm ci                                  # installs Antora and the search extension (package.json)
+python tools/gen_docs_reference.py      # regenerates the Reference pages from the node registry
+npx antora antora-playbook.yml          # writes build/site/index.html
+----
+
+Open `build/site/index.html` in a browser. On every push to `main` that touches the documentation or the code, the *Docs* workflow (`.github/workflows/docs.yml`) does the same, checks that the committed Reference pages are current, and publishes `build/site` to the `gh-pages` branch, which GitHub Pages serves at https://altelmer.github.io/ElmerStudio/.
+
+=== Where things are
+
+[cols="1,3",options="header"]
+|===
+|Path |Contents
+|`docs/antora.yml` |Component descriptor: title, navigation files, AsciiDoc attributes
+|`docs/modules/ROOT/` |Getting started and About pages, and all images (`images/screenshots/`)
+|`docs/modules/tutorials/` |Tutorials
+|`docs/modules/user-guide/` |User guide
+|`docs/modules/reference/` |Reference; the pages except `index.adoc` are generated, don't edit them
+|`docs/ui/` |Site look: header, footer, styles, logo
+|`antora-playbook.yml` |Site build settings
+|===
+
+=== Screenshots
+
+Screenshots are made by driving the real GUI, so they show what users see and can be regenerated after a change:
+
+[cols="2,3",options="header"]
+|===
+|Script |Screenshots
+|`tools/screenshot_docs.py` |Quick start (`qs_*`), the annotated desktop, the Graphics toolbar
+|`tools/screenshot_ui.py` |New window, Model Wizard pages, ribbon tabs, Add Material
+|`tools/screenshot_tour.py <example>` |An Application Library example, stage by stage
+|`tools/screenshot_tutorial.py` |Busbar tutorial
+|`tools/screenshot_wrench.py` |Wrench tutorial
+|`tools/screenshot_postprocessing.py`, `screenshot_revolved.py` |Postprocessing tutorial
+|`tools/screenshot_acoustics.py` |Acoustics tutorial
+|`tools/screenshot_electrochemistry.py` |Electrochemistry tutorial
+|===
+
+They write to `docs/modules/ROOT/images/screenshots/` and need a desktop session (they take real window grabs). The walkthroughs also check the numbers that the pages quote.
+
+=== Writing style
+
+* Write for an engineer who knows simulation but not Elmer: everything happens in the GUI.
+* Tutorials: numbered steps, each naming where to click. Ribbon commands with the `menu:` macro, Model Builder nodes in bold, Settings labels in italics, values as literal monospace, keys with the `kbd:` macro:
++
+[source,asciidoc]
+....
+. Click menu:Geometry[Block]. *Block 1* appears under *Geometry 1*.
+. Set _Width_ to `+L+` and _Height_ to `+10[mm]+`.
+. Press kbd:[F8].
+....
+* End a tutorial with *Check the results*: the numbers to expect and what they are compared with.
+* Only describe what the code does. If a tutorial needs something the GUI can't do, fix the GUI.
+* Mention COMSOL only to orient COMSOL users.

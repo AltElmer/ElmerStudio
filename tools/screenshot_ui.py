@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 
 
 def main():
-    out = os.path.join(ROOT, "docs", "screenshots")
+    out = os.path.join(ROOT, "docs", "modules", "ROOT", "images", "screenshots")
     os.makedirs(out, exist_ok=True)
     app = QApplication(sys.argv[:1])
     from elmerstudio.core.examples import EXAMPLES

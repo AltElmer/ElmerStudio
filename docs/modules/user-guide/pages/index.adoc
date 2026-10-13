@@ -1,0 +1,37 @@
+= The modeling workflow
+:description: The stages of a model in Elmer Studio and how they connect.
+
+Every model goes through the same stages, in the order of the Model Builder tree. Each stage has its own ribbon tab and its own page in this guide.
+
+[cols="1,3,1",options="header"]
+|===
+|Stage |What you do |Guide
+|Definitions |Parameters, variables, functions, coupling operators. |xref:definitions.adoc[]
+|Geometry |Primitives, work planes, Booleans, transforms, imported CAD, named Box Selections. |xref:geometry.adoc[]
+|Selections |Choose the domains, boundaries, edges or points each feature applies to. |xref:selections.adoc[]
+|Materials |Library or user materials, with any property as an expression. |xref:materials.adoc[]
+|Physics |Physics interfaces, their domain and boundary features, multiphysics couplings. |xref:physics.adoc[], xref:electrochemistry.adoc[]
+|Mesh |Physics-controlled or user-controlled meshes, sizes, distributions, mapped meshes. |xref:mesh.adoc[]
+|Study |Stationary, time-dependent, eigenfrequency and frequency-domain steps, parametric sweeps, solver settings. |xref:studies.adoc[]
+|Results |Plot groups and plots, datasets, derived values, tables, export. |xref:results.adoc[]
+|===
+
+== What happens when you press Compute
+
+Elmer Studio does whatever is out of date, in this order:
+
+. *Geometry.* If something changed, the geometry sequence is rebuilt with the OpenCASCADE kernel of gmsh. Domains, boundaries, edges and points are numbered by position, so the numbers stay put when you edit unrelated features.
+. *Mesh.* gmsh meshes the geometry, and the mesh is written in Elmer's native format, with the parent elements Elmer needs for boundary fluxes.
+. *Elmer input.* Materials, physics features and study steps become an Elmer solver input file (`.sif`). Elmer Studio chooses the Elmer solver modules and turns expressions into Elmer's MATC language. It switches solvers to nonlinear iteration when a property depends on the solution.
+. *Solve.* `ElmerSolver` runs in the background. The Progress, Log and Convergence Plot show it live. A parametric sweep runs once per parameter value.
+. *Results.* The solution is read back, and the default plots for the solved physics are created.
+
+None of these steps needs you to look at a file. If you want to, xref:elmer.adoc[Elmer under the hood] shows where everything is.
+
+== Rules of thumb that carry over from COMSOL
+
+* *Later features win.* On a boundary selected by two boundary conditions, the lower one in the tree applies.
+* *Default features* (insulation, walls, initial values) cover everything not otherwise specified. Default boundary features apply only to *exterior* boundaries.
+* *Units are welcome everywhere.* `+10[mm]+`, `+20[degC]+` and `+n[rpm]+` are converted to SI. A number without a unit is SI. Geometry is the exception: there it is in the geometry's length unit.
+* *Disable instead of delete* (kbd:[F3]) to try a model without a feature.
+* *Expressions everywhere.* A material property, a boundary value or a source can depend on parameters, coordinates (`+x+`, `+y+`, `+z+`), time `+t+`, and the dependent variables.

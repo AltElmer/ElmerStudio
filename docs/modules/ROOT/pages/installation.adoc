@@ -1,0 +1,137 @@
+= Installation
+:description: Install Elmer Studio and the Elmer FEM solver on Windows, macOS or Linux.
+
+Elmer Studio is the desktop. The *Elmer* solver that does the computation is a separate program, so installation has two parts:
+
+. <<install-studio,Install Elmer Studio>>: a ready-to-run package, or from source.
+. <<install-elmer,Install Elmer>>: the official CSC builds.
+
+Elmer Studio finds Elmer by itself in the usual places. Without Elmer you can still build geometry and meshes, but you cannot solve.
+
+.Requirements
+[cols="1,3"]
+|===
+|Operating system |Windows 10/11 (x64), macOS on Apple silicon (arm64), Linux x86-64 (glibc-based distributions such as Ubuntu 22.04+)
+|Graphics |Any OpenGL 3.2 driver. Without a GPU there is a <<no-gpu,software fallback>>.
+|Memory |4 GB is enough for the tutorials; large 3D models need more.
+|Elmer |Elmer 9.0 or newer (the official CSC builds, a distribution package, or your own build from source)
+|===
+
+[#install-studio]
+== 1. Install Elmer Studio
+
+Every release on the {url-releases}[GitHub Releases page] carries these files (version {app-version} shown):
+
+[cols="1,2,3",options="header"]
+|===
+|System |File |How to use it
+|Windows |`ElmerStudio-{app-version}-windows-x64-setup.exe` |Installer. Run it, then start *Elmer Studio* from the Start menu.
+|Windows |`ElmerStudio-{app-version}-windows-x64-portable.zip` |No installation. Extract it anywhere and run `ElmerStudio.exe`.
+|macOS |`ElmerStudio-{app-version}-macos-arm64.dmg` |Open it and drag *Elmer Studio* to *Applications*.
+|Linux |`ElmerStudio-{app-version}-linux-x86_64.AppImage` |`chmod +x` the file, then run it.
+|Linux |`ElmerStudio-{app-version}-linux-x86_64.tar.gz` |Extract it and run the `ElmerStudio` program inside.
+|Any |`elmerstudio-{app-version}-py3-none-any.whl` |Python wheel: `pip install` it into Python 3.10 or newer, then run `elmerstudio`.
+|===
+
+IMPORTANT: The macOS build is not signed. The first time, right-click *Elmer Studio* in *Applications* and choose *Open*. Afterwards it opens normally.
+
+Each package is tested before release by starting the packaged application on an example, building its geometry and, where Elmer is present, solving and plotting it.
+
+=== From source
+
+Use this to follow the latest development or to change the code. You need Python 3.10 or newer.
+
+[source,bash]
+----
+git clone https://github.com/AltElmer/ElmerStudio.git
+cd ElmerStudio
+----
+
+Windows:: Double-click `run_elmerstudio.bat`. The first run creates a virtual environment in `.venv` and installs the dependencies (PySide6, VTK, PyVista, gmsh, NumPy, Matplotlib).
+Linux and macOS:: Run `./run_elmerstudio.sh`. It does the same.
+Manually::
++
+[source,bash]
+----
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt      # Windows: .venv\Scripts\pip
+.venv/bin/python -m elmerstudio
+----
+
+[#install-elmer]
+== 2. Install Elmer
+
+[cols="1,4",options="header"]
+|===
+|System |Where to get Elmer
+|Windows |Download the installer from the https://www.nic.funet.fi/pub/sci/physics/elmer/bin/windows/[CSC download area] and install it with the default options. Elmer Studio looks in `C:\Program Files\Elmer*`.
+|Ubuntu, Debian |Add the official PPA, then install: +
+`sudo add-apt-repository ppa:elmer-csc-ubuntu/elmer-csc-ppa` +
+`sudo apt update && sudo apt install elmerfem-csc`
+|macOS |Homebrew or a build from source. Elmer Studio looks in `/Applications/Elmer*`, `/opt/homebrew/opt/elmer`, `/usr/local/opt/elmer` and `/usr/local`.
+|Any |A from-source build tree of https://github.com/ElmerCSC/elmerfem[elmerfem] can be selected directly (see below).
+|===
+
+=== How Elmer Studio finds Elmer
+
+At startup Elmer Studio looks in these places, in order:
+
+. the folder saved in menu:File[Preferences...];
+. the `ELMER_HOME` environment variable (or `--elmer-home` on the command line);
+. `ElmerSolver` on your `PATH`;
+. the standard install folders listed above.
+
+The *Messages* pane then reports `Elmer found: …` with the solver's version. If it shows *Elmer was not found*, open menu:File[Preferences...]. In the dialog:
+
+* click *Browse...* and choose the Elmer installation folder (the one that contains `bin/ElmerSolver`), then click *Detect*;
+* or point it at a CMake build directory of elmerfem. Elmer Studio recognises a build tree and sets up the solver, its modules and libraries from it.
+
+*Detect* shows the solver version and a one-line report on what this Elmer can do beyond the 9.0 release. It reports whether StatCurrentSolve has the diffusion-current term (multi-ion electrolytes) and whether a Fortran compiler is available for user solvers. It also says when the selection is a from-source build tree. Elmer Studio adapts to the build it finds: a feature that needs one of these is used only where it is present.
+
+NOTE: menu:Developer[Elmer Installation] opens the same dialog.
+
+=== Parallel runs (optional)
+
+To solve on several cores, set _Number of MPI processes_ on a *Study* node. This needs an MPI build of Elmer (`ElmerSolver_mpi` plus `mpiexec`). Elmer Studio partitions the mesh with ElmerGrid by itself. The Windows `-nompi` builds of Elmer run serially.
+
+== 3. Check that everything works
+
+. Start Elmer Studio. The *New* window opens.
+. Choose an Application Library example, for example *Heat sink*. Or later, from menu:File[Application Libraries].
+. Click menu:Home[Compute] (kbd:[Ctrl+=]).
+
+After a few seconds a temperature plot appears in the Graphics window, and the *Messages* pane reports the solution time. If it does, you're ready for the xref:quick-start.adoc[Quick start].
+
+[#no-gpu]
+== Graphics without a GPU
+
+The 3D view needs OpenGL 3.2. Virtual machines, remote desktops and CI runners often have no GPU driver. Use Mesa's software renderer:
+
+* Linux: `pip install vtk-osmesa`, or start with `LIBGL_ALWAYS_SOFTWARE=1`.
+* Windows: copy Mesa's `opengl32.dll` (from the mesa-dist-win project) next to `python.exe` in `.venv`.
+
+Without any usable OpenGL, the Graphics window shows a notice. Everything else, including solving, plots in 1D and tables, keeps working.
+
+== Command-line options
+
+[source,text]
+----
+elmerstudio [model.esm] [--example KEY] [--elmer-home DIR] [--no-new]
+----
+
+[cols="1,3",options="header"]
+|===
+|Option |Effect
+|`model.esm` |Open a saved model.
+|`--example KEY` |Open an Application Library example: `busbar`, `heat_sink`, `cantilever`, `flow_cylinder`, `capacitor`, `coil`, `sphere`, `loudspeaker`, `scatterer`.
+|`--elmer-home DIR` |Use this Elmer installation instead of the saved preference.
+|`--no-new` |Start with an empty desktop instead of the *New* window.
+|===
+
+From source, run the same options as `python -m elmerstudio ...`.
+
+== Updating and uninstalling
+
+* *Installer (Windows):* run the newer installer over the old one. Uninstall from *Settings › Apps*.
+* *Portable zip, AppImage, tarball, macOS app:* replace or delete the file or folder.
+* Your models (`.esm` files) are separate and stay where you saved them.

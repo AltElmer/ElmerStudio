@@ -1,0 +1,385 @@
+= Electrochemistry: current distribution
+:description: Primary, secondary and tertiary current distribution with the Secondary Current Distribution interface and Transport of Diluted Species.
+:page-math: true
+:page-pagination:
+
+The *Secondary Current Distribution* interface (name `+cd+`) computes the electrolyte potential and the ionic current in an electrolyte, with electrode kinetics on its boundaries.
+It covers primary current distribution (electrodes at equilibrium, ohmic losses only) and secondary current distribution (activation overpotential from a kinetics expression).
+Coupled with *Transport of Diluted Species* (`+tds+`), the kinetics can depend on a concentration, which gives a tertiary current distribution.
+
+The interface follows the layout of COMSOL's Electrochemistry Module, so feature names, settings and result names will look familiar.
+Elmer Studio is an independent project and is not affiliated with COMSOL; underneath, every model runs as an Elmer case.
+
+For worked examples with checked numbers, see xref:tutorials:electrochemistry.adoc[].
+Every setting is listed in xref:reference:physics-cd.adoc[] and xref:reference:physics-tds.adoc[].
+
+== The equations
+
+The interface solves charge conservation in the electrolyte for the electrolyte potential latexmath:[\phi_l]:
+
+[latexmath]
+++++
+\nabla\cdot\mathbf{i}_l = Q_l,\qquad \mathbf{i}_l = -\sigma_l\nabla\phi_l
+++++
+
+On an *Electrode Surface* the local current density latexmath:[i_{loc}] enters the electrolyte.
+It is a function of the overpotential:
+
+[latexmath]
+++++
+-\mathbf{n}\cdot\mathbf{i}_l = i_{loc}(\eta),\qquad \eta = \phi_{s,ext} - E_{eq} - \phi_l
+++++
+
+Here latexmath:[\phi_{s,ext}] is the electric potential of the electrode and latexmath:[E_{eq}] the equilibrium potential.
+Anodic current is positive: an anode pushes current into the electrolyte.
+
+== Adding the interface
+
+. Choose menu:File[New] (kbd:[Ctrl+N]) and click *Model Wizard*.
+. Pick the space dimension: *3D*, *2D* or *2D Axisymmetric*.
+. Under *Electrochemistry > Primary and Secondary Current Distribution*, select *Secondary Current Distribution* and click *Add*.
+For a tertiary model, also add *Chemical Species Transport > Transport of Diluted Species*.
+. Click *Study*, choose *Stationary* and click *Done*.
+
+To add the interface to an existing model, use menu:Physics[Add Physics].
+
+The interface starts with three default features: *Electrolyte 1*, *Initial Values 1* and *Insulation 1*.
+Add the others from menu:Physics[Domains] and menu:Physics[Boundaries], or right-click *Secondary Current Distribution* and choose *Domains* or *Boundaries*.
+
+=== Interface settings
+
+[cols="2,3",options="header"]
+|===
+|Setting |Use
+|_Current distribution type_ |`+Primary+` makes every Electrode Surface an equilibrium electrode, whatever its kinetics setting says. `+Secondary+` (default) uses each electrode's kinetics.
+|_Element order_ |`+Quadratic+` (default) or `+Linear+`.
+|_Elmer solver_ |`+Automatic+` (default). See <<elmer-solvers>>.
+|_Maximum Newton iterations (kinetics)_ |Iteration limit for nonlinear kinetics (default `+200+`).
+|_Newton damping factor_ |Fixed damping of every Newton step (default `+1+`).
+|_Line search (backtrack steps that increase the residual)_ |On by default. See <<nonlinear>>.
+|===
+
+IMPORTANT: With _Current distribution type_ set to `+Primary+`, the kinetics settings of each Electrode Surface stay visible but are ignored.
+
+== Electrolyte, current source and initial values
+
+*Electrolyte*:: Sets the conductivity latexmath:[\sigma_l].
+_Electrical conductivity_ is taken from the material (property _Electrical conductivity_) or set to `+User defined+` with any expression, for example `+20[S/m]+` or a parameter.
+*Current Source*:: A volumetric current source latexmath:[Q_l] in `+A/m^3+`.
+*Initial Values*:: The starting electrolyte potential latexmath:[\phi_l].
+For nonlinear kinetics a reasonable start helps; see also <<sweep>>.
+
+== Electrode Surface
+
+Add it with menu:Physics[Boundaries > Electrode Surface] and select the electrode boundaries.
+Each Electrode Surface has a name, `+es1+`, `+es2+`, and so on, shown in the _Name_ field of its Settings.
+That name appears in the result variables, for example `+cd.es1.Itot+`.
+
+=== Potentials
+
+_Electric potential (of the electrode)_ (latexmath:[\phi_{s,ext}])::
+The potential of the metal.
+Use a parameter here, for example `+Vapp+`, and sweep it to get a polarization curve.
+_Equilibrium potential_ (latexmath:[E_{eq}])::
+Any expression.
+In a tertiary model it may depend on the concentration `+c+`.
+
+=== Kinetics
+
+Choose the law in _Kinetics expression type_.
+In the formulas below latexmath:[f = F/(RT)], with the _Temperature_ setting latexmath:[T] (default `+298.15[K]+`).
+
+[cols="2,3,2",options="header"]
+|===
+|Kinetics expression type |Local current density |Settings used
+|Primary condition (thermodynamic equilibrium)
+|No kinetics: the electrolyte potential is fixed to latexmath:[\phi_l = \phi_{s,ext} - E_{eq}].
+|-
+|Butler-Volmer
+|latexmath:[i_0\left(e^{\alpha_a f\eta} - e^{-\alpha_c f\eta}\right)]
+|_Exchange current density_, _Anodic transfer coefficient_, _Cathodic transfer coefficient_, _Temperature_
+|Linearized Butler-Volmer
+|latexmath:[i_0(\alpha_a+\alpha_c) f\eta]
+|as Butler-Volmer
+|Anodic Tafel equation
+|latexmath:[i_0\,10^{\eta/A_a}]
+|_Exchange current density_, _Anodic Tafel slope_
+|Cathodic Tafel equation
+|latexmath:[-i_0\,10^{-\eta/A_c}]
+|_Exchange current density_, _Cathodic Tafel slope_
+|Butler-Volmer with limiting current
+|latexmath:[\dfrac{i_a}{1+i_a/i_{lim}} - \dfrac{i_c}{1+i_c/i_{lim}}], with latexmath:[i_a = i_0 e^{\alpha_a f\eta}], latexmath:[i_c = i_0 e^{-\alpha_c f\eta}]
+|as Butler-Volmer, plus _Limiting current density_
+|User defined i(eta)
+|Any expression in `+eta+`
+|_Local current density i(eta)_
+|===
+
+IMPORTANT: The sign convention is anodic positive.
+The cathodic Tafel law returns a negative current density, which leaves the electrolyte.
+
+=== User-defined kinetics
+
+In _Local current density i(eta)_, write `+eta+` for the overpotential (in volts).
+The expression may use parameters, functions and the built-in constants `+F_const+` and `+R_const+`.
+Only the whole word `+eta+` is replaced; names such as `+beta+` or `+theta+` stay as they are.
+
+Tabulated polarization data::
+Create an Interpolation function with menu:Definitions[Interpolation], give it a _Function name_, for example `+pol+`, and enter the (η, i) pairs in its table.
+Then set _Local current density i(eta)_ to `+pol(eta)+`.
+The function is piecewise linear between the points.
+Clamped laws::
+Two-argument `+min(a, b)+` and `+max(a, b)+` work and may be nested, for example
+`+min(max(j0*exp(min(eta/b,30))/(1+j0*exp(min(eta/b,30))/jl),0),20*jl)+`.
+Elmer's own MATC `+min+`/`+max+` take one argument, so Elmer Studio exports these as small helper functions.
+
+The Newton slope of a user-defined law is a central difference with a step of 0.1 mV; its absolute value is used, so the Robin coefficient stays positive.
+
+=== Dissolution
+
+_Molar mass (dissolving metal)_, _Number of participating electrons_ and _Metal density_ define the dissolution (recession) velocity `+cd.es1.vdis+`:
+
+[latexmath]
+++++
+v_{dis} = \frac{M\, i_{loc}}{n F \rho_m}
+++++
+
+It uses the conservative local current density `+cd.iloc+` (see <<current>>).
+
+== Other boundary conditions
+
+*Electrolyte Potential*:: Fixes latexmath:[\phi_l] on a boundary, for example a reference or counter electrode at `+0[V]+`.
+*Electrolyte Current Density*:: Prescribes the inward normal current density latexmath:[i_n].
+*Insulation*:: No current. This is the default on all exterior boundaries not used by another feature.
+*Symmetry*:: No current through a symmetry plane.
+
+[NOTE]
+====
+The interface models the electrolyte only.
+There is no electrode (solid-phase) domain, no total-current condition and no double-layer capacitance.
+Set the electrode potential directly with _Electric potential (of the electrode)_; to reach a target current, sweep it.
+====
+
+== Results
+
+Result variables keep COMSOL's names:
+
+[cols="2,4,1",options="header"]
+|===
+|Name |Meaning |Unit
+|`+cd.phil+` |Electrolyte potential |`+V+`
+|`+cd.Il+`, `+cd.Ilx+`, `+cd.Ily+`, `+cd.Ilz+` |Electrolyte current density vector and components |`+A/m^2+`
+|`+cd.IlMag+` |Electrolyte current density magnitude |`+A/m^2+`
+|`+cd.iloc+` |Local current density into the electrolyte, recovered from the reaction loads on Electrode Surface, Electrolyte Potential and Electrolyte Current Density boundaries |`+A/m^2+`
+|`+cd.nIl+` |Normal electrolyte current density (outward) |`+A/m^2+`
+|`+cd.es1.Itot+` |Total current of Electrode Surface `+es1+` (global value) |`+A+`
+|`+cd.es1.eta+` |Overpotential latexmath:[\phi_{s,ext}-E_{eq}-\phi_l] |`+V+`
+|`+cd.es1.iloc+` |Local current density from the kinetics expression latexmath:[i_{loc}(\eta)] (not defined for primary electrodes) |`+A/m^2+`
+|`+cd.es1.vdis+` |Dissolution velocity latexmath:[M\,i_{loc}/(nF\rho_m)] |`+m/s+`
+|===
+
+In 2D models, `+cd.es1.Itot+` is a current per unit depth (A/m).
+In 2D axisymmetric models it is the current of the full revolution.
+
+A solved study gets two default plot groups: *Electrolyte Potential (cd)* and *Electrolyte Current Density (cd)*.
+Evaluate `+cd.es1.Itot+` with menu:Results[Global Evaluation].
+More on derived values in xref:user-guide:results.adoc[] and xref:reference:result-variables.adoc[].
+
+[#current]
+=== How the electrode current is computed
+
+`+cd.es1.Itot+` is the sum of the nodal reaction loads of the potential equation on the electrode boundaries.
+This sum is exactly conservative: the current that leaves the anodes equals the current that enters the cathodes, up to the solver tolerance.
+An integral of latexmath:[-\sigma_l\nabla\phi_l] over the boundary is not, because the gradient is only accurate to the discretization error.
+
+`+cd.iloc+` turns the same loads into a current density:
+
+* in 2D and 2D axisymmetric models, each nodal load is divided by the node's lumped boundary weight;
+* in 3D, it is the consistent projection of the loads onto the boundary, which is smooth and correct at the corner nodes of quadratic triangles.
+
+A *Surface Integration* of `+cd.iloc+` over the electrode boundaries uses the same weights, so it returns `+cd.es1.Itot+`.
+The regression tests check this to 1e-9, also face by face on a 3D plate electrode, where the face currents add up to the electrode current.
+Use it to split an electrode's current between faces, or to integrate over part of an electrode.
+
+`+cd.es1.iloc+` is different: it evaluates the kinetics expression at the computed overpotential.
+On a converged solution both agree; on a primary electrode only `+cd.iloc+` exists.
+
+==== 2D axisymmetric models
+
+Elmer's axisymmetric loads are per radian, so `+cd.es1.Itot+` includes the factor latexmath:[2\pi].
+
+Derived values on 2D axisymmetric models integrate in the revolved geometry by default (setting _Compute integral in revolved geometry_, weight latexmath:[2\pi r]).
+The boundary integral of `+cd.iloc+` over a disc electrode is then its current `+cd.es1.Itot+`.
+Clear the check box to integrate over the r-z plane instead.
+
+NOTE: In 2D models the boundary integral is called *Line Integration*, as in COMSOL.
+The Results ribbon command is still labelled *Surface Integration*.
+
+.Boundary integral of cd.iloc over a disc electrode, in the revolved geometry
+image::ROOT:screenshots/revolved_1_surface_integration_cd_iloc.png[Line Integration of cd.iloc with Compute integral in revolved geometry checked,role=screenshot]
+
+.Global Evaluation of cd.es1.Itot on the same model: the same current
+image::ROOT:screenshots/revolved_2_global_evaluation_itot.png[Global Evaluation of cd.es1.Itot,role=screenshot]
+
+[#nonlinear]
+== Solving nonlinear kinetics
+
+Primary electrodes are Dirichlet conditions, so a primary model is linear and solves in one step.
+Linearized Butler-Volmer is a constant Robin condition and is also linear.
+
+All other kinetics are written in Newton–Robin form.
+At each iteration the kinetics are linearized around the current overpotential:
+
+[latexmath]
+++++
+-\mathbf{n}\cdot\mathbf{i}_l = h\,(\phi_{ext} - \phi_l),\qquad
+h = \frac{di_{loc}}{d\eta},\qquad
+\phi_{ext} = \phi_l + \frac{i_{loc}}{h}
+++++
+
+On convergence the condition equals the kinetics exactly.
+The iteration stops at a relative change of 1e-10 or after _Maximum Newton iterations (kinetics)_.
+
+Line search::
+With the HeatSolve back end (see <<elmer-solvers>>), _Line search (backtrack steps that increase the residual)_ shortens any Newton step that would increase the residual.
+This keeps steep laws such as Tafel or exponential fits from overshooting.
+Leave _Newton damping factor_ at `+1+` when the line search is on.
+Newton damping::
+_Newton damping factor_ below 1 scales every step by a fixed factor.
+Use it only if the line search alone does not converge; it slows convergence near the solution.
+
+TIP: If a high cell voltage does not converge from the initial values, sweep the voltage up to it.
+Each sweep step starts from the previous solution (next section).
+
+[#sweep]
+== Polarization curves and continuation
+
+To compute a polarization (V–I) curve:
+
+. Put the electrode potential in a parameter, for example `+Vapp+`, and use it in _Electric potential (of the electrode)_.
+. Click menu:Study[Parametric Sweep].
+. Set _Parameter name_ `+Vapp+`, _Parameter value list_ for example `+range(0.05,0.05,0.25)+`, _Parameter unit_ `+V+`.
+. Compute, then evaluate `+cd.es1.Itot+` with menu:Results[Global Evaluation] (_Time/parameter selection_ `+All+`) and plot it with menu:Results[Global].
+
+_Reuse solution from previous step_ on the Parametric Sweep is `+Automatic+` by default.
+Each stationary step then starts from the previous parameter's solution when the mesh has not changed, through Elmer restart files.
+This is continuation: it saves iterations and helps strongly nonlinear kinetics converge.
+When a swept parameter changes the geometry, the mesh changes too, and that run starts from the initial values.
+Set it to `+Off+` to start every run from the initial values.
+
+The sweep can also run over several parameters with _Sweep type_ `+All combinations+` or `+Specified combinations+` and the _More parameters_ table.
+See xref:user-guide:studies.adoc[] and xref:reference:studies.adoc[].
+
+[#tertiary]
+== Tertiary current distribution with Transport of Diluted Species
+
+Add *Transport of Diluted Species* to the same component.
+Its dependent variable is the concentration `+c+` (`+mol/m^3+`).
+
+. In the Electrode Surface, use `+c+` in the kinetics: in _Equilibrium potential_, _Exchange current density_ or a user-defined _Local current density i(eta)_.
+For example, a linearized Nernst shift: `+R_const*Tk/(nel*F_const)*(c-cb)/cb+`.
+. In *Transport of Diluted Species*, choose menu:Physics[Boundaries > Electrode Surface Coupling] on the same electrode boundary.
+. Set _Electrode surface (name of a Current Distribution feature)_ to the Electrode Surface's name, for example `+es1+`.
+. Set _Stoichiometric coefficient_ latexmath:[\nu] (moles of species released per mole of reaction in the anodic direction; negative if consumed) and _Number of participating electrons_ latexmath:[n].
+
+The coupling adds the species flux of the reaction, by Faraday's law:
+
+[latexmath]
+++++
+-\mathbf{n}\cdot\mathbf{J} = \frac{\nu\, i_{loc}}{n F}
+++++
+
+latexmath:[i_{loc}] here is the kinetics expression of that Electrode Surface, evaluated with the current potential and concentration.
+
+IMPORTANT: The Electrode Surface Coupling needs kinetics.
+If the Electrode Surface uses the primary condition, or the interface is set to `+Primary+`, the case is refused with a message asking for a kinetics expression.
+
+=== Coupled iteration
+
+The two interfaces are solved one after the other (segregated) until the change between iterations is small.
+The *Stationary* study step controls this loop:
+
+_Max coupling iterations_:: Maximum number of passes (default `+30+`).
+_Coupling tolerance_:: Relative change at which the loop stops (default `+1e-6+`).
+For tight checks, use a smaller value, for example `+1e-11+`.
+_Coupling damping factor_:: Under-relaxation of every coupled physics between iterations (default `+1+`, no damping).
+
+If the coupled iteration oscillates and grows, lower the damping factor, for example to `+0.5+` or `+0.25+`.
+When a change in one field returns amplified by a loop gain latexmath:[G > 1] after one pass through both interfaces, the damping factor must be below latexmath:[2/(1+G)].
+
+A coupled stationary run writes its result once, after the loop has converged.
+
+[#box-selections]
+== Electrodes on swept geometries: Box Selections
+
+Boundary numbers follow the geometry.
+When a swept parameter changes the shape, for example the amplitude of a wavy electrode going to zero, the boundaries can be renumbered, and a feature with a manual selection would land on the wrong boundary.
+
+Use a Box Selection instead:
+
+. Click menu:Geometry[Box Selection].
+. Set _Geometric entity level_ to `+Boundary+`.
+. Enter the box limits, for example _y maximum_ `+L/2+` for everything in the lower half.
+Blank limits are unbounded; plain numbers are in the geometry length unit.
+. Choose _Include entity if_ `+Entity inside box+` or `+Entity intersects box+`.
+. Build the geometry (kbd:[F8]).
+. In the Electrode Surface (or any physics, mesh or result feature), choose the Box Selection in the _Selection_ list.
+
+Each run of a sweep re-evaluates the box on its own geometry, so the electrode features follow the right boundaries.
+See xref:user-guide:selections.adoc[].
+
+[#elmer-solvers]
+== Which Elmer solver runs
+
+Elmer has no dedicated current-distribution solver.
+With _Elmer solver_ `+Automatic+`, Elmer Studio picks one:
+
+[cols="2,3",options="header"]
+|===
+|Situation |Elmer solver
+|Only primary electrodes (or _Current distribution type_ `+Primary+`) |StatCurrentSolve
+|Kinetics that need a Robin condition |HeatSolve, with the conductivity as heat conductivity and the kinetics as heat transfer coefficient and external temperature
+|Kinetics, and a Heat Transfer interface in the same component already uses HeatSolve |ModelPDE, with the kinetics as Robin coefficient and external field
+|===
+
+A FluxSolver then computes the current density `+cd.Il+` once, on the converged solution.
+Transport of Diluted Species runs on ModelPDE.
+
+IMPORTANT: Forcing `+StatCurrentSolve (no kinetics)+` on a model with electrode kinetics stops with an error: kinetics need the HeatSolve or ModelPDE back end.
+
+The linear solver is chosen in *Solver Configurations*; with the automatic choice, 3D current distribution switches from a direct to an iterative solver at about 30 000 degrees of freedom.
+To read the generated case, use menu:Study[Show Elmer Input File].
+
+=== Elmer installations and from-source builds
+
+Elmer Studio finds an installed Elmer automatically.
+You can also point it to an Elmer build tree compiled from source: open menu:File[Preferences...] or menu:Developer[Elmer Installation], enter the folder in _Elmer installation or build folder_ and click *Detect*.
+Below the version, a _Features_ line reports a capability probe of that installation: whether its StatCurrentSolve has the diffusion-current term for multi-ion electrolytes, and whether a Fortran compiler for user solvers was found.
+The current-distribution features on this page do not need either.
+
+== Meshing electrodes
+
+Current density is singular at the edge of an electrode that meets an insulator, for example a disc in an insulating plane.
+Refine there with *Size* nodes on the electrode boundary and on the edge point, and keep the global _Maximum element growth rate_ (default `+1.3+`) so the fine elements grade into the domain.
+Without growth-rate control, a refined electrode edge sits inside coarse elements; on the disc electrode test that put the resistance off by 6 to 46 %.
+
+For periodic or wavy electrodes, a *Mapped* mesh with *Distribution* nodes (element counts and _Element ratio_ grading) gives structured quadrilaterals refined toward the electrode.
+See xref:user-guide:mesh.adoc[].
+
+== Verification
+
+`+tests/test_electrochemistry.py+` checks the interface against closed-form solutions with real Elmer runs:
+
+[cols="3,1",options="header"]
+|===
+|Check |Agreement
+|1D cell, every kinetics type, against latexmath:[i = i_{loc}(V - iL/\sigma)] (current, and `+cd.iloc+` at every electrode node) |1e-9
+|Tabulated i(η) through an Interpolation function |1e-6
+|Polarization sweep (V–I curve) |1e-8 at every voltage
+|Newman's disc electrode, 2D axisymmetric, latexmath:[R = 1/(4\sigma a)] with the far-field term |better than 0.5 % (about 0.06 % in a recent run)
+|Sinusoidal anode, current modulation latexmath:[a\,k\coth(kL)] |0.2 % required (0.02 % measured)
+|Tertiary Nernst layer, latexmath:[i = \sigma V/(L+\Lambda+\beta\delta)] |1e-8
+|Surface Integration of `+cd.iloc+` equals `+cd.es1.Itot+` (2D axisymmetric and 3D) |1e-9
+|===
+
+Most of these are walked through step by step in xref:tutorials:electrochemistry.adoc[].

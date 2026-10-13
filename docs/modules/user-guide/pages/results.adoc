@@ -1,0 +1,129 @@
+= Results
+:description: Plot groups and plots, datasets, derived values, tables and export.
+
+Everything under *Results* works on the solutions of your studies. You can add, change and re-plot results without solving again.
+
+[cols="1,3",options="header"]
+|===
+|Node |Purpose
+|*Datasets* |What results are computed on: a study's solution, or a cut line, cut plane, grid, revolution, mirror and so on, made from one.
+|*Derived Values* |Numbers: integrals, averages, maxima and minima, point values, global quantities.
+|*Tables* |The numbers that derived values produce.
+|*Plot groups* |A 3D, 2D, 1D or polar view holding one or more plots.
+|*Export* |Images, data, VTU files and reports.
+|===
+
+== Plot groups
+
+Add one with menu:Results[3D Plot Group], *2D Plot Group*, *1D Plot Group* or *Polar Plot Group*. Each plot group has:
+
+* a _Dataset_ and a _Solution selection_: the last solution, a time, a parameter value or an eigenmode;
+* a _Title_ (automatic or your own), and a color legend with optional max/min;
+* for 1D groups, axis labels, log scales, grid and legend position.
+
+Plots inside the group inherit its dataset (_Dataset: From parent_) unless they set their own. Click *Plot* (or press kbd:[F8]) to redraw. A study creates default plot groups when it finishes, for example *Temperature (ht)* and *Isothermal Contours (ht)*.
+
+=== Plots for 3D and 2D groups
+
+[cols="1,3",options="header"]
+|===
+|Plot |Shows
+|*Surface* |An expression on the surfaces (3D) or over the domains (2D), with a color table, or uniform color and wireframe.
+|*Volume* |An expression inside the domains (3D).
+|*Slice*, *Multislice* |Planes through the model, set by count or coordinates. Multislice uses several planes in x, y and z at once.
+|*Isosurface* |Surfaces of constant value, with a level legend.
+|*Contour* |Lines of constant value (2D) as lines, tubes or filled bands, optionally with level labels.
+|*Arrow Volume* |Arrows of a vector field, at the mesh nodes or on a regular grid, with normalized or scaled length.
+|*Streamline* |Streamlines of a vector field, started on selected boundaries or at points, as lines, tubes or ribbons.
+|*Mesh* |The mesh of the dataset.
+|*Line* |An expression along edges or boundary curves, as lines or tubes.
+|*Annotation* |Text at a position, with `+eval(expr, unit)+` for values.
+|*Radiation Pattern* |An acoustic exterior-field quantity on a circle (polar) or sphere (3D).
+|===
+
+Attributes you can add under a plot:
+
+* *Deformation*: shows the plot on the deformed shape, for example the displacement in solid mechanics, scaled.
+* *Selection*: restricts the plot to some domains or boundaries.
+* *Color Expression*: colors a plot (arrows, streamlines, lines) by another expression.
+
+=== Plots for 1D and polar groups
+
+[cols="1,3",options="header"]
+|===
+|Plot |Shows
+|*Line Graph* |An expression along a Cut Line (or along boundaries in 2D), against arc length or a coordinate.
+|*Point Graph* |An expression at a Cut Point against time or the sweep parameter.
+|*Global* |Global quantities (coupling operators such as `+aveop1(T)+`, eigenfrequencies, electrode currents) against time, frequency or the sweep parameter.
+|*Table Graph* |Columns of a Table.
+|*Line Graph (Polar)* |An expression along a circle, against angle.
+|*Directivity* |The exterior-field level against angle and frequency.
+|===
+
+Each graph has line style, width, color, markers and a legend.
+
+== Expressions and units
+
+Each plot has an expression and a unit. Click the button beside the expression for the list of variables in the solution. Expressions combine:
+
+* solution variables with COMSOL-style names (`+T+`, `+ht.tfluxMag+`, `+solid.mises+`, `+spf.U+`, `+cd.iloc+`, `+acpr.Lp+`, …), listed in xref:reference:result-variables.adoc[Result variables];
+* coordinates `+x+`, `+y+`, `+z+`, parameters, Definitions variables and coupling operators;
+* functions and operators, including `+real+`, `+imag+`, `+abs+`, `+arg+`, `+conj+` for complex fields.
+
+The _Unit_ list offers the units of the expression's quantity (°C, °F or K for a temperature, MPa for a stress, mm for a displacement, …).
+
+== Datasets
+
+[cols="1,3",options="header"]
+|===
+|Dataset |Gives
+|*Solution* |A study's solution (created with the study).
+|*Cut Line* |Points along a line from Point 1 to Point 2, for line graphs.
+|*Cut Point* |One point, optionally snapped to the closest boundary, for point graphs.
+|*Cut Plane* |A plane through a 3D solution, for a 2D plot group (quick plane at a coordinate, or point and normal).
+|*Parametric Extrusion 2D* |A 2D dataset or cut plane extruded over the solutions of a sweep, the parameter becoming the third axis.
+|*Revolution 2D* |A 2D axisymmetric solution revolved into 3D, over a start and revolution angle, with layers.
+|*Mirror* |A dataset mirrored in a plane (3D) or line (2D). Datasets can be chained, for example a mirrored cut plane.
+|*Grid 2D*, *Grid 3D* |A regular grid of points, which may extend beyond the mesh (acoustic exterior fields).
+|*Parametric Curve 3D* |A curve x(s), y(s), z(s), for example a spiral around a loudspeaker.
+|===
+
+== Derived values
+
+Add them from menu:Results[...] (Evaluation group) or by right-clicking *Derived Values*. Give one or more expressions with units and descriptions, then click *Evaluate*. The result goes to the *Table* pane and a *Table* node.
+
+[cols="1,3",options="header"]
+|===
+|Derived value |Computes
+|*Volume/Surface/Line Integration* |The integral of an expression over the selected domains or boundaries. For a boundary flux such as `+cd.iloc+`, the integral equals the conservative total current.
+|*Volume Average* |The integral divided by the volume.
+|*Volume Maximum/Minimum* |The extreme value and its location.
+|*Point Evaluation* |Values at clicked geometry points or at coordinates.
+|*Global Evaluation* |Global expressions (coupling operators, parameters, eigenfrequencies, electrode currents), for every solution of a sweep at once if you choose.
+|===
+
+The names follow the space dimension, as in COMSOL: in 2D, *Surface Integration* integrates over domains and *Line Integration* over boundaries.
+
+=== 2D axisymmetric models
+
+In 2D axisymmetric models, integrals and averages are taken in the *revolved geometry*, weighted by 2πr (_Compute integral in revolved geometry_, on by default). A *Surface Integration* of a heat flux over a boundary is then the total heat flow through the revolved surface. Clear the check box to integrate over the r-z plane.
+
+== Tables
+
+Each evaluation writes to a Table (shown in the *Table* pane). Copy it to the clipboard or export it as CSV with the pane's buttons, or plot it with a *Table Graph*.
+
+[#export]
+== Export
+
+[cols="1,3",options="header"]
+|===
+|Node |Writes
+|*Image* |A PNG of a plot group, at a given width and height.
+|*Data* |The node coordinates and comma-separated expressions, as CSV.
+|*VTK Unstructured Grid* |The solution as `.vtu`, for ParaView.
+|*Report* |An HTML report with the parameters, the model tree and images of the plot groups.
+|===
+
+Click *Export* at the top of the node's Settings window to write the file. *Image Snapshot* in the Graphics toolbar saves the current view directly.
+
+Every results node and setting is listed in the reference: xref:reference:plots.adoc[Plots], xref:reference:datasets.adoc[Datasets], xref:reference:derived-values.adoc[Derived values], xref:reference:export.adoc[Export].

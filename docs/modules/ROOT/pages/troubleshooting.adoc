@@ -1,0 +1,73 @@
+= Troubleshooting and FAQ
+:description: Fixes for common problems with installation, graphics, geometry, meshing and solving.
+
+== Installation and startup
+
+*"Elmer was not found" in Messages.*::
+Install Elmer (xref:installation.adoc#install-elmer[Installation]), then open menu:File[Preferences...], *Browse...* to the folder that contains `bin/ElmerSolver`, and click *Detect*. On Linux, `which ElmerSolver` shows where the package put it.
+
+*macOS says the app can't be opened.*::
+The build isn't signed. Right-click *Elmer Studio* in *Applications* and choose *Open* once.
+
+*The Graphics window shows a notice instead of the model.*::
+There is no usable OpenGL 3.2 driver (common in virtual machines and remote desktops). Use Mesa's software renderer: see xref:installation.adoc#no-gpu[Graphics without a GPU]. Everything except the 3D view keeps working.
+
+*The AppImage does nothing.*::
+Make it executable (`chmod +x ElmerStudio-*.AppImage`). Some distributions also need `libfuse2` to run AppImages.
+
+== Geometry
+
+*Build fails with "point(s) … do not exist" or "face … does not exist".*::
+A fillet, chamfer or face-parallel work plane refers to an entity number that a change upstream removed or renumbered. Select the feature, turn on *Show Labels*, and pick again.
+
+*A boundary condition moved to the wrong face after I changed a parameter.*::
+Entity numbers follow position, and the change reordered them. Use a xref:user-guide:selections.adoc#box[Box Selection] for that feature.
+
+*Imported CAD has gaps or tiny faces.*::
+Keep _Repair imported geometry_ on, and try a larger _Repair tolerance_ on *Form Union*.
+
+== Mesh
+
+*Meshing fails or takes very long.*::
+Look for very small features (sliver faces, tiny gaps) with *Show Labels*. Coarsen the size, raise _Minimum element size_, or simplify the geometry. Try another _3D algorithm_ on *Mesh 1*.
+
+*Results near an edge or electrode look wrong, but improve a lot with refinement.*::
+Refine locally with a *Size* node and keep _Maximum element growth rate_ around 1.1–1.3.
+
+== Solving
+
+*Elmer stops with an error.*::
+*Messages* quotes Elmer's `ERROR::` line, and *Log* has the full output. Common causes:
++
+* a material property needed by the physics is empty (check _Material Contents_);
+* a domain has no material;
+* an expression uses a name that isn't a parameter, variable, function or field.
+
+*A nonlinear or coupled problem doesn't converge.*::
+* For a nonlinear interface, raise the iteration limit, or lower the damping factor in the study's *Solver Configurations*.
+* For coupled physics, lower _Coupling damping factor_ on the Stationary step (0.5, then 0.25).
+* For a parametric sweep, keep _Reuse solution from previous step_ on *Automatic* and use finer steps.
+* For electrode kinetics, see xref:user-guide:electrochemistry.adoc[Electrochemistry].
+
+*Large 3D models run out of memory.*::
+Use an iterative linear solver (*Solver Configurations › Solver › Linear solver: Iterative*), a coarser mesh or linear elements, or run in parallel with MPI.
+
+*I want to see exactly what Elmer is asked to do.*::
+menu:Study[Show Elmer Input File], and menu:Study[Open Case Folder] for the mesh and log. See xref:user-guide:elmer.adoc[Elmer under the hood].
+
+== Results
+
+*A variable I expect isn't in the expression list.*::
+The list shows what the selected dataset's solution contains. Check the plot's _Dataset_, and that the study solved that physics.
+
+*Integrals on a 2D axisymmetric model are 2π·r times larger than I expect.*::
+They are taken in the revolved geometry by default. Clear _Compute integral in revolved geometry_ for r-z integrals.
+
+== Reporting a problem
+
+Open an issue on {url-repo}/issues[GitHub] with:
+
+* the Elmer Studio version (menu:File[About Elmer Studio]) and your operating system;
+* the Elmer version (shown in *Messages* at startup);
+* the `.esm` model, or a small one that shows the problem;
+* for solver errors, the case folder's `case.sif` and `solver.log`.

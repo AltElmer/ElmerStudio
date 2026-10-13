@@ -1,0 +1,80 @@
+= Studies and solving
+:description: Study steps, parametric sweeps, coupled physics, solver configurations, parallel runs and what happens during Compute.
+
+A *Study* holds one study step, an optional *Parametric Sweep*, and optional *Solver Configurations*. A model can have several studies, for example a stationary solve and an eigenfrequency analysis of the same geometry. Each study keeps its own solutions and its own dataset under *Results › Datasets*.
+
+== Study steps
+
+[cols="1,3,2",options="header"]
+|===
+|Step |Settings |Elmer
+|*Stationary* |For coupled physics: _Max coupling iterations_, _Coupling tolerance_, _Coupling damping factor_ |Steady state
+|*Time Dependent* |_Time unit_, _Output times_ (`+range(0,0.1,1)+` or a list), _Solver steps per output step_, _BDF order_ (1 or 2), _Max coupling iterations per step_ |Transient, BDF time stepping
+|*Eigenfrequency* |_Desired number of eigenfrequencies_, _Search for eigenfrequencies around_ (Hz) |Eigen analysis (ARPACK)
+|*Frequency Domain* |_Frequency unit_, _Frequencies_ (a value, a list or `+range(start,step,stop)+`) |Harmonic, scanned over the frequencies
+|===
+
+Every step has a _Physics and Variables Selection_ table, to leave an interface out of this study.
+
+Add a study with menu:Home[Add Study]. Add steps with menu:Study[Study Steps], and a sweep with menu:Study[Parametric Sweep].
+
+[#sweep]
+== Parametric Sweep
+
+A sweep solves the study once for each parameter value:
+
+* _Parameter name_ and _Parameter value list_: values like `+5 6 7+`, or `+range(5,1,10)+` (start, step, stop), and a _Parameter unit_ (the values are in that unit).
+* _More parameters_ to sweep several at once:
+** _Sweep type_ *Specified combinations*: the i-th values of every parameter go together;
+** *All combinations*: every combination (2 × 3 values = 6 runs).
+* _Reuse solution from previous step_ *Automatic*: each stationary run starts from the previous parameter's solution when the mesh hasn't changed. Nonlinear problems, such as electrode kinetics, then converge in a few iterations. *Off* starts every run from the initial values.
+
+Geometry, mesh and physics follow the swept parameters. When a parameter changes the geometry, it is rebuilt and remeshed for each value. Use xref:selections.adoc#box[Box Selections] for features whose boundaries may be renumbered.
+
+The results of a sweep are in one dataset, with one solution per value. Plots show one value at a time (_Solution selection_). Global evaluations and *Global* plots show all of them, against the parameter in its own unit.
+
+[#coupling]
+== Coupled physics
+
+When a study solves several physics that depend on each other (Joule heating, thermal stress, tertiary current distribution, …), Elmer solves them one after the other and repeats until the coupling converges:
+
+* _Max coupling iterations_: an upper limit, 30 by default;
+* _Coupling tolerance_: the relative change at which the iteration stops;
+* _Coupling damping factor_: under-relaxation between iterations. Lower it (0.5, 0.25) if the iteration oscillates and grows. A loop with gain G > 1 needs a factor below 2/(1 + G).
+
+A coupled stationary run saves its result once, at the end.
+
+[#solver]
+== Solver configurations
+
+menu:Study[Show Default Solver] adds *Solver Configurations* to the study with a *Solver* node per Elmer solver. Without them, Elmer Studio picks the settings itself: direct solvers for small models and iterative ones for large models. Each Solver node can override:
+
+* _Linear solver_: *Automatic*, *Direct* (UMFPACK, MUMPS, banded LAPACK) or *Iterative* (BiCGStab, BiCGStab(l), GCR, CG, GMRES, TFQMR, IDR(s)), with _Preconditioner_ (ILU0–2, ILUT, Jacobi, none), _Relative tolerance_ and _Maximum number of iterations_;
+* _Maximum nonlinear iterations_, _Nonlinear tolerance_, _Damping (relaxation) factor_;
+* _Additional SIF keywords_ for the solver section.
+
+== Computing
+
+* menu:Home[Compute] (kbd:[Ctrl+=]) solves the study that the selected node belongs to, or the first study when the selected node is outside any study. Right-click a study and choose *Compute* to pick one.
+* menu:Study[Stop] cancels the run.
+* menu:Study[Clear All Solutions] deletes the solutions.
+
+During the run:
+
+* *Progress* shows the step, sweep value or time step;
+* *Convergence Plot* shows the nonlinear and coupling convergence of each Elmer solver;
+* *Log* streams ElmerSolver's output;
+* *Messages* reports the solution time, or the error if Elmer stops.
+
+When the study finishes, default plot groups are created for the solved physics (turn off _Generate default plots_ on the Study to skip that).
+
+== Parallel computing
+
+Set _Number of MPI processes_ on the *Study* node to run Elmer on several cores. It needs an MPI-enabled Elmer (`ElmerSolver_mpi` and `mpiexec`). Elmer Studio partitions the mesh with ElmerGrid, runs `mpiexec -n N ElmerSolver_mpi`, and reads the partitioned results back as one solution. Without an MPI-enabled Elmer it warns and runs serially.
+
+== Looking at the Elmer files
+
+* menu:Study[Show Elmer Input File] shows the generated `.sif` for the study.
+* menu:Study[Open Case Folder] opens the folder where the study ran: mesh, `.sif`, Elmer's log and the result files.
+
+See xref:elmer.adoc[Elmer under the hood] for how the files are made and what they contain.

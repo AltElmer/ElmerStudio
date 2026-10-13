@@ -1,0 +1,79 @@
+name: Docs
+
+# Builds the AsciiDoc documentation in docs/ with Antora and publishes it to the gh-pages branch,
+# which GitHub Pages serves at https://altelmer.github.io/ElmerStudio/
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "elmerstudio/**"
+      - "tools/gen_docs_reference.py"
+      - "antora-playbook.yml"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "elmerstudio/**"
+      - "tools/gen_docs_reference.py"
+      - "antora-playbook.yml"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and publish the documentation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Reference pages are generated from the model schema and must be current
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libglu1-mesa libxcursor1 libxft2 libxinerama1 libgl1
+          python -m pip install --upgrade pip
+          pip install numpy gmsh
+          python tools/gen_docs_reference.py
+          if ! git diff --quiet -- docs/modules/reference; then
+            git --no-pager diff --stat -- docs/modules/reference
+            echo "::error::docs/modules/reference is out of date: run 'python tools/gen_docs_reference.py' and commit the result"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Build the site (Antora; warnings fail the build)
+        run: |
+          npm ci
+          npx antora antora-playbook.yml
+          touch build/site/.nojekyll
+
+      - name: Publish to the gh-pages branch
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: build/site
+          force_orphan: true
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_message: "Documentation for ${{ github.sha }}"

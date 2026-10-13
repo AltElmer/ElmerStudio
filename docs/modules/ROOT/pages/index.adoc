@@ -1,0 +1,143 @@
+= Elmer Studio
+:description: A COMSOL-style desktop model builder for the open-source Elmer FEM multiphysics solver.
+:page-role: home
+:page-pagination!:
+
+[.hero]
+--
+[.hero-title]
+Elmer Studio
+
+[.hero-sub]
+Build, solve and post-process multiphysics models with the open-source Elmer FEM solver, entirely from a graphical desktop.
+
+You never write an Elmer `.sif` file, a gmsh script or an ElmerGrid command. Geometry, materials, physics, mesh, studies and results all live in one Model Builder tree, much like COMSOL Multiphysics.
+
+[.buttons]
+xref:installation.adoc[Install,role=btn-primary] xref:quick-start.adoc[Quick start in 15 minutes,role=btn] xref:tutorials:index.adoc[Tutorials,role=btn]
+
+image::screenshots/busbar_5_results.png[Elmer Studio showing the temperature in a busbar after a Joule heating simulation]
+--
+
+== Where to start
+
+[.cards]
+--
+.Install
+****
+Download a ready-to-run package for Windows, macOS or Linux, then add Elmer.
+
+xref:installation.adoc[Installation guide →]
+****
+
+.Your first model
+****
+A copper bar heated at one end: parameters, geometry, material, boundary conditions, mesh, solve, plots. The solver reproduces the hand calculation exactly.
+
+xref:quick-start.adoc[Quick start →]
+****
+
+.Find your way around
+****
+Ribbon, Model Builder, Settings, Graphics and the panes underneath, plus every keyboard shortcut and mouse action.
+
+xref:user-interface.adoc[The desktop →] · xref:keyboard-shortcuts.adoc[Shortcuts →]
+****
+
+.Coming from COMSOL?
+****
+The same concepts under the same names, with a table that maps each COMSOL node to its Elmer Studio equivalent and the Elmer solver behind it.
+
+xref:comsol-users.adoc[Concept map →]
+****
+--
+
+== Tutorials
+
+[.cards]
+--
+.Busbar: Joule heating
+****
+image::screenshots/tutorial_busbar_3_geometry.png[Busbar geometry]
+
+Work planes, fillets, electric currents coupled to heat transfer, and a parametric sweep.
+
+xref:tutorials:busbar.adoc[Open tutorial →]
+****
+
+.Wrench: solid mechanics
+****
+image::screenshots/cantilever_5_results.png[Solid mechanics result]
+
+A total-force load, von Mises stress and a mesh convergence study.
+
+xref:tutorials:wrench.adoc[Open tutorial →]
+****
+
+.Postprocessing
+****
+image::screenshots/tutorial_post_heatsink_7_isosurface_streamlines.png[Isosurfaces and streamlines]
+
+Cut planes, isosurfaces, streamlines, revolution datasets, polar plots and derived values.
+
+xref:tutorials:postprocessing.adoc[Open tutorial →]
+****
+
+.Acoustics
+****
+image::screenshots/tutorial_acoustics_5_radiation_pattern_3d.png[3D radiation pattern]
+
+Radiation into open space, exterior fields, radiation patterns and directivity.
+
+xref:tutorials:acoustics.adoc[Open tutorial →]
+****
+
+.Electrochemistry
+****
+image::screenshots/revolved_1_surface_integration_cd_iloc.png[Disc electrode current density]
+
+Secondary current distribution with electrode kinetics, checked against analytical solutions.
+
+xref:tutorials:electrochemistry.adoc[Open tutorial →]
+****
+
+.Application Library
+****
+image::screenshots/flow_cylinder_5_results.png[Flow past a cylinder]
+
+Nine ready-made models, each solved and plotted in a few seconds.
+
+xref:tutorials:application-library.adoc[Browse →]
+****
+--
+
+== What you can model
+
+[cols="1,3",options="header"]
+|===
+|Area |Physics interfaces
+|Heat transfer |xref:reference:physics-ht.adoc[Heat Transfer in Solids]: conduction, convection by a prescribed or computed velocity, heat sources, convective heat flux, surface-to-ambient radiation.
+|Structural mechanics |xref:reference:physics-solid.adoc[Solid Mechanics]: stationary and eigenfrequency, plane stress and plane strain, rotating frames, total-force loads, spring foundations.
+|AC/DC |xref:reference:physics-es.adoc[Electrostatics], xref:reference:physics-ec.adoc[Electric Currents], xref:reference:physics-mf.adoc[Magnetic Fields] (2D and 2D axisymmetric).
+|Fluid flow |xref:reference:physics-spf.adoc[Laminar Flow], with Stokes flow as an option.
+|Acoustics |xref:reference:physics-acpr.adoc[Pressure Acoustics, Frequency Domain], with spherical-wave radiation and an exterior field calculation.
+|Chemical species and electrochemistry |xref:reference:physics-tds.adoc[Transport of Diluted Species], xref:reference:physics-cd.adoc[Secondary Current Distribution] with Butler–Volmer, Tafel and user-defined kinetics, and tertiary coupling.
+|Mathematics |xref:reference:physics-pde.adoc[Coefficient Form PDE].
+|Multiphysics |xref:reference:multiphysics.adoc[Electromagnetic heating, thermal expansion, nonisothermal flow].
+|===
+
+Every result in the tutorials is checked against a closed-form solution or a published benchmark. See xref:verification.adoc[Verification].
+
+== How it works
+
+Elmer Studio keeps your model as a tree of nodes, saved as a single `.esm` file together with its solutions. When you build or compute, it does the following:
+
+. builds the geometry with the OpenCASCADE kernel of https://gmsh.info[gmsh], numbering domains, boundaries, edges and points by position;
+. meshes it with gmsh and writes a native Elmer mesh;
+. translates materials, physics features and study steps into an Elmer solver input file (`.sif`), choosing the Elmer solver modules and their settings;
+. runs `ElmerSolver`, showing its convergence and log live;
+. reads the results back for plots, datasets, integrals and tables.
+
+The `.sif` is always one click away (menu:Study[Show Elmer Input File]), so you can see exactly what Elmer is asked to do. xref:user-guide:elmer.adoc[Elmer under the hood] explains the translation.
+
+NOTE: Elmer Studio is an independent, GPL-licensed project. It is not affiliated with COMSOL AB or with CSC, the developers of Elmer, and it uses no COMSOL assets. COMSOL terminology is used only so that COMSOL users can find their way.

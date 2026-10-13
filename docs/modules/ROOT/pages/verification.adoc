@@ -1,0 +1,54 @@
+= Verification
+:description: The analytical solutions and benchmarks Elmer Studio is checked against on every change.
+
+Every change to Elmer Studio runs a test suite that builds models through the same code the GUI uses, solves them with real Elmer, and compares the results with closed-form solutions or published benchmarks. The tests run on Linux (with the official Elmer PPA), Windows and macOS on every push (the solver tests need Elmer, so they run on Linux).
+
+== Closed-form solutions
+
+[cols="3,2",options="header"]
+|===
+|Case |Result
+|3D conduction between fixed end temperatures (linear profile) |max error 1.7e-11 K
+|Slab with a uniform heat source, T~max~ = QL²/8k |relative error 9e-16
+|Copper bar of the xref:quick-start.adoc[Quick start], T(L) = T~0~ + q~0~L/k |45 °C exactly
+|Cantilever tip deflection vs Euler–Bernoulli |0.3 % (3D and shear effects)
+|Cantilever first eigenfrequency vs 1.875²/(2π)·√(EI/ρAL⁴) |40.80 vs 40.77 Hz
+|2D parallel-plate capacitor potential |max error 1.6e-13 V
+|Poiseuille channel, centreline velocity vs 1.5·Q/H |0.13 %; mass balance exact
+|1D diffusion, linear profile |4e-14
+|Acoustic duct, p = p~0~ sin k(L−x)/sin kL |3e-8 Pa
+|Rotating annulus vs Lamé's plane-stress solution |hoop stress within 0.7 %, rim displacement within 0.01 %
+|Pulsating sphere: in-mesh pressure and exterior field |0.2 % in the mesh; 1.5 % (axisymmetric) and 2 % (3D) five radii beyond it
+|Spherical scatterer vs the analytic series (ka = 2.3 and 6.4) |within 5 %; SPL at 3 m within 0.8 dB
+|===
+
+== Electrochemistry
+
+[cols="3,2",options="header"]
+|===
+|Case |Result
+|1D cell, every kinetics type, vs i = i~loc~(V − iL/σ) |exact to 1e-9
+|Tabulated i(η) through an Interpolation function |1e-6
+|Polarization sweep (V–I curve) |exact at every voltage
+|Newman's disc electrode, R = 1/(4σa) |about 0.06 %
+|Sinusoidal anode, current modulation a·k·coth(kL) |0.02–0.06 %
+|Tertiary: Nernst diffusion layer, i = σV/(L + Λ + βδ) |1e-8
+|Face currents of a 3D electrode add up to the total current |exact
+|===
+
+== Tutorials
+
+Each tutorial's *Check the results* section is a test as well: the busbar (energy balance, bolt temperatures, sweep trend), the wrench (deflection convergence against beam theory), the postprocessing and acoustics walkthroughs, and the electrochemistry tutorials.
+
+== Run the tests yourself
+
+From a source checkout, with Elmer installed:
+
+[source,bash]
+----
+pip install pytest
+pytest tests -v
+python tests/test_gui_smoke.py      # drives the real main window through nearly every command
+----
+
+Tests that need Elmer are skipped when it isn't found.

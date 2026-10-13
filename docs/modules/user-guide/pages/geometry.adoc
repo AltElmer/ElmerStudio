@@ -1,0 +1,86 @@
+= Geometry
+:description: Building geometry: primitives, work planes, extrusion and revolution, Booleans, transforms, fillets, imported CAD and the geometry sequence.
+
+The geometry is a *sequence* of features under *Geometry 1*, built from top to bottom with the OpenCASCADE kernel of gmsh. Every dimension can be an expression with parameters and units, so a parameter change rebuilds the geometry, including during a parametric sweep.
+
+== Geometry settings
+
+Select *Geometry 1* to set:
+
+* _Length unit_ (m, mm, cm, µm, nm, km, in, ft). Numbers without a unit in geometry features are in this unit. A value with a unit (`+5[mm]+`, or a parameter defined with one) is converted.
+* _Angular unit_ (degrees or radians) for rotation and revolution angles.
+* _Default repair tolerance_.
+
+== Building
+
+[cols="1,3",options="header"]
+|===
+|Command |Effect
+|*Build Selected* (kbd:[F7]) |Builds the sequence up to and including the selected feature. Use it to look at an intermediate step.
+|*Build All* (kbd:[F8], menu:Geometry[Build All]) |Builds the whole sequence and finalizes it.
+|===
+
+The last node, *Form Union*, glues all objects into one geometry with shared boundaries, so that fields are continuous across them. Its _Action_ can also keep the objects separate. The *Messages* pane reports the number of domains, boundaries, edges and points.
+
+Selecting a feature whose input you pick in the Graphics window (a face-parallel work plane, a fillet) shows the geometry built so far, with the entity labels you need. Selecting a feature inside a work plane shows the plane's sketch.
+
+== Primitives
+
+[cols="1,3",options="header"]
+|===
+|Space |Primitives (menu:Geometry[Primitives])
+|3D |Block, Sphere, Cylinder, Cone, Torus, Ellipsoid. Each has a position (corner or centre), an axis and a rotation angle.
+|2D, and inside a work plane |Rectangle, Circle, Ellipse, Polygon, Parametric Curve.
+|===
+
+Polygon:: A list of x and y coordinates. Its _Type_ is *Solid* (a filled region), *Closed curve* or *Open curve*. Two points are enough for an open curve.
+Parametric Curve:: A curve x(s), y(s) for s from a minimum to a maximum, sampled at a number of points, for example a sinusoidal electrode `+x = lam*s+`, `+y = a0*cos(2*pi*s)+`.
+Convert to Solid:: Joins curves (parametric curves, open polygons, lines) that form a closed outline into a solid region.
+
+Circles are made of four arcs with vertices at 0°, 90°, 180° and 270°, as in COMSOL, so their points are numbered the same way.
+
+== Work planes, extrusion and revolution (3D)
+
+A *Work Plane* (menu:Geometry[Work Plane]) holds a 2D sketch in 3D:
+
+* _Plane type_ *Quick*: the xy, yz, zx, yx, zy or xz plane, at an _Offset_ along its normal.
+* _Plane type_ *Face parallel*: the plane of a planar face of the geometry built so far. Select the work plane, then click the face in the Graphics window. The plane's origin is the face centre and its normal points out of the solid. _Offset_ moves it along the normal.
+
+Right-click the work plane to add 2D primitives, Booleans, transforms, *Fillet* and *Chamfer* to its sketch. Then:
+
+* *Extrude* turns the sketch into a solid along the plane normal, by one or more distances (a negative distance goes the other way).
+* *Revolve* rotates it about an axis in the plane by an angle.
+
+Extrude and Revolve pick the last work plane as input by themselves.
+
+== Booleans and partitions
+
+*Union*, *Difference* (objects to add, objects to subtract) and *Intersection*, with _Keep input objects_ and, for Union, _Keep interior boundaries_. New Booleans start with sensible inputs (all objects for Union; the first object minus the others for Difference). Change them with the object lists in the Settings window.
+
+== Transforms
+
+*Move*, *Copy* (move and keep the original), *Rotate*, *Scale*, *Mirror* and *Array*, each with _Input objects_ (and, except for Copy and Array, _Keep input objects_).
+
+== Fillets and chamfers
+
+* *In 2D and in work planes*, menu:Geometry[Fillet] and menu:Geometry[Chamfer] round or cut *vertices* of the sketch. Select the feature, then click the corner points in the Graphics window (the sketch shows the point numbers), and set the radius or distance. Corners must be between two straight edges.
+* *In 3D*, Fillet and Chamfer act on *edges* of a solid.
+
+== Importing CAD
+
+menu:Geometry[Import] reads STEP (`.step`, `.stp`), IGES (`.iges`, `.igs`) and BREP (`.brep`) files, with optional repair. Imported parts take part in Booleans and selections like any other object.
+
+== Box Selections
+
+A *Box Selection* (menu:Geometry[Box Selection]) is a named geometry selection: all domains, boundaries, edges or points inside (or intersecting) a box. Leave a limit blank for no limit. Physics, mesh and results features can use it instead of a list of numbers. It stays right when a parameter change renumbers the geometry. See xref:selections.adoc#box[Selections].
+
+== How entities are numbered
+
+Domains, boundaries, edges and points are numbered by *position*, in the order of their bounding boxes: smallest x first, then y, then z, then the box maxima. COMSOL numbers entities in a similar way, so the numbers in COMSOL instructions usually match. Numbers change only when the geometry changes. Turn on *Show Labels* in the Graphics toolbar to see them.
+
+== Limits
+
+* Fillets and chamfers in sketches work on corners between straight edges.
+* Form Assembly with identity pairs is not available: the geometry is always a union, or separate objects.
+
+Every geometry feature and its settings is listed in xref:reference:geometry.adoc[Reference › Geometry features].

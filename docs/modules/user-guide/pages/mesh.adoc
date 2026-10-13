@@ -1,0 +1,54 @@
+= Mesh
+:description: Physics-controlled and user-controlled meshes, size attributes, mapped meshes with distributions, statistics and quality.
+
+Elmer Studio meshes the geometry with gmsh and writes a native Elmer mesh, including the boundary elements and their parent elements, which Elmer needs for boundary fluxes. menu:Home[Build Mesh] builds it. Compute builds it when needed.
+
+== Physics-controlled mesh
+
+By default *Mesh 1* is *physics-controlled*: pick an _Element size_ from *Extremely fine* to *Extremely coarse* (menu:Home[Element Size] does the same), and Elmer Studio chooses the sizes. Two physics refine it automatically:
+
+* *Laminar Flow* uses a finer, fluid-calibrated size;
+* *Pressure Acoustics* uses at most a fifth of the wavelength (λ/5) at the highest frequency of the study.
+
+== User-controlled mesh
+
+Set _Sequence type_ to *User-controlled mesh*, or add nodes from the Mesh ribbon, to build the mesh from a sequence:
+
+[cols="1,3",options="header"]
+|===
+|Node |Purpose
+|*Size* |Element size on the entire geometry, or on selected domains, boundaries, edges or points. Use a predefined size or *Custom*: _Maximum element size_, _Minimum element size_, _Maximum element growth rate_, _Curvature factor_, _Resolution of narrow regions_.
+|*Free Tetrahedral* |Unstructured tetrahedra (3D).
+|*Free Triangular* |Unstructured triangles (2D).
+|*Free Quad* |Unstructured quadrilaterals (2D).
+|*Mapped* |A structured quadrilateral mesh on four-sided 2D domains.
+|*Distribution* |The number of elements along selected boundaries (edges in 3D), with grading: _Element ratio_ (last element over first), geometric or arithmetic sequence, symmetric, reversed.
+|===
+
+Size settings mean what they mean in COMSOL:
+
+* _Maximum element growth rate_ limits how fast elements grow away from a refined region. Without it, a refined edge sits next to coarse elements, and local quantities such as electrode currents can be off by tens of percent.
+* _Curvature factor_ is the element size relative to the radius of curvature.
+* _Resolution of narrow regions_ is about the number of element layers across a narrow region.
+
+== Element order
+
+The mesh is quadratic or linear according to the physics discretization (_Geometry shape order / element order: Automatic_). You can force linear or quadratic on *Mesh 1*.
+
+== Statistics and quality
+
+* menu:Mesh[Statistics] lists the numbers of elements, boundary elements and nodes, the element order and the minimum and average element quality in the *Table* pane. The *Mesh 1* Settings window shows them too.
+* menu:Mesh[Plot Quality] colours the elements by quality.
+* menu:Mesh[Clear Mesh] removes the mesh.
+
+== Advanced
+
+*Mesh 1* has the gmsh _3D algorithm_ (Delaunay, Frontal, HXT) and _2D algorithm_ (Frontal-Delaunay, Delaunay, Frontal-Delaunay for quads, MeshAdapt), and _Optimize element quality_.
+
+== Tips
+
+* Mesh convergence: make the mesh size a parameter, for example `+hmax = h0/hd+`, and sweep `+hd+`. The xref:tutorials:wrench.adoc[Wrench tutorial] does this.
+* Thin electrolyte gaps and electrode edges: refine with a *Size* node on the electrode boundary and keep a growth rate of about 1.1–1.3.
+* For a curved electrode with a smooth current density, a *Mapped* mesh with a graded *Distribution* is often the most accurate (see xref:tutorials:electrochemistry.adoc[Electrochemistry tutorial]).
+
+All settings are listed in xref:reference:mesh.adoc[Reference › Mesh].

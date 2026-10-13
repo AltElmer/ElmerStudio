@@ -21,7 +21,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 
 
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "docs", "screenshots")
+    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "docs", "modules", "ROOT", "images", "screenshots")
     os.makedirs(out, exist_ok=True)
     app = QApplication(sys.argv[:1])
     from elmerstudio.core import project
@@ -50,6 +50,7 @@ def main():
     def shot(name):
         from PySide6.QtCore import QPoint, QRectF
         from PySide6.QtGui import QImage, QPainter
+        w.settings.refresh()              # show the values this script set, not the ones the window was opened with
         app.processEvents()
         pm = w.grab()
         pl = w.graphics.plotter

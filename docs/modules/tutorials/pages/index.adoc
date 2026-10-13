@@ -1,0 +1,85 @@
+= Tutorials
+:description: Step-by-step models, from a first heat transfer model to electrochemistry, each checked against a known answer.
+:page-pagination!:
+
+Each tutorial builds a complete model in the GUI, click by click, and ends with *Check the results*: the numbers you should see, compared with a closed-form solution, a benchmark or theory. The same models run in the automated test suite, so the numbers hold for the version you're using.
+
+[.cards]
+--
+.Quick start
+****
+image::ROOT:screenshots/qs_8_line_graph.png[Line graph]
+
+Heat conduction in a copper bar: the whole workflow in 15 minutes.
+
+xref:ROOT:quick-start.adoc[Start →]
+****
+
+.Application Library
+****
+image::ROOT:screenshots/flow_cylinder_5_results.png[Flow]
+
+Nine ready-made models to open, solve and take apart.
+
+xref:application-library.adoc[Browse →]
+****
+
+.Busbar: Joule heating
+****
+image::ROOT:screenshots/tutorial_busbar_3_geometry.png[Busbar]
+
+Work planes, fillets, extrusions, electric currents with heat transfer, a parametric sweep and coupling operators.
+
+xref:busbar.adoc[Open →]
+****
+
+.Wrench: solid mechanics
+****
+image::ROOT:screenshots/tutorial_wrench_5_stress_von_mises.png[Wrench]
+
+A total-force load, von Mises stress, a safety plot and a mesh convergence sweep.
+
+xref:wrench.adoc[Open →]
+****
+
+.Postprocessing and visualization
+****
+image::ROOT:screenshots/tutorial_post_pulley_6_annotation_contours_arrows.png[Pulley]
+
+A spinning pulley, a heat sink and a coil: cut points and planes, isosurfaces, streamlines, extrusions, revolutions and polar plots.
+
+xref:postprocessing.adoc[Open →]
+****
+
+.Acoustics
+****
+image::ROOT:screenshots/tutorial_acoustics_4_radiation_pattern_polar.png[Radiation pattern]
+
+A pulsating sphere, a spherical scatterer and a loudspeaker: exterior fields, radiation patterns, directivity.
+
+xref:acoustics.adoc[Open →]
+****
+
+.Electrochemistry
+****
+image::ROOT:screenshots/tutorial_echem_6_disc_potential_current.png[Disc electrode]
+
+Butler–Volmer kinetics, polarization curves, Newman's disc electrode, a tertiary Nernst layer and a wavy anode.
+
+xref:electrochemistry.adoc[Open →]
+****
+
+.Scripting
+****
+Build and solve the same models from Python, headless or inside the GUI.
+
+xref:scripting.adoc[Open →]
+****
+--
+
+== Suggested order
+
+. xref:ROOT:quick-start.adoc[Quick start], for the workflow.
+. xref:busbar.adoc[Busbar], for 3D geometry, multiphysics and sweeps.
+. xref:postprocessing.adoc[Postprocessing], for results.
+. Then the tutorial of your field: xref:wrench.adoc[solid mechanics], xref:acoustics.adoc[acoustics] or xref:electrochemistry.adoc[electrochemistry].

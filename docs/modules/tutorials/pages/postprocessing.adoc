@@ -1,0 +1,320 @@
+= Postprocessing and Visualization
+:description: Evaluate, plot and compare results over a parametric sweep with datasets, derived values, coupling operators and 1D, 2D, 3D and polar plot groups.
+:page-math: true
+:page-pagination:
+
+This tutorial follows the workflow of the COMSOL guide _Essentials of Postprocessing and Visualization_ in Elmer Studio. The guide's own models are COMSOL files, so each walkthrough uses a stand-in model that exercises the same postprocessing steps: a spinning pulley in 2D, a verification against Lamé's solution, the heat sink in 3D, and a 2D axisymmetric coil.
+
+What you will learn:
+
+* run a Parametric Sweep and evaluate maxima, point values and global expressions over all parameter values;
+* define Integration coupling operators and Definitions variables, and use them in result expressions;
+* plot point values, tables, contours with labels, arrows and annotations;
+* show 3D results as wireframes, isosurfaces and streamlines;
+* build new datasets (Cut Point, Cut Plane, Parametric Extrusion 2D, Revolution 2D) and plot on them;
+* draw a polar plot, and integrate 2D axisymmetric results in the revolved geometry.
+
+Every number quoted under *Check the results* comes from the regression tests `tests/test_tutorial_postprocessing.py` and `tests/test_electrochemistry.py`. The screenshots come from the GUI walkthroughs `tools/screenshot_postprocessing.py` and `tools/screenshot_revolved.py`.
+
+TIP: The Results ribbon, Model Builder and Settings window work as in COMSOL. A plot group holds plots, a dataset says what a plot or evaluation is computed on, and a derived value writes its result to a table. See xref:user-guide:results.adoc[Results] for the general concepts.
+
+== Pulley: evaluations over a parametric sweep
+
+A thin aluminum disk with a hub and six openings spins about its center. The centrifugal load is a *Rotating Frame* with angular velocity `+n[rpm]+`, and a Parametric Sweep runs n from 2000 to 8000 rpm. The pulley is not in the Application Libraries; you build it in a few steps.
+
+=== Model
+
+. Click menu:File[New], choose *Model Wizard*, then *2D*. Under *Structural Mechanics* select *Solid Mechanics (solid)*, click *Add*, then *Study*, choose *Stationary* and click *Done*.
+. Click menu:Home[Parameters] and enter the parameters in the table of *Parameters 1*:
++
+[cols="1,1,3",options="header"]
+|===
+|Name |Expression |Description
+|`+n+` |`+4000+` |Rotational speed (rpm)
+|`+R+` |`+60[mm]+` |Pulley radius
+|`+Rh+` |`+10[mm]+` |Hub radius
+|`+Ro+` |`+12[mm]+` |Opening radius
+|`+Rp+` |`+35[mm]+` |Opening pitch radius
+|===
+. Click *Geometry 1* and set _Length unit_ to `+mm+`.
+. Click menu:Geometry[Circle] eight times and set _Radius_ (and _x_, _y_ under _Position_) as follows:
++
+[cols="1,1,2,2",options="header"]
+|===
+|Circle |Radius |x |y
+|1 (disk) |`+R+` |`+0+` |`+0+`
+|2 (hub) |`+Rh+` |`+0+` |`+0+`
+|3 |`+Ro+` |`+Rp*cos(0*pi/3+pi/6)+` |`+Rp*sin(0*pi/3+pi/6)+`
+|4 |`+Ro+` |`+Rp*cos(1*pi/3+pi/6)+` |`+Rp*sin(1*pi/3+pi/6)+`
+|5 |`+Ro+` |`+Rp*cos(2*pi/3+pi/6)+` |`+Rp*sin(2*pi/3+pi/6)+`
+|6 |`+Ro+` |`+Rp*cos(3*pi/3+pi/6)+` |`+Rp*sin(3*pi/3+pi/6)+`
+|7 |`+Ro+` |`+Rp*cos(4*pi/3+pi/6)+` |`+Rp*sin(4*pi/3+pi/6)+`
+|8 |`+Ro+` |`+Rp*cos(5*pi/3+pi/6)+` |`+Rp*sin(5*pi/3+pi/6)+`
+|===
+. Click menu:Geometry[Difference]. Put *Circle 1* in _Objects to add_ and Circles 2 to 8 in _Objects to subtract_. Press kbd:[F8] to build all.
++
+NOTE: Circles are built from four arcs with vertices at 0°, 90°, 180° and 270°, as in COMSOL. The disk therefore has geometry points at (60, 0) mm and (−60, 0) mm, which you use for point evaluations below.
+. Click menu:Home[Add Material], pick *Aluminum* in the Add Material window and add it. The first material goes to all domains.
+. Click *Solid Mechanics (solid)* and set _2D approximation_ to *Plane stress*.
+. Click menu:Physics[Boundaries > Fixed Constraint] and click the four arcs of the hub hole in the Graphics window.
+. Click menu:Physics[Domains > Rotating Frame], click the pulley domain and set _Angular velocity_ to `+n[rpm]+`. The axis is parallel to z through _Axis point_ (0, 0). See xref:reference:physics-solid.adoc[] for the feature settings.
+
+=== Coupling operators and a variable
+
+The change of the diameter along x is the displacement of the far-right point minus that of the far-left point. Two *Integration* coupling operators on single points pick these values.
+
+. Right-click *Definitions* (under *Component 1*) and choose *Integration*. _Operator name_ is filled in as `+intop1+`. Set _Geometric entity level_ to *Point* and click the point at (60, 0) mm.
+. Right-click *Definitions* again and choose *Integration* (`+intop2+`). Set _Geometric entity level_ to *Point* and click the point at (−60, 0) mm.
+. Click menu:Definitions[Variables] and add the row _Name_ `+diam+`, _Expression_ `+intop1(R+u)-intop2(-R+u)+`, _Description_ `+Deformed diameter+`.
+
+TIP: An Integration operator over a single point returns the value at that point, as in COMSOL. See xref:user-guide:definitions.adoc[].
+
+=== Study
+
+. Select *Study 1* and click menu:Study[Parametric Sweep]. _Parameter name_ is already `+n+` (the first parameter). Set _Parameter value list_ to `+range(2000,2000,8000)+` and leave _Parameter unit_ empty.
+. Click menu:Home[Compute] (or press kbd:[Ctrl+=]). The study solves four stationary problems, for n = 2000, 4000, 6000 and 8000 rpm.
+
+Elmer Studio creates the default plot group *Stress (solid)*, which shows the von Mises stress on the deformed shape for the last parameter value.
+
+.Default stress plot at n = 8000 rpm
+image::ROOT:screenshots/tutorial_post_pulley_1_stress.png["Default 2D plot group Stress (solid): von Mises stress in Pa on the pulley with six openings, n = 8000 rpm",role=screenshot]
+
+See xref:user-guide:studies.adoc[] for sweeps and solution selection.
+
+=== Surface Maximum over the sweep
+
+. Right-click *Derived Values* (under *Results*) and choose *Surface Maximum*.
++
+TIP: The Results ribbon button is labeled menu:Results[Volume Maximum]. In a 2D component it creates the same node, named *Surface Maximum 1*, because derived values are named after the space dimension as in COMSOL.
+. Set _Time/parameter selection_ to *All*.
+. In the _Expressions_ table enter `+solid.disp+` with _Unit_ `+mm+`, and `+solid.mises+` with _Unit_ `+MPa+`.
+. Click *Evaluate* at the top of the Settings window.
+
+The Table window lists, for each n, the maximum displacement and the maximum von Mises stress, each with its location.
+
+.Surface Maximum of displacement and von Mises stress for every n
+image::ROOT:screenshots/tutorial_post_pulley_2_surface_maximum.png["Surface Maximum settings and the resulting table with columns n, Displacement magnitude (mm), von Mises stress (MPa) and their locations",role=screenshot]
+
+=== Cut Point and Point Graph
+
+. Click menu:Results[Cut Point]. Under _Point Data_ set _x_ to `+19+` and _y_ to `+54+` (in the geometry unit, mm). _Dataset_ is already the study solution.
+. Select *Results* and click menu:Results[Point Graph]. Elmer Studio adds a 1D Plot Group with a Point Graph in it. Rename the plot group to `+Stress at Cut Point+` (kbd:[F2]).
+. In the Point Graph settings check that _Dataset (Cut Point)_ is *Cut Point 1*, and set _y-axis expression_ to `+solid.mises+`, _Unit_ to `+MPa+` and _Marker_ to *Circle*.
+. Click *Plot*.
+
+The x-axis is the sweep parameter n: the graph shows one value per solution.
+
+.von Mises stress at the Cut Point (19, 54) mm versus n
+image::ROOT:screenshots/tutorial_post_pulley_3_point_graph.png["Point Graph of von Mises stress in MPa at the cut point against n from 2000 to 8000",role=screenshot]
+
+=== Point Evaluation on geometry points
+
+. Click menu:Results[Point Evaluation].
+. Click the point at (60, 0) mm and the point at (−60, 0) mm in the Graphics window. In the screenshot they are points 32 and 1.
+. Set _Time/parameter selection_ to *All*.
+. In the _Expressions_ table enter `+u+` (the x displacement), _Unit_ `+mm+`, _Description_ `+Radial displacement+`.
+. Click *Evaluate*.
+
+The table has one column per point, in increasing point number: the left point moves to −x and the right point to +x, by the same amount.
+
+.Point Evaluation of the x displacement at the far-left and far-right points
+image::ROOT:screenshots/tutorial_post_pulley_4_point_evaluation.png["Point Evaluation settings with points 32 and 1 selected and a table of radial displacement for each n",role=screenshot]
+
+=== Global Evaluation and Table Graph
+
+. Click menu:Results[Global Evaluation]. _Time/parameter selection_ is *All* by default.
+. Enter `+diam-2*R+` in the _Expressions_ table with _Description_ `+Diameter change+` and click *Evaluate*. The result is in metres, because `+R+` and the displacement are evaluated in SI units.
+. Select *Results* and click menu:Results[Table Graph]. Elmer Studio adds a new 1D Plot Group.
+. _Table_ is the newest table, the one of the Global Evaluation (*Table 3* in the screenshot). Keep _x-axis data (column, 1-based; 0 = row index)_ at `+1+` (the n column) and set _Marker_ to *Circle*.
+. Click the parent *1D Plot Group* and set _y-axis label_ to `+Diameter change (m)+`. Click *Plot*.
+
+.Table Graph of the diameter change computed with the coupling operators
+image::ROOT:screenshots/tutorial_post_pulley_5_table_graph.png["Table Graph titled Diameter change, rising from about 2e-7 m at n = 2000 to about 3.4e-6 m at n = 8000",role=screenshot]
+
+=== Contours, arrows and an annotation
+
+. Click menu:Results[2D Plot Group] and rename it `+Stress with annotations+`.
+. In its *Surface 1* set _Expression_ to `+solid.mises+` and _Unit_ to `+MPa+`.
+. Select the plot group and click menu:Results[Contour]. Set _Expression_ `+solid.mises+`, _Unit_ `+MPa+`, _Total levels_ `+8+`, check _Level labels_, set _Coloring_ to *Uniform*, _Color_ to *Black* and clear _Color legend_.
+. Select the plot group and click menu:Results[Arrow Volume]. Set _Vector expression_ to `+solid.u_vec+`, _x grid points_ and _y grid points_ to `+14+`, and _Color_ to *Black*.
+. Select the plot group and click menu:Results[Annotation]. Set _Text_ to `+eval(solid.mises, MPa)+`, _x_ to `+19+` and _y_ to `+54+` (mm). Click *Plot*.
+
+`+eval(expression, unit)+` in an annotation is replaced by the value at the annotation's position. Here it shows 1.947 MPa at the Cut Point for n = 8000 rpm, the last point of the Point Graph.
+
+.Stress with labeled contours, displacement arrows and an evaluated annotation
+image::ROOT:screenshots/tutorial_post_pulley_6_annotation_contours_arrows.png["Pulley stress surface with black labeled contour lines, black arrows pointing outward and the annotation 1.947 MPa",role=screenshot]
+
+=== Check the results
+
+`tests/test_tutorial_postprocessing.py` builds the same model and checks:
+
+* The sweep values are 2000, 4000, 6000 and 8000. The Surface Maximum table has the columns _Displacement magnitude (mm)_, _Location (x, y, z) (m)_, _von Mises stress (MPa)_, _Location (x, y, z) (m)_.
+* The maximum displacement, the maximum von Mises stress and the Point Graph values all scale with n², to a relative tolerance of 1e-6 (linear elasticity with a centrifugal load ρΩ²r).
+* At 8000 rpm the maximum von Mises stress lies between the hoop stress of a plain spinning annulus with the same hub and rim (about 5.7 MPa) and six times that value. The maximum displacement lies between 1e-4 mm and 1e-2 mm. The screenshot shows 6.135 MPa.
+* The Point Evaluation is positive at the far-right point and negative at the far-left point, and the two magnitudes agree within 5 %.
+* `+diam-2*R+` from `+intop1+` and `+intop2+` equals the difference of the two point values (converted to metres) to a relative 1e-9. In the screenshots, at n = 2000: 0.00010472 mm − (−0.000104717 mm) = 2.09437e-7 m.
+* The Table Graph draws one line over n = 2000 to 8000, titled _Table Graph: Diameter change_.
+
+== Rotating annulus: verification against Lamé
+
+A free spinning annulus has a closed-form plane-stress solution, so it checks the Rotating Frame load and the point evaluation.
+
+. Create a *2D* model with *Solid Mechanics (solid)* and a *Stationary* study, as for the pulley. Add the parameter `+n+` = `+10000+`.
+. Set the geometry _Length unit_ to `+mm+`. Add a Circle with _Radius_ `+60+` and _Sector angle_ `+90+`, a Circle with _Radius_ `+10+`, and a Difference that subtracts the small circle from the quarter disk.
+. Add the material *Structural steel*.
+. Set _2D approximation_ to *Plane stress*.
+. Add a *Roller* on the straight edge at x = 0 and another *Roller* on the straight edge at y = 0. Both rims stay free.
+. Add a *Rotating Frame* on the domain with _Angular velocity_ `+n[rpm]+`.
+. Click *Mesh 1* and set _Element size_ to *Extra fine*.
+. Compute, then add a *Point Evaluation* on the points (10, 0) mm and (60, 0) mm with the expressions `+solid.sy+` and `+u+`. On the x-axis σ~yy~ is the hoop stress.
+
+=== Check the results
+
+With ρ = 7850 kg/m³, ν = 0.3, E = 200 GPa, a = 10 mm, b = 60 mm and Ω = 10 000 rpm, Lamé's plane-stress solution gives
+
+* hoop stress at the bore: latexmath:[\sigma_\theta(a) = \frac{3+\nu}{4}\rho\Omega^2\left(b^2 + \frac{1-\nu}{3+\nu}a^2\right)] ≈ 25.7 MPa,
+* hoop stress at the rim: latexmath:[\sigma_\theta(b) = \frac{3+\nu}{4}\rho\Omega^2\left(a^2 + \frac{1-\nu}{3+\nu}b^2\right)] ≈ 6.13 MPa,
+* rim displacement latexmath:[u(b) = b\,\sigma_\theta(b)/E] ≈ 1.84 µm.
+
+`test_rotating_annulus_lame` requires the computed hoop stresses at both rims within 3 % and the rim displacement within 1 %. The README records the measured agreement: hoop stress at the bore within 0.7 %, rim displacement within 0.01 %.
+
+== Heat sink: 3D plots and derived datasets
+
+The heat sink is an aluminum base with six fins (Heat Transfer in Solids, `+ht+`, see xref:reference:physics-ht.adoc[]). A heat flux carrying the total power P0 enters through the bottom face, and every other face loses heat by convection (h = 15 W/(m²·K), 20 °C). A sweep over P0 provides the parameter values for the Parametric Extrusion at the end.
+
+=== Model and study
+
+. Click menu:File[Application Libraries > Heat sink - conduction with convective cooling].
+. Select *Study 1* and click menu:Study[Parametric Sweep]. _Parameter name_ is already `+P0+`. Set _Parameter value list_ to `+range(5,5,20)+` and _Parameter unit_ to `+W+`.
+. Click menu:Home[Compute]. The four solutions are for P0 = 5, 10, 15 and 20 W.
+
+=== Wireframe, isosurfaces and streamlines
+
+. Click menu:Results[3D Plot Group] and rename it `+Isosurfaces and streamlines+`.
+. In *Surface 1* set _Expression_ `+T+`, _Unit_ `+degC+`, check _Wireframe_, set _Coloring_ to *Uniform*, _Color_ to *Gray* and clear _Color legend_.
+. Select the plot group and click menu:Results[Isosurface]. Set _Expression_ `+T+`, _Unit_ `+degC+` and _Total levels_ `+6+`.
+. Select the plot group and click menu:Results[Streamline]. Set _Vector expression_ to `+ht.tflux+`, _Positioning_ to *Start point controlled (selected boundaries)*, _Number of streamlines_ to `+30+` and _Line type_ to *Tube*.
+. Right-click *Streamline 1* and choose *Selection*. Click the bottom face of the base (z = 0), where the heat enters. The streamlines start on the selected boundaries.
+. Click *Plot*.
+
+.Wireframe, temperature isosurfaces and heat-flux streamlines (P0 = 20 W)
+image::ROOT:screenshots/tutorial_post_heatsink_7_isosurface_streamlines.png["Heat sink drawn as a gray wireframe with colored temperature isosurfaces and tube streamlines of the conductive heat flux rising into the fins",role=screenshot]
+
+The plot shows two legends: the streamlines are colored by the heat flux magnitude, the isosurfaces by temperature (110.8 °C to 113.8 °C at 20 W).
+
+=== Cut Plane in a 2D plot group
+
+. Click menu:Results[Cut Plane]. Set _Dataset_ to *Study 1/Solution 1*, _Plane type_ to *Quick*, _Plane_ to *zx-planes* and _Coordinate_ to `+20+` (mm, the middle of the 40 mm depth).
+. Click menu:Results[2D Plot Group], rename it `+Cut plane y = 20 mm+` and set its _Dataset_ to *Cut Plane 1*.
+. In *Surface 1* set _Expression_ `+T+`, _Unit_ `+degC+` and _Color table_ *ThermalLight*.
+. Select the plot group and click menu:Results[Arrow Volume]. Set _Vector expression_ to `+ht.tflux+`, _x grid points_ to `+24+`, _y grid points_ to `+18+` and _Color_ to *Black*. Click *Plot*.
+
+The cut plane is drawn in its in-plane coordinates: x across the fins and z upward.
+
+.Temperature and heat-flux arrows on the cut plane y = 20 mm
+image::ROOT:screenshots/tutorial_post_heatsink_8_cut_plane.png["2D plot of the cut plane: base and six fins colored by temperature with black arrows of the heat flux pointing up the fins",role=screenshot]
+
+=== Parametric Extrusion over the sweep
+
+. Click menu:Results[Parametric Extrusion 2D]. Set _Dataset (cut plane or 2D solution)_ to *Cut Plane 1*. Leave _Parameter values (indices from 1, empty = all)_ empty and _Level scale factor_ at `+1+`.
+. Click menu:Results[3D Plot Group], rename it `+Parametric extrusion over P0+` and set _Dataset_ to *Parametric Extrusion 2D 1*.
+. In *Surface 1* set _Expression_ `+T+`, _Unit_ `+degC+` and _Color table_ *ThermalLight*. Click *Plot*.
+
+The dataset stacks the cut plane of every sweep solution at the height _parameter value × Level scale factor_ (in geometry units) and fills the space in between. Here the third axis is P0 from 5 to 20, so the plot shows how the temperature on the cut plane rises with the dissipated power (42.7 °C to 113.8 °C).
+
+.Cut plane extruded over P0 = 5 to 20 W
+image::ROOT:screenshots/tutorial_post_heatsink_9_parametric_extrusion.png["3D solid made of the fin cross-section extruded along the parameter axis, colored by temperature from 42.7 to 113.8 degC",role=screenshot]
+
+NOTE: Datasets chain: a Cut Plane takes a solution, a Parametric Extrusion takes a Cut Plane, and a Mirror can take either. See xref:reference:datasets.adoc[] for every dataset setting.
+
+=== Check the results
+
+The heat sink walkthrough has no closed form, so the datasets and plots are checked on a 40 × 20 × 10 mm aluminum block with 300 K at x = 0 and 400 K at x = 40 mm, where the temperature is exactly linear in x (`test_cut_plane_mirror_extrusion`, `test_plot_scenes_and_polar`):
+
+* A yz Cut Plane at x = 10 mm reads 325 K everywhere (to 1e-6 K). Its in-plane coordinates run 0 to 20 mm and 0 to 10 mm, and its area integrates to 20 × 10 mm² to 1e-12 m².
+* On an xy cut plane the temperature is 300 K + 2.5 K/mm · x, and the heat flux points toward −x with zero z component.
+* A Mirror in x = 0 doubles the nodes and the volume, and copies the values.
+* A Parametric Extrusion of an xy cut plane over three levels (0, 1, 2) with _Level scale factor_ 5 has twice the cells of the plane, the volume 40 × 20 × 10 mm³ and the mean temperature 350 K (to 1e-6 K).
+* A Mirror of a quick yz Cut Plane at x = 30 mm reads 375 K.
+* Every 3D plot type (Surface with wireframe, Slice by coordinates, Isosurface, filled Contour with labels, Arrow Volume on a 5 × 4 × 3 grid, Streamline, Line, Mesh) draws without error. A Selection subnode restricts a Surface plot to the selected boundary.
+* The annotation `+T = eval(T, degC)+` at x = 20 mm reads `+T = 76.85+` (350 K).
+
+== Coil: Revolution 2D and polar plots
+
+A copper coil around an iron core in air, modeled in 2D axisymmetry (Magnetic Fields, `+mf+`, see xref:reference:physics-mf.adoc[]). Two views turn the r-z solution into something easier to read: a revolved 3D view, and a polar plot of |B| on a circle around the coil.
+
+=== Model and study
+
+. Click menu:File[Application Libraries > Coil with iron core - 2D axisymmetric magnetic fields].
+. Click menu:Home[Compute].
+
+=== Revolution 2D dataset
+
+. Click menu:Results[Revolution 2D]. Set _Dataset_ to *Study 1/Solution 1*. Keep _Start angle_ `+-90+` and _Revolution angle_ `+225+`, and set _Number of layers_ to `+48+`.
+. Click menu:Results[3D Plot Group], rename it `+Revolution 2D+` and set _Dataset_ to *Revolution 2D 1*.
+. In *Surface 1* set _Expression_ `+mf.normB+` and _Unit_ `+mT+`.
+. Right-click *Surface 1* and choose *Selection*. _Geometric entity level_ is *Domain*; click the core and the coil, leaving the air out. Click *Plot*.
+
+.Core and coil revolved through 225°, colored by the flux density
+image::ROOT:screenshots/tutorial_post_coil_10_revolution.png["3D view of the iron core and the copper coil revolved through 225 degrees, colored by magnetic flux density norm in mT up to about 220 mT",role=screenshot]
+
+TIP: For a quick look without a dataset, a 2D Plot Group of an axisymmetric model has the check box _Show 2D axisymmetric revolution (3D)_.
+
+=== Polar plot
+
+. Click menu:Results[Polar Plot Group]. It already contains *Line Graph (Polar) 1*.
+. In *Line Graph (Polar) 1* set _Radius expression_ to `+mf.normB+` and _Unit_ to `+mT+`.
+. Under _Evaluation Circle_ set _Center, x_ and _Center, y_ to `+0+`, _Radius_ to `+40+` (mm), _Start angle_ to `+-90+`, _End angle_ to `+90+` and _Points_ to `+181+`. Click *Plot*.
+
+In the r-z plane, x is r and y is z, so the half circle from −90° to 90° runs from the axis below the coil, around the coil at r = 40 mm, to the axis above it. The polar plot group's _Zero angle_ is *Right (0 deg = +x)* by default.
+
+.Flux density norm on a circle of radius 40 mm around the coil
+image::ROOT:screenshots/tutorial_post_coil_11_polar.png["Polar plot of the magnetic flux density norm in mT on a half circle of radius 40 mm from -90 to 90 degrees",role=screenshot]
+
+=== Check the results
+
+* The Revolution 2D settings (start angle, revolution angle, layers) are read as entered, also when the dataset is chained to a Cut Plane (`test_cut_plane_mirror_extrusion`).
+* A 2D axisymmetric solution shown with _Show 2D axisymmetric revolution (3D)_ becomes a 3D scene that carries the field and sweeps into negative z (`tests/test_revolve.py`).
+* The polar evaluation is checked on the linear-temperature block: on a circle of radius 8 mm around (20, 10) mm in an xy cut plane, the values are 350 K + 20 K · cos θ to 1e-6 K, and the plot is drawn on polar axes with one line (`test_plot_scenes_and_polar`).
+
+== Integrals of 2D axisymmetric models
+
+In a 2D axisymmetric component, *Volume Integration*, *Surface Integration* and *Volume Average* integrate in the revolved geometry, with the weight 2πr. This is COMSOL's _Compute integral in revolved geometry_ and it is on by default. Clear the check box to integrate over the r-z plane instead. See xref:reference:derived-values.adoc[].
+
+The screenshots use a small model: a cylinder of electrolyte (R = 2 mm, H = 5 mm, conductivity 5 S/m, primary current distribution), a disc electrode r < R/2 at z = 0 held at 0.1 V, and the electrolyte potential 0 on the top.
+
+NOTE: In a 2D component the derived values are named after the entity dimension: the boundary integral is *Line Integration* and the domain integral is *Surface Integration*. In the revolved geometry they still return a surface and a volume integral.
+
+. Right-click *Derived Values* and choose *Line Integration*. Click the electrode boundary, enter `+cd.iloc+` in the _Expressions_ table and click *Evaluate*. _Compute integral in revolved geometry_ is checked, so the result is the electrode current in A.
++
+.Electrode current from the local current density, integrated over the revolved electrode
+image::ROOT:screenshots/revolved_1_surface_integration_cd_iloc.png["Line Integration of cd.iloc over the electrode boundary with Compute integral in revolved geometry checked; the table shows 0.00105805 A",role=screenshot]
+. Click menu:Results[Global Evaluation], enter `+cd.es1.Itot+` (the total current of the electrode, from the reaction loads) and click *Evaluate*. Both tables show 0.00105805 A.
++
+.The electrode current reported by the electrode feature
+image::ROOT:screenshots/revolved_2_global_evaluation_itot.png["Global Evaluation of cd.es1.Itot with the same value 0.00105805 A",role=screenshot]
+. Right-click *Derived Values* and choose *Surface Integration*. Leave _Selection_ at *All domains*, enter `+1+` with _Description_ `+Volume+` and click *Evaluate*. The result is the cylinder volume πR²H = 6.28319e-8 m³. The screenshot shows the cylinder through a Revolution 2D dataset (start −90°, 270°).
++
+.Volume of the revolved cylinder
+image::ROOT:screenshots/revolved_3_volume_integration_revolved.png["Surface Integration of 1 over all domains with the revolved option checked; the table shows 6.28319e-08",role=screenshot]
+. Clear _Compute integral in revolved geometry_ and click *Evaluate* again. The result is now the area of the r-z section, R·H = 1e-5 m².
++
+.The same integral over the r-z plane
+image::ROOT:screenshots/revolved_4_volume_integration_unchecked.png["Surface Integration with the revolved option cleared; the table shows 1e-05",role=screenshot]
+
+IMPORTANT: An integral over the r-z plane is not a physical quantity of the 3D object. Keep the check box on unless you want the plane integral on purpose.
+
+=== Check the results
+
+`tests/test_electrochemistry.py` checks, on the same cylinder:
+
+* With the electrode across the whole bottom, the volume is πR²H, the lateral surface 2πRH and the Surface Integration of `+cd.iloc+` over the electrode equals `+cd.es1.Itot+` = πR²σV/H, all to 1e-9. The revolved average of `+cd.iloc+` is σV/H to 1e-9.
+* Unchecked, the volume integral is R·H and the side boundary integral is H, to 1e-9. The revolved mean radius is 2R/3 (within 1 %) and the r-z plane mean radius R/2 (to 1e-9).
+* New Volume Integration, Surface Integration and Volume Average nodes have the option on; the option is shown only for 2D axisymmetric models. The column units are those of the revolved measure: m³ for the volume, A for `+cd.iloc+` over a boundary.
+* With the disc electrode r < R/2 (the screenshot model), the revolved integral of `+cd.iloc+` equals `+cd.es1.Itot+` to 1e-9, and the current lies between π(R/2)²σV/H and πR²σV/H.
+
+== Where to go next
+
+* xref:acoustics.adoc[] uses Grid 3D, Parametric Curve 3D, Radiation Pattern and Directivity plots on an acoustics solution.
+* xref:application-library.adoc[] lists every example model.
+* xref:reference:plots.adoc[] and xref:reference:result-variables.adoc[] list every plot setting and result variable.

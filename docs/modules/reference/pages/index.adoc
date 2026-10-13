@@ -1,0 +1,43 @@
+= Reference
+:description: Every node, setting, default, unit and choice in Elmer Studio, generated from the program itself.
+:page-pagination!:
+
+These pages list every node you can add and every setting of its Settings window: label, symbol, unit, default and choices. They are generated from the same model schema the GUI is built from, by `tools/gen_docs_reference.py`, so they match the version of Elmer Studio they were built with. The build regenerates them and fails if the committed pages are out of date.
+
+[cols="1,3",options="header"]
+|===
+|Page |Contents
+|Physics interfaces |One page per interface: description, space dimensions, studies, dependent variables, default features, the equations, every domain and boundary feature with its settings, and the result variables.
+|xref:multiphysics.adoc[Multiphysics couplings] |Electromagnetic Heating, Thermal Expansion, Nonisothermal Flow.
+|xref:definitions.adoc[Definitions] |Parameters, Analytic and Interpolation functions, Variables, coupling operators.
+|xref:geometry.adoc[Geometry features] |Primitives, work planes, Booleans, transforms, fillets, import, Box Selection, Form Union.
+|xref:materials.adoc[Materials] |Material properties and the material library with its values.
+|xref:mesh.adoc[Mesh] |Mesh, Size, generators and Distribution.
+|xref:studies.adoc[Studies and solvers] |Study steps, Parametric Sweep, Solver Configurations.
+|xref:datasets.adoc[Datasets] |Solution, cut lines, points and planes, grids, extrusions, revolutions, mirrors.
+|xref:derived-values.adoc[Derived values] |Integrations, averages, extrema, point and global evaluations.
+|xref:plots.adoc[Plot groups and plots] |All plot groups, plots and plot attributes.
+|xref:export.adoc[Export] |Image, Data, VTU and Report.
+|xref:result-variables.adoc[Result variables] |Every variable available in result expressions, with units.
+|xref:expressions.adoc[Expressions and units] |Operators, functions, constants and units.
+|===
+
+== Physics interfaces
+
+* xref:physics-ht.adoc[Heat Transfer in Solids (ht)]
+* xref:physics-solid.adoc[Solid Mechanics (solid)]
+* xref:physics-es.adoc[Electrostatics (es)]
+* xref:physics-ec.adoc[Electric Currents (ec)]
+* xref:physics-mf.adoc[Magnetic Fields (mf)]
+* xref:physics-spf.adoc[Laminar Flow (spf)]
+* xref:physics-acpr.adoc[Pressure Acoustics, Frequency Domain (acpr)]
+* xref:physics-tds.adoc[Transport of Diluted Species (tds)]
+* xref:physics-cd.adoc[Secondary Current Distribution (cd)]
+* xref:physics-pde.adoc[Coefficient Form PDE (pde)]
+
+== Reading the tables
+
+* *Unit* is the SI unit of the field. You can always write another unit in brackets, `+5[mm]+`. "length unit" means the geometry's length unit.
+* *Default* is the value a new node starts with.
+* *Choices / type* lists the options of a list, or the kind of input (expression, check box, table, …).
+* Some settings appear only for certain choices of others, for example the Butler–Volmer parameters only for Butler–Volmer kinetics.
