@@ -601,8 +601,15 @@ class SettingsWindow(QWidget):
             for j, (key, _title) in enumerate(cols):
                 if key == "value" and is_params:
                     nm = r.get("name", "")
-                    txt = f"{values[nm]:.6g}" if nm in values else "(error)"
-                    unit = _unit_of(r.get("expr", ""))
+                    raw = _raw_unit_of(r.get("expr", ""))
+                    val = values.get(nm)
+                    if val is not None and raw:
+                        try:                    # values are SI; show them in the unit the expression ends with
+                            val = units.from_si(val, raw)
+                        except Exception:      # noqa: BLE001 - unknown unit: show the SI number alone
+                            raw = ""
+                    txt = f"{val:.6g}" if nm in values else "(error)"
+                    unit = pretty_unit(raw) if raw else ""
                     it = QTableWidgetItem(txt + (f" {unit}" if unit and nm in values else ""))
                     it.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
                     it.setForeground(QColor("#555") if nm in values else QColor("#c0392b"))
@@ -796,6 +803,6 @@ class SettingsWindow(QWidget):
         return t
 
 
-def _unit_of(expr: str) -> str:
+def _raw_unit_of(expr: str) -> str:
     m = re.search(r"\[([^\]]+)\]\s*$", str(expr))
-    return pretty_unit(m.group(1)) if m else ""
+    return m.group(1) if m else ""

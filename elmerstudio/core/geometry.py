@@ -1029,6 +1029,7 @@ class GeometryBuilder:
                 cache[key] = occ.addPoint(p[0], p[1], 0.0)
             return cache[key]
         tags = []
+        centres = []           # arc centres are construction points only: removed below, or they stay as free vertices
         for lp in loops:
             if len(lp) == 1 and lp[0][0] == "circle":
                 c = lp[0][3]
@@ -1041,10 +1042,14 @@ class GeometryBuilder:
                 if kind == "line":
                     cs.append(occ.addLine(pt(a), pt(b)))
                 else:
-                    cs.append(occ.addCircleArc(pt(a), occ.addPoint(c[0], c[1], 0.0), pt(b)))
+                    centres.append(occ.addPoint(c[0], c[1], 0.0))
+                    cs.append(occ.addCircleArc(pt(a), centres[-1], pt(b)))
             tags.append((area(lp), occ.addCurveLoop(cs)))
         tags.sort(key=lambda x: -x[0])
-        return occ.addPlaneSurface([t for _a, t in tags])
+        face = occ.addPlaneSurface([t for _a, t in tags])
+        if centres:
+            occ.remove([(0, t) for t in centres])
+        return face
 
     def _wp_frame(self, wp: Node):
         """(origin, xw, yw, n) of a work plane in global coordinates (computed from the geometry built so far)."""

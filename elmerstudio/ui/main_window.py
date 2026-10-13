@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QDialogButtonBo
                                QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMenu, QMessageBox, QPlainTextEdit,
                                QProgressBar, QPushButton, QStackedWidget, QTabWidget, QVBoxLayout, QWidget)
 
-from .. import APP_NAME, FILE_EXT, __version__
+from .. import APP_NAME, DOCS_URL, FILE_EXT, __version__
 from ..core import builder as B
 from ..core import project, units
 from ..core.elmer import elmer_version, find_elmer, write_case
@@ -178,7 +178,8 @@ class MainWindow(QMainWindow):
         a("compute", "Compute", "compute", self.compute, "Ctrl+=")
         a("stop", "Stop", "stop", self.stop_job)
         a("prefs", "Preferences...", "preferences", self.preferences)
-        a("help", "Help", "help", self.about, "F1")
+        a("help", "Documentation", "help", self.open_docs, "F1")
+        a("about", f"About {APP_NAME}", "app", self.about)
         a("reset_desktop", "Reset\nDesktop", "reset_desktop", self.reset_desktop)
         a("show_sif", "Show Elmer\nInput File", "sif", self.show_sif)
         a("export_case", "Export Elmer\nCase", "export", self.export_case)
@@ -211,6 +212,9 @@ class MainWindow(QMainWindow):
         fm.addAction(self.act["export_case"])
         fm.addSeparator()
         fm.addAction(self.act["prefs"])
+        fm.addSeparator()
+        fm.addAction(self.act["help"])
+        fm.addAction(self.act["about"])
         fm.addSeparator()
         q = fm.addAction(icons.icon("close"), "Exit")
         q.triggered.connect(self.close)
@@ -466,6 +470,8 @@ class MainWindow(QMainWindow):
         self.gstack.addWidget(self.plot1d)
         self.central.addTab(self.gstack, icons.icon("graphics_window"), "Graphics")
         self.conv = ConvergencePlot(self)
+        self.conv.hide()           # becomes a tab of the central widget at the first solve; until then it would sit
+                                   # over the Quick Access Toolbar at the window's top-left corner
         self.setCentralWidget(self.central)
         # bottom panes
         self.messages = MessagesPane(self)
@@ -550,8 +556,10 @@ class MainWindow(QMainWindow):
 
     def _update_geom_actions(self):
         sd = self.sdim() if self.model.component else 3
-        for a in self.geo3d_actions + self.wp_actions + self.fc_actions:
+        for a in self.geo3d_actions + self.wp_actions:
             a.setEnabled(sd == 3)
+        for a in self.fc_actions:                  # 3D: edges of a solid; 2D or inside a work plane: sketch vertices
+            a.setEnabled(sd in (2, 3))
         for a in self.geo2d_actions:
             a.setEnabled(sd == 2)
         self.act["add_comp"].setEnabled(self.model.component is None)
@@ -1414,12 +1422,14 @@ class MainWindow(QMainWindow):
             kinds = nt.child_kinds(node)
             groups = [("Primitives", [x for x in kinds if x in ("geom.block", "geom.sphere", "geom.cylinder", "geom.cone",
                                                                  "geom.torus", "geom.ellipsoid", "geom.rectangle", "geom.circle",
-                                                                 "geom.ellipse", "geom.polygon")]),
+                                                                 "geom.ellipse", "geom.polygon", "geom.paramcurve")]),
                       ("Booleans and Partitions", [x for x in kinds if x in ("geom.union", "geom.difference", "geom.intersection")]),
                       ("Transforms", [x for x in kinds if x in ("geom.move", "geom.rotate", "geom.scale", "geom.mirror",
                                                                  "geom.array", "geom.copy")]),
-                      ("Other", [x for x in kinds if x in ("geom.workplane", "geom.extrude", "geom.revolve", "geom.import",
-                                                            "geom.fillet3d", "geom.chamfer3d")])]
+                      ("Conversions", [x for x in kinds if x in ("geom.fillet3d", "geom.chamfer3d", "geom.fillet2d",
+                                                                  "geom.chamfer2d", "geom.tosolid")])]
+            listed = {x for _t, ks in groups for x in ks}
+            groups.append(("Other", [x for x in kinds if x not in listed]))   # work plane, extrude, import, selections, ...
             for title, ks in groups:
                 if not ks:
                     continue
@@ -1570,7 +1580,10 @@ class MainWindow(QMainWindow):
             return
         cur = self.tree.current()
         parent = comp.child("geometry")
-        if cur is not None and (cur.kind == "geom.workplane" or (cur.parent is not None and cur.parent.kind == "geom.workplane")):
+        in_wp = cur is not None and (cur.kind == "geom.workplane" or (cur.parent is not None and cur.parent.kind == "geom.workplane"))
+        if kind in ("geom.fillet3d", "geom.chamfer3d") and (in_wp or self.sdim() == 2):
+            kind = kind.replace("3d", "2d")       # a planar sketch: fillet/chamfer its vertices (points), as in COMSOL
+        if in_wp:
             wp = cur if cur.kind == "geom.workplane" else cur.parent
             if kind in REGISTRY["geom.workplane"].child_kinds(wp):
                 parent = wp
@@ -2321,9 +2334,19 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, APP_NAME, "ElmerSolver was not found in that folder.")
             self.qs.setValue("save_solutions", cb.isChecked())
 
+    def open_docs(self):
+        """F1: the documentation site (installation, tutorials, user guide, reference)."""
+        if self.no_modal:
+            return
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        if not QDesktopServices.openUrl(QUrl(DOCS_URL)):
+            self.messages.add(f"Documentation: {DOCS_URL}")
+
     def about(self):
         QMessageBox.about(self, f"About {APP_NAME}",
-                          f"<h3>{APP_NAME} {__version__}</h3><p>A model-builder desktop for the open-source "
+                          f"<h3>{APP_NAME} {__version__}</h3><p>Documentation: <a href='{DOCS_URL}'>{DOCS_URL}</a></p>"
+                          "<p>A model-builder desktop for the open-source "
                           f"<b>Elmer</b> finite element solver (CSC - IT Center for Science).</p>"
                           f"<p>Geometry and meshing: gmsh / OpenCASCADE. Graphics: VTK. GUI: Qt.</p>"
                           f"<p>Elmer: {self.inst.solver if self.inst else 'not found'}</p>"

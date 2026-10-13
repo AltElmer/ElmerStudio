@@ -630,7 +630,7 @@ feature("cd.es", "Electrode Surface", "es", "feature_boundary", "boundary", "bc"
                Prop("T", "Temperature:", default="298.15[K]", unit="K", section="Electrode Kinetics", symbol="T",
                     visible=lambda p: p.get("kin", "bv") in ("bv", "linear", "lim")),
                Prop("M", "Molar mass (dissolving metal):", default="55.845[g/mol]", unit="kg/mol", section="Dissolution",
-                    symbol="M", tip="Used by the Electrode Dissolution study and the dissolution-rate variable"),
+                    symbol="M", tip="Used by the dissolution-rate result variable cd.es<n>.vdis = M i / (n F rho)"),
                Prop("nel", "Number of participating electrons:", default="2", unit="1", section="Dissolution", symbol="n"),
                Prop("rhom", "Metal density:", default="7870[kg/m^3]", unit="kg/m^3", section="Dissolution", symbol="ρ_m")],
         description="Electrode reaction at the electrolyte boundary: overpotential eta = phis_ext - Eeq - phil, local current "
