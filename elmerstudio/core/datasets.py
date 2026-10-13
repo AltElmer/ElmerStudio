@@ -234,9 +234,9 @@ class Mirror(_View):
         m = self.base._node_mask(level, ents)
         return None if m is None else np.tile(m, len(self.signs))
 
-    def integrate(self, expr, i, level="domain", entities=None, average=False):
+    def integrate(self, expr, i, level="domain", entities=None, average=False, revolved=False):
         # reflected cells are inside-out (negative measure), and values are copies: integrate the original
-        v = self.base.integrate(expr, i, level, entities, average)
+        v = self.base.integrate(expr, i, level, entities, average, revolved)
         return v if average else v * len(self.signs)
 
 

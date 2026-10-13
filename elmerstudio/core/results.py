@@ -561,9 +561,12 @@ class Solution:
             else:                                   # quadrilateral: two triangles over the corners
                 meas = 0.5 * (np.linalg.norm(np.cross(X[:, 1] - X[:, 0], X[:, 2] - X[:, 0]), axis=1)
                               + np.linalg.norm(np.cross(X[:, 2] - X[:, 0], X[:, 3] - X[:, 0]), axis=1))
-            w = fr[None, :] * meas[:, None]
-            if axi:
-                w = w * np.abs(P[conn, 0])
+            if axi and ct in (3, 21):               # HRZ of the r-weighted mass: positive on the axis too
+                w = _axi_line_hrz(X)
+            else:
+                w = fr[None, :] * meas[:, None]
+                if axi:
+                    w = w * np.abs(P[conn, 0])
             np.add.at(A, (ids[conn] if ids is not None else conn).ravel(), w.ravel())
         if boundaries is None and r_weight:
             self._blump = A
@@ -680,8 +683,13 @@ class Solution:
         return self._bnd
 
     # -- derived values
-    def integrate(self, expr, i, level="domain", entities=None, average=False):
+    def integrate(self, expr, i, level="domain", entities=None, average=False, revolved=False):
+        """Integral (or average) of *expr* over domains or boundaries.
+
+        *revolved*: on a 2D axisymmetric model, integrate in the revolved geometry (weight 2 pi r), as COMSOL's
+        "Compute integral in revolved geometry"; ignored on other models.  Off: the r-z plane measure."""
         vals = self.evaluate(expr, i)
+        rev = bool(revolved) and self.sdim == 2 and bool(self.meta.get("axi"))
         if level == "boundary" and _BFLUX.search(str(expr)):
             # a flux density reconstructed from nodal reaction loads: integrate with the lumped (HRZ) weights that
             # reconstructed it, so integrals over boundary subsets add up to the electrode current exactly (the
@@ -692,30 +700,40 @@ class Solution:
             if W is not None:                      # 3D: j is the consistent projection, so integrate it consistently
                 tot = float(np.sum(W * np.nan_to_num(vals)))
                 return tot / float(W.sum()) if average else tot
-            A = self.boundary_lumped(ents, r_weight=False)
+            A = self.boundary_lumped(ents, r_weight=rev)
             on = (A > 0) & np.isfinite(vals)
             tot = float(np.sum(vals[on] * A[on]))
-            return tot / float(A.sum()) if average else tot
-        return self._integrate_values(vals, level, entities, average)
+            if average:
+                return tot / float(A.sum())
+            return tot * 2 * math.pi if rev else tot
+        return self._integrate_values(vals, level, entities, average, revolved=rev)
 
-    def _integrate_values(self, vals, level="domain", entities=None, average=False):
+    def _integrate_values(self, vals, level="domain", entities=None, average=False, revolved=False):
         g = self.bulk_grid() if level == "domain" else self.boundary_grid()
         idname = "dom" if level == "domain" else "bnd"
         if g.n_cells == 0:
             return float("nan")
         g = g.copy()
         g.points = self.topo.nodes * self.scale
-        g.point_data["f"] = vals
+        if revolved:                                  # 2D axisymmetric, revolved geometry: weight 2 pi r
+            w = 2 * math.pi * np.abs(np.asarray(g.points, float)[:, 0])
+            g.point_data["f"] = vals * w
+            g.point_data["w"] = w
+        else:
+            g.point_data["f"] = vals
         if entities is not None:
             mask = np.isin(g.cell_data[idname], list(entities))
             if not mask.any():
                 return float("nan")
             g = g.extract_cells(np.where(mask)[0])
-        r = g.integrate_data()
+        r = _split_quadratic_edges(g).integrate_data()
         tot = float(r.point_data["f"][0])
-        dim = self.sdim if level == "domain" else self.sdim - 1
-        size_key = {3: "Volume", 2: "Area", 1: "Length"}.get(dim, "Volume")
-        size = float(r.cell_data[size_key][0]) if size_key in r.cell_data else float("nan")
+        if revolved:                                  # the revolved volume / surface area
+            size = float(r.point_data["w"][0])
+        else:
+            dim = self.sdim if level == "domain" else self.sdim - 1
+            size_key = {3: "Volume", 2: "Area", 1: "Length"}.get(dim, "Volume")
+            size = float(r.cell_data[size_key][0]) if size_key in r.cell_data else float("nan")
         if average:
             return tot / size if size else float("nan")
         return tot
@@ -796,6 +814,25 @@ def _probe(g, P):
     return out
 
 
+def _split_quadratic_edges(g):
+    """*g* with each quadratic edge (end, end, mid) split into two linear lines through its mid node.
+
+    VTK 9.7's integrate_data skips 3-node 1D cells ("Odd number of points"), so line integrals on 2D models came
+    out zero; the halves integrate like VTK's own subdivision of quadratic triangles and quads."""
+    cd = getattr(g, "cells_dict", None)
+    if not cd or 21 not in cd:
+        return g
+    import pyvista as pv
+    e = np.asarray(cd[21])
+    cells = {int(ct): np.asarray(c) for ct, c in cd.items() if int(ct) not in (3, 21)}
+    lines = np.vstack([e[:, [0, 2]], e[:, [2, 1]]])
+    cells[3] = np.vstack([np.asarray(cd[3]), lines]) if 3 in cd else lines
+    out = pv.UnstructuredGrid(cells, np.asarray(g.points))
+    for k in g.point_data.keys():
+        out.point_data[k] = np.asarray(g.point_data[k])
+    return out
+
+
 _DOTTED = re.compile(r"\b(ht|solid|es|ec|mf|spf|acpr|tds|pde|cd|tcd)((?:\.\w+)+)")
 
 
@@ -826,6 +863,28 @@ def _hrz_fractions():
 
 
 HRZ = _hrz_fractions()
+
+
+def _axi_line_hrz(X):
+    """Lumped r-weighted measure of 2-node or 3-node (end, end, mid) boundary lines, per cell and node: HRZ
+    lumping of the boundary mass matrix with the axisymmetric weight r, w_k = M_kk / sum_j M_jj * int r dl with
+    M_kk = int N_k^2 r dl.  Equals the HRZ fraction x length x r on lines of constant r; unlike that, it is positive
+    on the axis node, whose reaction load int N_k r dl i is not zero when the flux varies along the line."""
+    g, gw = np.polynomial.legendre.leggauss(4)
+    xi, gw = 0.5 * (g + 1), 0.5 * gw
+    if X.shape[1] == 2:
+        N = np.array([1 - xi, xi])
+        dN = np.array([np.full_like(xi, -1.0), np.ones_like(xi)])
+    else:
+        N = np.array([(1 - xi) * (1 - 2 * xi), xi * (2 * xi - 1), 4 * xi * (1 - xi)])
+        dN = np.array([4 * xi - 3, 4 * xi - 1, 4 - 8 * xi])
+    r = np.abs(X[:, :, 0] @ N)                                          # (cells, Gauss points)
+    jac = np.linalg.norm(np.einsum("ckd,kg->cgd", X, dN), axis=2)
+    rw = r * jac * gw
+    M = rw @ (N ** 2).T                                                 # (cells, nodes)
+    tot = M.sum(axis=1, keepdims=True)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.where(tot > 0, M / np.where(tot > 0, tot, 1.0) * rw.sum(axis=1, keepdims=True), 0.0)
 
 
 def write_solution_meta(folder: str, meta: dict):

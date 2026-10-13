@@ -164,6 +164,8 @@ def test_newman_disc_axisymmetric(elmer):
     I = float(sol.evaluate(f"cd.{an.tag}.Itot", sol.frame_index("last"))[0])
     R_exact = 1 / (4 * sigma * a) - 1 / (2 * math.pi * sigma * Rf)
     assert abs((V / I) / R_exact - 1) < 0.005, (V / I, R_exact)      # measured 0.03 %
+    # the revolved Surface Integration of the (singular) local current density is the electrode current
+    assert abs(sol.integrate("cd.iloc", sol.frame_index("last"), "boundary", disc, revolved=True) / I - 1) < 1e-9
 
 
 def test_wavy_anode_mapped_mesh(elmer):
@@ -348,6 +350,98 @@ def test_face_currents_add_up_in_3d(elmer):
     assert abs(sol.integrate("cd.iloc", i, "boundary", an.selection.entities) / I - 1) < 1e-9
     consistent = sol._integrate_values(sol.evaluate("cd.iloc", i), "boundary", an.selection.entities)
     assert abs(consistent / I - 1) > 1e-3                                # the control: shape-function quadrature
+
+
+def test_revolved_integration_axisymmetric(elmer):
+    """2D axisymmetric cylinder r < R, 0 < z < H: Derived Values integrate in the revolved geometry by default
+    (COMSOL's "Compute integral in revolved geometry"), so the volume is pi R^2 H, the lateral surface 2 pi R H and
+    the Surface Integration of cd.iloc over the electrode (z = 0) is the electrode current cd.es1.Itot.  Unchecked,
+    the integrals are over the r-z plane (the controls)."""
+    from elmerstudio.core.model import node_type
+    from elmerstudio.ui.plots import evaluate_derived
+    Rc, H, sigma, V = 2e-3, 5e-3, 5.0, 0.1
+    m = B.new_model("2Daxi", ["cd"], "stationary")
+    m.create("geom.rectangle", m.component.child("geometry"), index=0, w=str(Rc), h=str(H))
+    geo = build_geometry(m, display=False)
+    cd = m.component.child("physics.cd")
+    cd.props["dist"] = "primary"
+    cd.child("cd.elyte").props.update(sigma_src="user", sigma=str(sigma))
+    bottom = geo.select("boundary", ymax=1e-9)
+    side = geo.select("boundary", xmin=Rc - 1e-9)
+    an = B.add_feature(m, cd, "cd.es", bottom, phis=str(V))
+    B.add_feature(m, cd, "cd.pot", geo.select("boundary", ymin=H - 1e-9), phil0="0")
+    sol = _solve(m, geo, "es_cd_revolved_")[-1]
+    i = sol.frame_index("last")
+    I = float(sol.evaluate(f"cd.{an.tag}.Itot", i)[0])
+    assert abs(I / (math.pi * Rc ** 2 * sigma * V / H) - 1) < 1e-9, I
+    # Solution API: revolved on request
+    assert abs(sol.integrate("1", i, "domain", None, revolved=True) / (math.pi * Rc ** 2 * H) - 1) < 1e-9
+    assert abs(sol.integrate("1", i, "boundary", side, revolved=True) / (2 * math.pi * Rc * H) - 1) < 1e-9
+    assert abs(sol.integrate("cd.iloc", i, "boundary", bottom, revolved=True) / I - 1) < 1e-9
+    assert abs(sol.integrate("cd.iloc", i, "boundary", bottom, average=True, revolved=True) / (sigma * V / H) - 1) < 1e-9
+    # ... and the r-z plane by default (unchanged API behaviour)
+    assert abs(sol.integrate("1", i, "domain", None) / (Rc * H) - 1) < 1e-9
+    assert abs(sol.integrate("1", i, "boundary", side) / H - 1) < 1e-9     # quadratic edges (VTK skipped them)
+    # r-z plane: about i R (cd.iloc is reconstructed from r-weighted loads, so it is exact only in the revolved sense)
+    assert abs(sol.integrate("cd.iloc", i, "boundary", bottom) / (sigma * V / H * Rc) - 1) < 0.1
+    # Derived Values nodes: revolved by default on 2D axisymmetric models, units of the revolved measure
+    derived = m.results.child("results.derived")
+    vi = m.create("eval.volint", derived, exprs=[{"expr": "1", "unit": "", "descr": ""}])
+    si = m.create("eval.surfint", derived, exprs=[{"expr": "cd.iloc", "unit": "", "descr": ""}])
+    av = m.create("eval.avg", derived, exprs=[{"expr": "r", "unit": "", "descr": ""}])
+    assert vi.get("revolved") is True and si.get("revolved") is True and av.get("revolved") is True
+    rev = node_type("eval.volint").props[-1]
+    assert rev.key == "revolved" and rev.visible({"__axi": True}) and not rev.visible({"__sdim": 2})
+    cols, rows = evaluate_derived(vi, m, sol, [i], None)
+    assert cols[-1].endswith("(m³)"), cols
+    assert abs(rows[0][-1] / (math.pi * Rc ** 2 * H) - 1) < 1e-9, rows
+    cols, rows = evaluate_derived(si, m, sol, [i], bottom)
+    assert cols[-1].endswith("(A)"), cols                                # (A/m^2) x m^2, not "A/m²·m²"
+    assert abs(rows[0][-1] / I - 1) < 1e-9, rows
+    _c, rows = evaluate_derived(av, m, sol, [i], None)
+    # revolved mean radius 2R/3 (r-z plane: R/2); r * 2 pi r is interpolated from the nodes, O(h^2): 0.5 % here
+    assert abs(rows[0][-1] / (2 * Rc / 3) - 1) < 1e-2, rows
+    vi.props["revolved"] = av.props["revolved"] = False
+    cols, rows = evaluate_derived(vi, m, sol, [i], None)
+    assert abs(rows[0][-1] / (Rc * H) - 1) < 1e-9, rows
+    _c, rows = evaluate_derived(av, m, sol, [i], None)
+    assert abs(rows[0][-1] / (Rc / 2) - 1) < 1e-9, rows                    # r-z plane mean radius R/2
+
+
+def test_revolved_current_of_a_disc_electrode_on_the_axis(elmer):
+    """Disc electrode r < R/2 at the bottom of a cylinder: the current is not uniform, so the axis node carries a
+    reaction load (int N r i dr is zero only for a uniform flux).  The r-weighted lumped measure must be positive
+    there, or cd.iloc is 0/0 on the axis and the revolved integral misses that load (2e-4 here before)."""
+    Rc, H, sigma, V = 2e-3, 5e-3, 5.0, 0.1
+    m = B.new_model("2Daxi", ["cd"], "stationary")
+    m.create("geom.polygon", m.component.child("geometry"), index=0, xs=f"0 {Rc / 2} {Rc} {Rc} 0", ys=f"0 0 0 {H} {H}")
+    geo = build_geometry(m, display=False)
+    cd = m.component.child("physics.cd")
+    cd.props["dist"] = "primary"
+    cd.child("cd.elyte").props.update(sigma_src="user", sigma=str(sigma))
+    disc = geo.select("boundary", ymax=1e-9, xmax=Rc / 2 * (1 + 1e-6))
+    assert len(disc) == 1 and len(geo.select("boundary", ymax=1e-9)) == 2
+    an = B.add_feature(m, cd, "cd.es", disc, phis=str(V))
+    B.add_feature(m, cd, "cd.pot", geo.select("boundary", ymin=H - 1e-9), phil0="0")
+    sol = _solve(m, geo, "es_cd_disc_axis_")[-1]
+    i = sol.frame_index("last")
+    I = float(sol.evaluate(f"cd.{an.tag}.Itot", i)[0])
+    axis = np.where((np.abs(sol.topo.nodes[:, 0]) < 1e-12) & (np.abs(sol.topo.nodes[:, 1]) < 1e-12))[0]
+    assert np.isfinite(sol.evaluate("cd.iloc", i)[axis]).all()
+    assert abs(sol.integrate("cd.iloc", i, "boundary", disc, revolved=True) / I - 1) < 1e-9
+    # between a column of the disc's radius and an electrode across the whole bottom
+    assert math.pi * (Rc / 2) ** 2 * sigma * V / H < I < math.pi * Rc ** 2 * sigma * V / H, I
+
+
+def test_integral_units_cancel_lengths():
+    """Integration units: a density per length^k times the measure cancels (A/m^2 over a surface is A)."""
+    from elmerstudio.ui.plots import _int_unit
+    cases = [(("A/m^2", 3, "boundary"), "A"), (("A/m^2", 2, "boundary"), "A/m"), (("kg/m^3", 3, "domain"), "kg"),
+             (("W/m^3", 2, "domain"), "W/m"), (("1/m", 3, "domain"), "m^2"), (("1/m^2", 2, "boundary"), "1/m"),
+             (("A/m", 3, "boundary"), "A*m"), (("Pa", 3, "boundary"), "Pa*m^2"), (("", 2, "domain"), "m^2"),
+             (("W/(m*K)", 3, "domain"), "W/(m*K)*m^3"), (("K", 2, "boundary"), "K*m")]
+    for args, want in cases:
+        assert _int_unit(*args) == want, (args, _int_unit(*args), want)
 
 
 def test_uniform_current_density_on_quadratic_triangles(elmer):

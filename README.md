@@ -102,6 +102,7 @@ Added for these: Spherical Wave Radiation (with an optional incident plane wave)
 Added with it:
 - *Parametric Curve*, Polygon as open or closed curve, and *Convert to Solid*;
 - Surface Integration of `cd.iloc` (and `cd.nIl`) uses the lumped weights that turned the reaction loads into a current density, so face-by-face currents of a 3D electrode add up to `cd.es1.Itot` exactly (quadratic shape-function quadrature would drop the corner loads);
+- 2D axisymmetric Volume/Surface Integration and Average integrate in the revolved geometry (weight 2πr, COMSOL's *Compute integral in revolved geometry*, on by default), so the Surface Integration of `cd.iloc` over an electrode is its current `cd.es1.Itot`; unchecked, they integrate over the r-z plane. Line integrals on 2D models (quadratic edges, which VTK 9.7 skipped and returned 0) are fixed;
 - user-defined kinetics may clamp with two-argument `min`/`max` (exported as MATC helper functions; MATC's own are one-argument reductions);
 - nonlinear electrode kinetics are solved by Newton's method with HeatSolve's line search, and a stationary Parametric Sweep starts each step from the previous parameter's solution when the mesh is unchanged (*Reuse solution from previous step: Automatic*, through Elmer restart files);
 - 3D current distribution switches to an iterative solver from about 30 000 degrees of freedom;
@@ -130,7 +131,7 @@ Added with it:
 | Physics-controlled mesh (Extremely fine … Extremely coarse, fluid calibration), user-controlled Size / Free Tetrahedral / Free Triangular / Free Quad / Distribution, statistics, quality plot | yes | gmsh → native Elmer mesh with parent elements |
 | Studies: Stationary, Time Dependent, Eigenfrequency, Frequency Domain (sweeps), Parametric Sweep, Solver Configurations | yes | Steady / Transient (BDF) / Eigen (ARPACK) / Scanning |
 | Results: 3D/2D/1D/polar plot groups; Surface, Volume, Slice, Multislice, Isosurface, Contour, Arrow, Streamline, Mesh, Line, Annotation, Deformation, Selection, Color Expression, Line Graph, Global, Point Graph, Table Graph, polar Line Graph; datasets Solution, Cut Line, Cut Point, Cut Plane, Parametric Extrusion, Revolution 2D, Mirror; color tables; unit conversion | yes | VTU results |
-| Derived values: Volume/Surface Integration, Average, Maximum, Minimum, Point Evaluation, Global (eigenfrequencies, operators, variables) → Tables | yes | — |
+| Derived values: Volume/Surface Integration, Average (2D axisymmetric: in the revolved geometry), Maximum, Minimum, Point Evaluation, Global (eigenfrequencies, operators, variables) → Tables | yes | — |
 | Export: Image, Data (CSV), VTU, HTML Report; Convergence Plot during solve | yes | — |
 | Undo/Redo, rename, duplicate, disable/enable, move, context menus, keyboard shortcuts | yes | — |
 | Model file with solutions (`.mph`) | `.esm` (zip of model JSON + solutions) | — |

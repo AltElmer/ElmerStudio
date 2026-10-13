@@ -1044,13 +1044,16 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities,
         for fi in frames:
             entries.append(([sol.frames[fi].value] if head else [], sol, fi))
         cols = [head] if head else []
+    # 2D axisymmetric: integrate in the revolved geometry (COMSOL's default), so the measure gains a dimension
+    rev = bool(node.get("revolved", True)) and sol.sdim == 2 and bool(sol.meta.get("axi"))
+    idim = sol.sdim + 1 if rev else sol.sdim
     for r in exprs:
         label, si = sol.describe(r["expr"])
         u = r.get("unit") or si
         if kind == "eval.volint":
-            u = _int_unit(si, sol.sdim, "domain")
+            u = _int_unit(si, idim, "domain")
         elif kind == "eval.surfint":
-            u = _int_unit(si, sol.sdim, "boundary")
+            u = _int_unit(si, idim, "boundary")
         name = r.get("descr") or label
         for j in range(npt):
             suffix = f", Point {j + 1}" if npt > 1 else ""
@@ -1066,11 +1069,11 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities,
             vals = []
             try:
                 if kind == "eval.volint":
-                    vals = [s.integrate(e, fi, "domain", ctx_entities)]
+                    vals = [s.integrate(e, fi, "domain", ctx_entities, revolved=rev)]
                 elif kind == "eval.surfint":
-                    vals = [s.integrate(e, fi, "boundary", ctx_entities)]
+                    vals = [s.integrate(e, fi, "boundary", ctx_entities, revolved=rev)]
                 elif kind == "eval.avg":
-                    vals = [s.integrate(e, fi, "domain", ctx_entities, average=True)]
+                    vals = [s.integrate(e, fi, "domain", ctx_entities, average=True, revolved=rev)]
                 elif kind in ("eval.max", "eval.min"):
                     mm = s.maxmin_locations(e, fi, "domain", ctx_entities)
                     key = "max" if kind == "eval.max" else "min"

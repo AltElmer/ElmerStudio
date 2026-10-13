@@ -279,12 +279,17 @@ for kind, title, prefix, icon, level in [
         ("eval.avg", "Volume Average", "av", "average", "domain"),
         ("eval.max", "Volume Maximum", "max", "maxmin", "domain"),
         ("eval.min", "Volume Minimum", "min", "maxmin", "domain")]:
+    # COMSOL: 2D axisymmetric integrals and averages are over the revolved geometry by default (weight 2 pi r)
+    revolved = [Prop("revolved", "Compute integral in revolved geometry", "bool", True,
+                     section="Integration Settings", visible=lambda p: p.get("__axi", False),
+                     tip="2D axisymmetric: integrate over the revolved volume/surface (weight 2*pi*r); "
+                         "off: over the r-z plane")] if kind in ("eval.volint", "eval.surfint", "eval.avg") else []
     register(NodeType(kind, title, prefix, icon, selection=level, selection_all=True, props=[
         Prop("data", "Dataset:", "dataset", "", section="Data"),
         Prop("solnum", "Time/parameter selection:", "choice", "last", choices=[("last", "Last"), ("all", "All")],
              section="Data"),
         Prop("table", "Table:", "string", "", section="Data", readonly=True),
-        _expr_tbl]))
+        _expr_tbl] + revolved))
 register(NodeType("eval.point", "Point Evaluation", "pev", "point_evaluation", selection="point",
                   description="Click geometry points in the Graphics window (or give coordinates).", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
