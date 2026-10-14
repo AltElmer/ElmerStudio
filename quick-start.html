@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Quick start: your first model :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/quick-start.html">
+    <link rel="prev" href="installation.html">
+    <link rel="next" href="user-interface.html">
+    <meta name="description" content="Build, solve and check a 3D heat conduction model in about 15 minutes, entirely in the GUI.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="./_/css/site.css">
+    <link rel="stylesheet" href="./_/css/site-extra.css">
+    <link rel="icon" href="./_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+    <script>
+      window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+                         options: { ignoreHtmlClass: 'nostem|nolatexmath' } };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="./_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="./installation.html">Install</a>
+        <a class="navbar-item" href="./quick-start.html">Quick start</a>
+        <a class="navbar-item" href="./tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="./user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="./reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="installation.html">Installation</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Elmer Studio</a></li>
+    <li>Getting started</li>
+    <li><a href="quick-start.html">Quick start: your first model</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/ROOT/pages/quick-start.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Quick start: your first model</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>In this tutorial you model a copper bar. One end is held at 20 °C, a heat flux of 100 kW/m² enters the other end, and all other faces are insulated. Heat flows along the bar, so the temperature rises linearly from the cold end to the hot end. The answer is easy to check by hand, so you can see that the whole chain works: geometry, material, physics, mesh, Elmer and post-processing.</p>
+</div>
+<div class="ulist">
+<div class="title">What you will learn</div>
+<ul>
+<li>
+<p>Start a model with the Model Wizard.</p>
+</li>
+<li>
+<p>Define parameters with units.</p>
+</li>
+<li>
+<p>Create geometry and pick faces in the Graphics window.</p>
+</li>
+<li>
+<p>Add a material and boundary conditions.</p>
+</li>
+<li>
+<p>Mesh, solve, plot along a line, and evaluate a maximum.</p>
+</li>
+</ul>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Model at a glance</caption>
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Space dimension</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Physics</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat Transfer in Solids (<code>ht</code>)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Study</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stationary</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solve time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">about 1 second (511 nodes)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Expected result</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">maximum temperature 45 °C at the hot end</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="1-create-the-model"><a class="anchor" href="#1-create-the-model"></a>1. Create the model</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Start Elmer Studio. The <strong>New</strong> window opens. (Later, use <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span> or <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>N</kbd></span>.)</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/ui_new.png" alt="New window" width="640">
+</div>
+<div class="title">Figure 1. The New window: Model Wizard, Blank Model or an Application Library example</div>
+</div>
+</li>
+<li>
+<p>Click <strong>Model Wizard</strong>.</p>
+</li>
+<li>
+<p>Under <em>Select Space Dimension</em>, click <strong>3D</strong>.</p>
+</li>
+<li>
+<p>Under <em>Select Physics</em>, expand <strong>Heat Transfer</strong>, select <strong>Heat Transfer in Solids (ht)</strong> and click <strong>Add</strong>. It appears under <em>Added physics interfaces</em>.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/ui_wizard_2_physics.png" alt="Model Wizard" width="640">
+</div>
+<div class="title">Figure 2. Choosing the physics in the Model Wizard</div>
+</div>
+</li>
+<li>
+<p>Click <strong>Study</strong>, select <strong>Stationary</strong> and click <strong>Done</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The Model Builder now holds an empty model with the usual nodes: <strong>Global Definitions</strong>, <strong>Component 1</strong> (with <strong>Geometry 1</strong>, <strong>Materials</strong>, <strong>Heat Transfer in Solids</strong>, <strong>Mesh 1</strong>), <strong>Study 1</strong> and <strong>Results</strong>. The Heat Transfer interface already contains its default features: <strong>Solid 1</strong>, <strong>Initial Values 1</strong> and <strong>Thermal Insulation 1</strong> on all exterior boundaries.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+COMSOL users will recognise every node. <a href="comsol-users.html" class="xref page">Coming from COMSOL</a> lists the few differences.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="2-parameters"><a class="anchor" href="#2-parameters"></a>2. Parameters</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Parameters keep the model easy to change. Values may carry units in square brackets. Elmer Studio converts everything to SI before Elmer sees it.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parameters</b></span>, or select <strong>Global Definitions › Parameters 1</strong> in the Model Builder.</p>
+</li>
+<li>
+<p>Type into the table (click an empty row to add a line):</p>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 33.3333%;">
+<col style="width: 50.0001%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Expression</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>L</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>10[cm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bar length</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>W</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>2[cm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bar width</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>H</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>1[cm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bar height</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>T0</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>20[degC]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Temperature of the cold end</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>q0</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>1e5[W/m^2]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat flux into the hot end</p></td>
+</tr>
+</tbody>
+</table>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The <em>Value</em> column shows each parameter&#8217;s evaluated value.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_1_parameters.png" alt="Parameters table">
+</div>
+<div class="title">Figure 3. Parameters with units</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="3-geometry"><a class="anchor" href="#3-geometry"></a>3. Geometry</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Block</b></span> (in the <em>Primitives</em> group). <strong>Block 1</strong> appears under <strong>Geometry 1</strong>.</p>
+</li>
+<li>
+<p>In the Settings window, under <em>Size and Shape</em>, enter <em>Width</em> <code>L</code>, <em>Depth</em> <code>W</code> and <em>Height</em> <code>H</code>. Leave the position at the origin.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Build All</b></span>, or press <kbd>F8</kbd>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The Graphics window shows the bar, 10 cm long in x. The <strong>Messages</strong> pane reports <code>1 domains, 6 boundaries, 12 edges, 8 points</code>.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_2_block.png" alt="Block geometry">
+</div>
+<div class="title">Figure 4. The bar after Build All</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+<kbd>F7</kbd> (<strong>Build Selected</strong>) builds the geometry up to the selected node, and <kbd>F8</kbd> builds everything. <strong>Form Union</strong> at the end of the sequence is added for you.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="4-material"><a class="anchor" href="#4-material"></a>4. Material</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Material</b></span>. The <strong>Add Material</strong> window opens on the right.</p>
+</li>
+<li>
+<p>Expand <strong>Built-in</strong>, select <strong>Copper</strong> and click <strong>Add to Component</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><strong>Copper</strong> appears under <strong>Materials</strong> and applies to all domains. Its Settings window has a <em>Material Contents</em> table. Each property the physics needs (here thermal conductivity, density and heat capacity) is marked as present. Copper&#8217;s thermal conductivity is <code>400</code> W/(m·K).</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_3_material.png" alt="Material settings">
+</div>
+<div class="title">Figure 5. Copper, with the properties the physics uses</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="5-boundary-conditions"><a class="anchor" href="#5-boundary-conditions"></a>5. Boundary conditions</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>You select boundaries by clicking them in the Graphics window. Hover a face to highlight it in red; click to add it to the selection (blue). Click it again to remove it. See <a href="user-guide/selections.html" class="xref page">Selections</a> for more.</p>
+</div>
+<div class="sect2">
+<h3 id="cold-end-fixed-temperature"><a class="anchor" href="#cold-end-fixed-temperature"></a>Cold end: fixed temperature</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>In the Model Builder, right-click <strong>Heat Transfer in Solids</strong> and choose <span class="menuseq"><b class="menu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Temperature</b></span>. Or use <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Temperature</b></span>.</p>
+</li>
+<li>
+<p>Click the end face at x = 0 (boundary <strong>1</strong>, the small face on the left). Its number appears in the selection list.</p>
+</li>
+<li>
+<p>Set <em>Temperature</em> T<sub>0</sub> to <code>T0</code>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_4_temperature.png" alt="Temperature boundary condition">
+</div>
+<div class="title">Figure 6. Temperature 1 on boundary 1</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="hot-end-heat-flux"><a class="anchor" href="#hot-end-heat-flux"></a>Hot end: heat flux</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Right-click <strong>Heat Transfer in Solids</strong> and choose <span class="menuseq"><b class="menu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Heat Flux</b></span>.</p>
+</li>
+<li>
+<p>Rotate the view (drag with the left mouse button) until you see the far end of the bar, at x = L, and click it (boundary <strong>6</strong>).</p>
+</li>
+<li>
+<p>Keep <em>Flux type</em> <strong>General inward heat flux</strong> and set <em>Heat flux</em> q<sub>0</sub> to <code>q0</code>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_5_heat_flux.png" alt="Heat flux boundary condition">
+</div>
+<div class="title">Figure 7. Heat Flux 1 on boundary 6, the far end of the bar</div>
+</div>
+<div class="paragraph">
+<p>The four long faces keep the default <strong>Thermal Insulation</strong>. A later feature overrides an earlier one on the same boundary, as in COMSOL.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="6-mesh"><a class="anchor" href="#6-mesh"></a>6. Mesh</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Build Mesh</b></span>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The default mesh is <em>physics-controlled</em> with element size <strong>Normal</strong>: 226 quadratic tetrahedra and 511 nodes. The <strong>Messages</strong> pane reports the counts and the minimum element quality. Change the size with <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Element Size</b></span>, or add your own <strong>Size</strong> and <strong>Free Tetrahedral</strong> nodes (see <a href="user-guide/mesh.html" class="xref page">Mesh</a>).</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_6_mesh.png" alt="Mesh">
+</div>
+<div class="title">Figure 8. The mesh</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="7-solve"><a class="anchor" href="#7-solve"></a>7. Solve</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span>, or press <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Elmer Studio writes the Elmer input files, runs ElmerSolver and loads the result. While it runs, the <strong>Progress</strong> pane and the <strong>Convergence Plot</strong> tab show its progress. When it is done, two default plot groups appear under <strong>Results</strong>: <strong>Temperature (ht)</strong> and <strong>Isothermal Contours (ht)</strong>. The temperature plot opens.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_7_temperature.png" alt="Temperature plot">
+</div>
+<div class="title">Figure 9. Temperature: cold (dark) at x = 0, hot (light) at x = L</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="8-plot-the-temperature-along-the-bar"><a class="anchor" href="#8-plot-the-temperature-along-the-bar"></a>8. Plot the temperature along the bar</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Cut Line</b></span> (in the <em>Datasets</em> group). <strong>Cut Line 1</strong> appears under <strong>Results › Datasets</strong>.</p>
+</li>
+<li>
+<p>Enter <em>Point 1</em>: x <code>0</code>, y <code>W/2</code>, z <code>H/2</code>; <em>Point 2</em>: x <code>L</code>, y <code>W/2</code>, z <code>H/2</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">1D Plot Group</b></span>. It comes with a <strong>Line Graph 1</strong>.</p>
+</li>
+<li>
+<p>Select <strong>Line Graph 1</strong>. Set <em>Dataset</em> to <strong>Cut Line 1</strong>, <em>y-axis expression</em> to <code>T</code> and <em>Unit</em> to <strong>°C</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Plot</strong> at the top of the Settings window.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_8_line_graph.png" alt="Line graph of temperature">
+</div>
+<div class="title">Figure 10. Temperature along the centre line of the bar</div>
+</div>
+<div class="paragraph">
+<p>The graph is a straight line from 20 °C to 45 °C.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="9-evaluate-the-maximum"><a class="anchor" href="#9-evaluate-the-maximum"></a>9. Evaluate the maximum</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Volume Maximum</b></span> (in the <em>Evaluation</em> group).</p>
+</li>
+<li>
+<p>In the <em>Expressions</em> table, enter <code>T</code> with unit <code>degC</code>.</p>
+</li>
+<li>
+<p>Click <strong>Evaluate</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The <strong>Table</strong> pane shows the maximum, <code>45</code>, and where it is: at x = 0.1 m, on the hot end.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/qs_9_maximum.png" alt="Volume Maximum in the Table pane">
+</div>
+<div class="title">Figure 11. Volume Maximum: 45 °C at x = L</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="10-check-the-result"><a class="anchor" href="#10-check-the-result"></a>10. Check the result</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>With insulated sides, all the heat q<sub>0</sub> flows along the bar. Fourier&#8217;s law then gives a linear profile:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[T(x) = T_0 + \frac{q_0\,x}{k}, \qquad T(L) = 20\ ^\circ\mathrm{C} + \frac{10^5\ \mathrm{W/m^2}\times 0.1\ \mathrm{m}}{400\ \mathrm{W/(m\,K)}} = 45\ ^\circ\mathrm{C}\]
+</div>
+</div>
+<div class="paragraph">
+<p>Elmer Studio&#8217;s answer is exactly this, because quadratic elements represent a linear field without error.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="11-save"><a class="anchor" href="#11-save"></a>11. Save</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Press <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>S</kbd></span> and choose a file name. The model is saved as an <code>.esm</code> file, together with its solution, so the plots are still there when you open it again.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="where-next"><a class="anchor" href="#where-next"></a>Where next</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Change a parameter</strong> (for example <code>q0</code>), then press <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>. The geometry, mesh and solution update.</p>
+</li>
+<li>
+<p><strong>Sweep it:</strong> right-click <strong>Study 1</strong>, add a <strong>Parametric Sweep</strong> over <code>q0</code>, and plot the maximum temperature against it with a Global Evaluation. The <a href="tutorials/busbar.html" class="xref page">Busbar tutorial</a> shows how.</p>
+</li>
+<li>
+<p><strong>See the Elmer input:</strong> <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Show Elmer Input File</b></span> shows the <code>.sif</code> that was generated.</p>
+</li>
+<li>
+<p>Learn the desktop in <a href="user-interface.html" class="xref page">The desktop</a> and <a href="keyboard-shortcuts.html" class="xref page">Keyboard and mouse</a>, or continue with the <a href="tutorials/index.html" class="xref page">Tutorials</a>.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+<code>tools/screenshot_docs.py</code> in the source repository builds this exact model in the real GUI. It recreates these screenshots and checks the 45 °C.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="installation.html">Installation</a></span>
+  <span class="next"><a href="user-interface.html">The desktop</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="./_/js/site.js" data-ui-root-path="./_"></script>
+<script async src="./_/js/vendor/highlight.js"></script>
+<script src="./_/js/vendor/lunr.js"></script>
+<script src="./_/js/search-ui.js" id="search-ui-script" data-site-root-path="." data-snippet-length="100" data-stylesheet="./_/css/search.css"></script>
+<script async src="./search-index.js"></script>
+  </body>
+</html>

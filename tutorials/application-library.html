@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Application Library examples :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/tutorials/application-library.html">
+    <link rel="prev" href="index.html">
+    <link rel="next" href="busbar.html">
+    <meta name="description" content="Nine ready-to-solve models that come with Elmer Studio, and what each one shows.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>Tutorials</li>
+    <li><a href="application-library.html">Application Library examples</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/tutorials/pages/application-library.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Application Library examples</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Application Libraries are complete models, ready to solve. Open one from the <strong>New</strong> window, from <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Application Libraries</b></span>, or from the command line with <code>elmerstudio --example KEY</code>. Then press <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span> to compute it. Each solves in seconds to a minute.</p>
+</div>
+<div class="paragraph">
+<p>Use them to see how a model of a given kind is set up: open the nodes one by one and read their Settings.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 10%;">
+<col style="width: 10%;">
+<col style="width: 20%;">
+<col style="width: 40%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Example</th>
+<th class="tableblock halign-left valign-top">Key</th>
+<th class="tableblock halign-left valign-top">Space</th>
+<th class="tableblock halign-left valign-top">Physics and study</th>
+<th class="tableblock halign-left valign-top">What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Busbar - Joule heating</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>busbar</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electric Currents + Heat Transfer (Joule Heating), stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Blocks, union and cylindrical holes; voltage and ground on the leg ends; convective cooling; the Electromagnetic Heating coupling.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat sink</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>heat_sink</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat Transfer in Solids, stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A fin <strong>Array</strong>; a heat flux <code>P0/(area)</code> into the base; convective cooling on all other faces.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cantilever beam - eigenfrequencies</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cantilever</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solid Mechanics, eigenfrequency</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A steel beam fixed at one end; six eigenmodes. The first frequency agrees with Euler–Bernoulli theory (40.80 vs 40.77 Hz).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Flow past a cylinder</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>flow_cylinder</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Laminar Flow, stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A channel with a cylinder at Re = 20: inlet velocity, outlet, default walls; a finer mesh.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Parallel-plate capacitor</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>capacitor</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrostatics, stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Two plates in an air box (Difference); potential and ground on the plates; fringing fields.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Coil with iron core</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>coil</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D axisymmetric</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Magnetic Fields, stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Coil and iron core in air; External Current Density; magnetic flux density in r-z.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sphere quenching</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sphere</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D axisymmetric</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat Transfer in Solids, time dependent</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A half-disc sector revolved into a steel sphere at 600 °C, cooled by convection for 300 s.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Loudspeaker radiation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>loudspeaker</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Pressure Acoustics, frequency domain</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A piston on a closed box in a sphere of air; Spherical Wave Radiation; Exterior Field Calculation; radiation patterns.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Spherical scatterer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>scatterer</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D axisymmetric</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Pressure Acoustics, frequency domain</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A rigid sphere in an incident plane wave; the scattered field against the analytic series.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="gallery"><a class="anchor" href="#gallery"></a>Gallery</h2>
+<div class="sectionbody">
+<div class="openblock gallery">
+<div class="content">
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/busbar_6_results2.png" alt="Busbar temperature">
+</div>
+<div class="title">Figure 1. Busbar: temperature</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/cantilever_5_results.png" alt="Cantilever eigenmode">
+</div>
+<div class="title">Figure 2. Cantilever: an eigenmode</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/flow_cylinder_5_results.png" alt="Flow velocity">
+</div>
+<div class="title">Figure 3. Flow past a cylinder: velocity</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/capacitor_5_results.png" alt="Capacitor potential">
+</div>
+<div class="title">Figure 4. Capacitor: electric potential</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/sphere_5_results.png" alt="Sphere temperature">
+</div>
+<div class="title">Figure 5. Sphere quenching: temperature</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_heatsink_7_isosurface_streamlines.png" alt="Heat sink">
+</div>
+<div class="title">Figure 6. Heat sink: isosurfaces and streamlines</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_coil_10_revolution.png" alt="Coil">
+</div>
+<div class="title">Figure 7. Coil: revolved flux density</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_1_isosurfaces.png" alt="Loudspeaker">
+</div>
+<div class="title">Figure 8. Loudspeaker: pressure isosurfaces</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_7_scatterer_spl_revolution.png" alt="Scatterer">
+</div>
+<div class="title">Figure 9. Scatterer: sound pressure level</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="a-walk-through-one-example"><a class="anchor" href="#a-walk-through-one-example"></a>A walk through one example</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The busbar, stage by stage, as the Graphics window shows it when you select each node:</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/busbar_1_geometry.png" alt="Busbar geometry">
+</div>
+<div class="title">Figure 10. Geometry</div>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/busbar_2_physics_selection.png" alt="Busbar boundary selection">
+</div>
+<div class="title">Figure 11. Electric Potential 1 with its boundary selected</div>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/busbar_3_material.png" alt="Busbar material">
+</div>
+<div class="title">Figure 12. Copper and its Material Contents</div>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/busbar_4_mesh.png" alt="Busbar mesh">
+</div>
+<div class="title">Figure 13. The mesh</div>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/busbar_5_results.png" alt="Busbar electric potential">
+</div>
+<div class="title">Figure 14. After Compute: the first default plot group, the electric potential as a multislice</div>
+</div>
+<div class="paragraph">
+<p>The <a href="busbar.html" class="xref page">Busbar tutorial</a> builds the full COMSOL tutorial geometry, with work planes and fillets, step by step.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="index.html">Overview</a></span>
+  <span class="next"><a href="busbar.html">Busbar: Joule heating</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

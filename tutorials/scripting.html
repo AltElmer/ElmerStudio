@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Scripting a model in Python :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/tutorials/scripting.html">
+    <link rel="prev" href="deforming-electrodes.html">
+    <link rel="next" href="../user-guide/index.html">
+    <meta name="description" content="Build, solve and evaluate models from Python, headless or inside the running GUI.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>Tutorials</li>
+    <li><a href="scripting.html">Scripting a model in Python</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/tutorials/pages/scripting.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Scripting a model in Python</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>The GUI is built on a Python model layer. You can use that layer yourself: to generate many variants of a model, to run studies in batch, or to automate a step in the GUI. This page rebuilds the <a href="../quick-start.html" class="xref page">Quick start</a> bar in a script.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="headless-build-solve-evaluate"><a class="anchor" href="#headless-build-solve-evaluate"></a>Headless: build, solve, evaluate</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Run this with the Python environment Elmer Studio uses (from source: <code>.venv</code>; with the wheel, the environment you installed it into):</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">import tempfile
+
+from elmerstudio.core import builder as B
+from elmerstudio.core.elmer import find_elmer
+from elmerstudio.core.geometry import build_geometry
+from elmerstudio.core.results import Solution
+from elmerstudio.core.study_runner import StudyRunner
+
+# 1. a 3D model with Heat Transfer in Solids and a Stationary study (what the Model Wizard does)
+m = B.new_model("3D", ["ht"], "stationary")
+m.global_defs.child("params").props["table"] = [
+    {"name": "L", "expr": "10[cm]", "descr": "Bar length"},
+    {"name": "W", "expr": "2[cm]", "descr": "Bar width"},
+    {"name": "H", "expr": "1[cm]", "descr": "Bar height"},
+    {"name": "T0", "expr": "20[degC]", "descr": "Cold end"},
+    {"name": "q0", "expr": "1e5[W/m^2]", "descr": "Heat flux into the hot end"},
+]
+
+# 2. geometry: one block
+geom = m.component.child("geometry")
+m.create("geom.block", geom, index=0, w="L", d="W", h="H")
+geo = build_geometry(m, display=False)
+
+# 3. material
+B.add_material(m, "Copper", all_domains=True)
+
+# 4. boundary conditions, selected by position
+ht = m.component.child("physics.ht")
+B.add_feature(m, ht, "ht.temperature", geo.select("boundary", xmax=0), T0="T0")
+B.add_feature(m, ht, "ht.heatflux", geo.select("boundary", xmin=0.1), q0="q0")
+
+# 5. mesh and solve (the default physics-controlled mesh is built on the way)
+work = tempfile.mkdtemp(prefix="bar_")
+folders = StudyRunner(m, m.studies()[0], work, find_elmer()).run()
+
+# 6. results
+sol = Solution(folders[-1])
+T = sol.evaluate("T", sol.frame_index("last"))
+print(f"maximum temperature: {T.max() - 273.15:.4f} degC")   # 45.0000</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>It prints <code>maximum temperature: 45.0000 degC</code>, the same as the GUI.</p>
+</div>
+<div class="paragraph">
+<p>How the pieces map to the GUI:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Script</th>
+<th class="tableblock halign-left valign-top">GUI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>B.new_model(sdim, physics, study)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Model Wizard. <code>sdim</code> is <code>"3D"</code>, <code>"2D"</code> or <code>"2Daxi"</code>. Physics are tags such as <code>"ht"</code>, <code>"solid"</code>, <code>"ec"</code>, <code>"cd"</code>, <code>"tds"</code>, or <code>"@jh"</code> for Joule Heating. The study is <code>"stationary"</code>, <code>"time"</code>, <code>"eigen"</code> or <code>"freq"</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>m.create(kind, parent, **settings)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Adding a node from the ribbon or a context menu. The kinds and setting keys are the node types of the <a href="../reference/index.html" class="xref page">Reference</a>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>build_geometry(m)</code> and <code>geo.select(level, xmin=..., ...)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Build All, and clicking entities. <code>select</code> finds entities by bounding box, in the geometry length unit.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>B.add_material(m, name, ...)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add Material from the library.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>B.add_feature(m, physics, kind, entities, **settings)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Adding a physics feature and selecting its entities.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>StudyRunner(...).run()</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compute. It returns one case folder per run (one per sweep value).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Solution(folder).evaluate(expr, frame)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Any result expression, as a NumPy array at the mesh nodes.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Settings are the same strings you type in the GUI, units and all. To find a node kind and its keys, open the node in the GUI and look it up in the reference, or read <code>elmerstudio/core/nodes.py</code>, <code>physics.py</code> and <code>geometry.py</code>.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+To keep the model with its solution, add <code>from elmerstudio.core import project</code> and <code>project.save(m, "bar.esm", work)</code>, then open <code>bar.esm</code> in the GUI. The tests in <code>tests/</code> (for example <code>tests/test_tutorial_busbar.py</code>) are complete scripted versions of the tutorials.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="inside-the-gui-run-python-script"><a class="anchor" href="#inside-the-gui-run-python-script"></a>Inside the GUI: Run Python Script</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><span class="menuseq"><b class="menu">Developer</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Run Python Script</b></span> runs a <code>.py</code> file inside the running Elmer Studio, on the open model. The script sees these names:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>model</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The open model (the same object as <code>m</code> above)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>B</code> (or <code>builder</code>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The builder functions</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>app</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The main window, with the GUI&#8217;s own commands: <code>app.build_geometry()</code>, <code>app.build_mesh()</code>, <code>app.compute()</code>, <code>app.plot(node)</code>, <code>app.add_plot_group("pg1d")</code>, …</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>units</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Unit and expression helpers</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>After the script the Model Builder refreshes, and a script error is shown in <strong>Messages</strong> with the traceback in <strong>Log</strong>. A script run can be undone with <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>.</p>
+</div>
+<div class="paragraph">
+<p>For example, this script adds a parametric sweep over the heat flux to the Quick Start model and solves it:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">st = model.studies()[0]
+model.create("study.sweep", st, index=0, pname="q0", pvalues="range(2e4,2e4,1e5)", punit="W/m^2")
+app.tree.refresh()
+app.compute(st)</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Then add a <strong>Global Evaluation</strong> of <code>maxop1(T)</code> (with a Maximum coupling operator on all domains) to see the maximum temperature rise linearly with q0.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a></span>
+  <span class="next"><a href="../user-guide/index.html">The modeling workflow</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

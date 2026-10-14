@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Electrochemistry: current distribution :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-guide/electrochemistry.html">
+    <link rel="prev" href="physics.html">
+    <link rel="next" href="mesh.html">
+    <meta name="description" content="Primary, secondary and tertiary current distribution with the Secondary Current Distribution interface and Transport of Diluted Species.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+    <script>
+      window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+                         options: { ignoreHtmlClass: 'nostem|nolatexmath' } };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>User guide</li>
+    <li><a href="electrochemistry.html">Electrochemistry</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/user-guide/pages/electrochemistry.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Electrochemistry: current distribution</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>The <strong>Secondary Current Distribution</strong> interface (name <code>cd</code>) computes the electrolyte potential and the ionic current in an electrolyte, with electrode kinetics on its boundaries.
+It covers primary current distribution (electrodes at equilibrium, ohmic losses only) and secondary current distribution (activation overpotential from a kinetics expression).
+Coupled with <strong>Transport of Diluted Species</strong> (<code>tds</code>), the kinetics can depend on a concentration, which gives a tertiary current distribution.</p>
+</div>
+<div class="paragraph">
+<p>The interface follows the layout of COMSOL&#8217;s Electrochemistry Module, so feature names, settings and result names will look familiar.
+Elmer Studio is an independent project and is not affiliated with COMSOL; underneath, every model runs as an Elmer case.</p>
+</div>
+<div class="paragraph">
+<p>For worked examples with checked numbers, see <a href="../tutorials/electrochemistry.html" class="xref page">Electrochemistry: current distribution</a>.
+Every setting is listed in <a href="../reference/physics-cd.html" class="xref page">Secondary Current Distribution (cd)</a> and <a href="../reference/physics-tds.html" class="xref page">Transport of Diluted Species (tds)</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="the-equations"><a class="anchor" href="#the-equations"></a>The equations</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The interface solves charge conservation in the electrolyte for the electrolyte potential \(\phi_l\):</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[\nabla\cdot\mathbf{i}_l = Q_l,\qquad \mathbf{i}_l = -\sigma_l\nabla\phi_l\]
+</div>
+</div>
+<div class="paragraph">
+<p>On an <strong>Electrode Surface</strong> the local current density \(i_{loc}\) enters the electrolyte.
+It is a function of the overpotential:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[-\mathbf{n}\cdot\mathbf{i}_l = i_{loc}(\eta),\qquad \eta = \phi_{s,ext} - E_{eq} - \phi_l\]
+</div>
+</div>
+<div class="paragraph">
+<p>Here \(\phi_{s,ext}\) is the electric potential of the electrode and \(E_{eq}\) the equilibrium potential.
+Anodic current is positive: an anode pushes current into the electrolyte.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="adding-the-interface"><a class="anchor" href="#adding-the-interface"></a>Adding the interface</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Choose <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>N</kbd></span>) and click <strong>Model Wizard</strong>.</p>
+</li>
+<li>
+<p>Pick the space dimension: <strong>3D</strong>, <strong>2D</strong> or <strong>2D Axisymmetric</strong>.</p>
+</li>
+<li>
+<p>Under <strong>Electrochemistry &gt; Primary and Secondary Current Distribution</strong>, select <strong>Secondary Current Distribution</strong> and click <strong>Add</strong>.
+For a tertiary model, also add <strong>Chemical Species Transport &gt; Transport of Diluted Species</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Study</strong>, choose <strong>Stationary</strong> and click <strong>Done</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>To add the interface to an existing model, use <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Physics</b></span>.</p>
+</div>
+<div class="paragraph">
+<p>The interface starts with three default features: <strong>Electrolyte 1</strong>, <strong>Initial Values 1</strong> and <strong>Insulation 1</strong>.
+Add the others from <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Domains</b></span> and <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Boundaries</b></span>, or right-click <strong>Secondary Current Distribution</strong> and choose <strong>Domains</strong> or <strong>Boundaries</strong>.</p>
+</div>
+<div class="sect2">
+<h3 id="interface-settings"><a class="anchor" href="#interface-settings"></a>Interface settings</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Setting</th>
+<th class="tableblock halign-left valign-top">Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Current distribution type</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Primary</code> makes every Electrode Surface an equilibrium electrode, whatever its kinetics setting says. <code>Secondary</code> (default) uses each electrode&#8217;s kinetics.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Element order</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Quadratic</code> (default) or <code>Linear</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Elmer solver</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Automatic</code> (default). See <a href="#elmer-solvers">Which Elmer solver runs</a>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Maximum Newton iterations (kinetics)</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Iteration limit for nonlinear kinetics (default <code>200</code>).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Newton damping factor</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fixed damping of every Newton step (default <code>1</code>).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Line search (backtrack steps that increase the residual)</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">On by default. See <a href="#nonlinear">Solving nonlinear kinetics</a>.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+With <em>Current distribution type</em> set to <code>Primary</code>, the kinetics settings of each Electrode Surface stay visible but are ignored.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="electrolyte-current-source-and-initial-values"><a class="anchor" href="#electrolyte-current-source-and-initial-values"></a>Electrolyte, current source and initial values</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1"><strong>Electrolyte</strong></dt>
+<dd>
+<p>Sets the conductivity \(\sigma_l\).
+<em>Electrical conductivity</em> is taken from the material (property <em>Electrical conductivity</em>) or set to <code>User defined</code> with any expression, for example <code>20[S/m]</code> or a parameter.</p>
+</dd>
+<dt class="hdlist1"><strong>Current Source</strong></dt>
+<dd>
+<p>A volumetric current source \(Q_l\) in <code>A/m^3</code>.</p>
+</dd>
+<dt class="hdlist1"><strong>Initial Values</strong></dt>
+<dd>
+<p>The starting electrolyte potential \(\phi_l\).
+For nonlinear kinetics a reasonable start helps; see also <a href="#sweep">Polarization curves and continuation</a>.</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="electrode-surface"><a class="anchor" href="#electrode-surface"></a>Electrode Surface</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Add it with <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electrode Surface</b></span> and select the electrode boundaries.
+Each Electrode Surface has a name, <code>es1</code>, <code>es2</code>, and so on, shown in the <em>Name</em> field of its Settings.
+That name appears in the result variables, for example <code>cd.es1.Itot</code>.</p>
+</div>
+<div class="sect2">
+<h3 id="potentials"><a class="anchor" href="#potentials"></a>Potentials</h3>
+<div class="dlist">
+<dl>
+<dt class="hdlist1"><em>Electric potential (of the electrode)</em> (\(\phi_{s,ext}\))</dt>
+<dd>
+<p>The potential of the metal.
+Use a parameter here, for example <code>Vapp</code>, and sweep it to get a polarization curve.</p>
+</dd>
+<dt class="hdlist1"><em>Equilibrium potential</em> (\(E_{eq}\))</dt>
+<dd>
+<p>Any expression.
+In a tertiary model it may depend on the concentration <code>c</code>.</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="sect2">
+<h3 id="kinetics"><a class="anchor" href="#kinetics"></a>Kinetics</h3>
+<div class="paragraph">
+<p>Choose the law in <em>Kinetics expression type</em>.
+In the formulas below \(f = F/(RT)\), with the <em>Temperature</em> setting \(T\) (default <code>298.15[K]</code>).</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 42.8571%;">
+<col style="width: 28.5715%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Kinetics expression type</th>
+<th class="tableblock halign-left valign-top">Local current density</th>
+<th class="tableblock halign-left valign-top">Settings used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Primary condition (thermodynamic equilibrium)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No kinetics: the electrolyte potential is fixed to \(\phi_l = \phi_{s,ext} - E_{eq}\).</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">-</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Butler-Volmer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\(i_0\left(e^{\alpha_a f\eta} - e^{-\alpha_c f\eta}\right)\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Exchange current density</em>, <em>Anodic transfer coefficient</em>, <em>Cathodic transfer coefficient</em>, <em>Temperature</em></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Linearized Butler-Volmer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\(i_0(\alpha_a+\alpha_c) f\eta\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">as Butler-Volmer</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Anodic Tafel equation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\(i_0\,10^{\eta/A_a}\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Exchange current density</em>, <em>Anodic Tafel slope</em></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cathodic Tafel equation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\(-i_0\,10^{-\eta/A_c}\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Exchange current density</em>, <em>Cathodic Tafel slope</em></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Butler-Volmer with limiting current</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">\(\dfrac{i_a}{1+i_a/i_{lim}} - \dfrac{i_c}{1+i_c/i_{lim}}\), with \(i_a = i_0 e^{\alpha_a f\eta}\), \(i_c = i_0 e^{-\alpha_c f\eta}\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">as Butler-Volmer, plus <em>Limiting current density</em></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">User defined i(eta)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Any expression in <code>eta</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Local current density i(eta)</em></p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+The sign convention is anodic positive.
+The cathodic Tafel law returns a negative current density, which leaves the electrolyte.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="user-defined-kinetics"><a class="anchor" href="#user-defined-kinetics"></a>User-defined kinetics</h3>
+<div class="paragraph">
+<p>In <em>Local current density i(eta)</em>, write <code>eta</code> for the overpotential (in volts).
+The expression may use parameters, functions and the built-in constants <code>F_const</code> and <code>R_const</code>.
+Only the whole word <code>eta</code> is replaced; names such as <code>beta</code> or <code>theta</code> stay as they are.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Tabulated polarization data</dt>
+<dd>
+<p>Create an Interpolation function with <span class="menuseq"><b class="menu">Definitions</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Interpolation</b></span>, give it a <em>Function name</em>, for example <code>pol</code>, and enter the (η, i) pairs in its table.
+Then set <em>Local current density i(eta)</em> to <code>pol(eta)</code>.
+The function is piecewise linear between the points.</p>
+</dd>
+<dt class="hdlist1">Clamped laws</dt>
+<dd>
+<p>Two-argument <code>min(a, b)</code> and <code>max(a, b)</code> work and may be nested, for example
+<code>min(max(j0*exp(min(eta/b,30))/(1+j0*exp(min(eta/b,30))/jl),0),20*jl)</code>.
+Elmer&#8217;s own MATC <code>min</code>/<code>max</code> take one argument, so Elmer Studio exports these as small helper functions.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>The Newton slope of a user-defined law is a central difference with a step of 0.1 mV; its absolute value is used, so the Robin coefficient stays positive.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="dissolution"><a class="anchor" href="#dissolution"></a>Dissolution</h3>
+<div class="paragraph">
+<p><em>Molar mass (dissolving metal)</em>, <em>Number of participating electrons</em> and <em>Metal density</em> define the dissolution (recession) velocity <code>cd.es1.vdis</code>:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[v_{dis} = \frac{M\, i_{loc}}{n F \rho_m}\]
+</div>
+</div>
+<div class="paragraph">
+<p>It uses the conservative local current density <code>cd.iloc</code> (see <a href="#current">How the electrode current is computed</a>).</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="other-boundary-conditions"><a class="anchor" href="#other-boundary-conditions"></a>Other boundary conditions</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1"><strong>Electrolyte Potential</strong></dt>
+<dd>
+<p>Fixes \(\phi_l\) on a boundary, for example a reference or counter electrode at <code>0[V]</code>.</p>
+</dd>
+<dt class="hdlist1"><strong>Electrolyte Current Density</strong></dt>
+<dd>
+<p>Prescribes the inward normal current density \(i_n\).</p>
+</dd>
+<dt class="hdlist1"><strong>Insulation</strong></dt>
+<dd>
+<p>No current. This is the default on all exterior boundaries not used by another feature.</p>
+</dd>
+<dt class="hdlist1"><strong>Symmetry</strong></dt>
+<dd>
+<p>No current through a symmetry plane.</p>
+</dd>
+</dl>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<div class="paragraph">
+<p>The interface models the electrolyte only.
+There is no electrode (solid-phase) domain, no total-current condition and no double-layer capacitance.
+Set the electrode potential directly with <em>Electric potential (of the electrode)</em>; to reach a target current, sweep it.</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="results"><a class="anchor" href="#results"></a>Results</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Result variables keep COMSOL&#8217;s names:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 57.1428%;">
+<col style="width: 14.2858%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+<th class="tableblock halign-left valign-top">Unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.phil</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrolyte potential</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>V</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.Il</code>, <code>cd.Ilx</code>, <code>cd.Ily</code>, <code>cd.Ilz</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrolyte current density vector and components</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>A/m^2</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.IlMag</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrolyte current density magnitude</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>A/m^2</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.iloc</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Local current density into the electrolyte, recovered from the reaction loads on Electrode Surface, Electrolyte Potential and Electrolyte Current Density boundaries</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>A/m^2</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.nIl</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Normal electrolyte current density (outward)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>A/m^2</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.es1.Itot</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Total current of Electrode Surface <code>es1</code> (global value)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>A</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.es1.eta</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Overpotential \(\phi_{s,ext}-E_{eq}-\phi_l\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>V</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.es1.iloc</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Local current density from the kinetics expression \(i_{loc}(\eta)\) (not defined for primary electrodes)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>A/m^2</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cd.es1.vdis</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Dissolution velocity \(M\,i_{loc}/(nF\rho_m)\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>m/s</code></p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>In 2D models, <code>cd.es1.Itot</code> is a current per unit depth (A/m).
+In 2D axisymmetric models it is the current of the full revolution.</p>
+</div>
+<div class="paragraph">
+<p>A solved study gets two default plot groups: <strong>Electrolyte Potential (cd)</strong> and <strong>Electrolyte Current Density (cd)</strong>.
+Evaluate <code>cd.es1.Itot</code> with <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global Evaluation</b></span>.
+More on derived values in <a href="results.html" class="xref page">Results</a> and <a href="../reference/result-variables.html" class="xref page">Result variables</a>.</p>
+</div>
+<div class="sect2">
+<h3 id="current"><a class="anchor" href="#current"></a>How the electrode current is computed</h3>
+<div class="paragraph">
+<p><code>cd.es1.Itot</code> is the sum of the nodal reaction loads of the potential equation on the electrode boundaries.
+This sum is exactly conservative: the current that leaves the anodes equals the current that enters the cathodes, up to the solver tolerance.
+An integral of \(-\sigma_l\nabla\phi_l\) over the boundary is not, because the gradient is only accurate to the discretization error.</p>
+</div>
+<div class="paragraph">
+<p><code>cd.iloc</code> turns the same loads into a current density:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>in 2D and 2D axisymmetric models, each nodal load is divided by the node&#8217;s lumped boundary weight;</p>
+</li>
+<li>
+<p>in 3D, it is the consistent projection of the loads onto the boundary, which is smooth and correct at the corner nodes of quadratic triangles.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>A <strong>Surface Integration</strong> of <code>cd.iloc</code> over the electrode boundaries uses the same weights, so it returns <code>cd.es1.Itot</code>.
+The regression tests check this to 1e-9, also face by face on a 3D plate electrode, where the face currents add up to the electrode current.
+Use it to split an electrode&#8217;s current between faces, or to integrate over part of an electrode.</p>
+</div>
+<div class="paragraph">
+<p><code>cd.es1.iloc</code> is different: it evaluates the kinetics expression at the computed overpotential.
+On a converged solution both agree; on a primary electrode only <code>cd.iloc</code> exists.</p>
+</div>
+<div class="sect3">
+<h4 id="2d-axisymmetric-models"><a class="anchor" href="#2d-axisymmetric-models"></a>2D axisymmetric models</h4>
+<div class="paragraph">
+<p>Elmer&#8217;s axisymmetric loads are per radian, so <code>cd.es1.Itot</code> includes the factor \(2\pi\).</p>
+</div>
+<div class="paragraph">
+<p>Derived values on 2D axisymmetric models integrate in the revolved geometry by default (setting <em>Compute integral in revolved geometry</em>, weight \(2\pi r\)).
+The boundary integral of <code>cd.iloc</code> over a disc electrode is then its current <code>cd.es1.Itot</code>.
+Clear the check box to integrate over the r-z plane instead.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+In 2D models the boundary integral is called <strong>Line Integration</strong>, as in COMSOL.
+The Results ribbon command is still labelled <strong>Surface Integration</strong>.
+</td>
+</tr>
+</table>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/revolved_1_surface_integration_cd_iloc.png" alt="Line Integration of cd.iloc with Compute integral in revolved geometry checked">
+</div>
+<div class="title">Figure 1. Boundary integral of cd.iloc over a disc electrode, in the revolved geometry</div>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/revolved_2_global_evaluation_itot.png" alt="Global Evaluation of cd.es1.Itot">
+</div>
+<div class="title">Figure 2. Global Evaluation of cd.es1.Itot on the same model: the same current</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="nonlinear"><a class="anchor" href="#nonlinear"></a>Solving nonlinear kinetics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Primary electrodes are Dirichlet conditions, so a primary model is linear and solves in one step.
+Linearized Butler-Volmer is a constant Robin condition and is also linear.</p>
+</div>
+<div class="paragraph">
+<p>All other kinetics are written in Newton–Robin form.
+At each iteration the kinetics are linearized around the current overpotential:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[-\mathbf{n}\cdot\mathbf{i}_l = h\,(\phi_{ext} - \phi_l),\qquad
+h = \frac{di_{loc}}{d\eta},\qquad
+\phi_{ext} = \phi_l + \frac{i_{loc}}{h}\]
+</div>
+</div>
+<div class="paragraph">
+<p>On convergence the condition equals the kinetics exactly.
+The iteration stops at a relative change of 1e-10 or after <em>Maximum Newton iterations (kinetics)</em>.</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Line search</dt>
+<dd>
+<p>With the HeatSolve back end (see <a href="#elmer-solvers">Which Elmer solver runs</a>), <em>Line search (backtrack steps that increase the residual)</em> shortens any Newton step that would increase the residual.
+This keeps steep laws such as Tafel or exponential fits from overshooting.
+Leave <em>Newton damping factor</em> at <code>1</code> when the line search is on.</p>
+</dd>
+<dt class="hdlist1">Newton damping</dt>
+<dd>
+<p><em>Newton damping factor</em> below 1 scales every step by a fixed factor.
+Use it only if the line search alone does not converge; it slows convergence near the solution.</p>
+</dd>
+</dl>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If a high cell voltage does not converge from the initial values, sweep the voltage up to it.
+Each sweep step starts from the previous solution (next section).
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="sweep"><a class="anchor" href="#sweep"></a>Polarization curves and continuation</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>To compute a polarization (V–I) curve:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Put the electrode potential in a parameter, for example <code>Vapp</code>, and use it in <em>Electric potential (of the electrode)</em>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Sweep</b></span>.</p>
+</li>
+<li>
+<p>Set <em>Parameter name</em> <code>Vapp</code>, <em>Parameter value list</em> for example <code>range(0.05,0.05,0.25)</code>, <em>Parameter unit</em> <code>V</code>.</p>
+</li>
+<li>
+<p>Compute, then evaluate <code>cd.es1.Itot</code> with <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global Evaluation</b></span> (<em>Time/parameter selection</em> <code>All</code>) and plot it with <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global</b></span>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><em>Reuse solution from previous step</em> on the Parametric Sweep is <code>Automatic</code> by default.
+Each stationary step then starts from the previous parameter&#8217;s solution when the mesh has not changed, through Elmer restart files.
+This is continuation: it saves iterations and helps strongly nonlinear kinetics converge.
+When a swept parameter changes the geometry, the mesh changes too, and that run starts from the initial values.
+Set it to <code>Off</code> to start every run from the initial values.</p>
+</div>
+<div class="paragraph">
+<p>The sweep can also run over several parameters with <em>Sweep type</em> <code>All combinations</code> or <code>Specified combinations</code> and the <em>More parameters</em> table.
+See <a href="studies.html" class="xref page">Studies and solving</a> and <a href="../reference/studies.html" class="xref page">Studies and solvers</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="tertiary"><a class="anchor" href="#tertiary"></a>Tertiary current distribution with Transport of Diluted Species</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Add <strong>Transport of Diluted Species</strong> to the same component.
+Its dependent variable is the concentration <code>c</code> (<code>mol/m^3</code>).</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>In the Electrode Surface, use <code>c</code> in the kinetics: in <em>Equilibrium potential</em>, <em>Exchange current density</em> or a user-defined <em>Local current density i(eta)</em>.
+For example, a linearized Nernst shift: <code>R_const*Tk/(nel*F_const)*(c-cb)/cb</code>.</p>
+</li>
+<li>
+<p>In <strong>Transport of Diluted Species</strong>, choose <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electrode Surface Coupling</b></span> on the same electrode boundary.</p>
+</li>
+<li>
+<p>Set <em>Electrode surface (name of a Current Distribution feature)</em> to the Electrode Surface&#8217;s name, for example <code>es1</code>.</p>
+</li>
+<li>
+<p>Set <em>Stoichiometric coefficient</em> \(\nu\) (moles of species released per mole of reaction in the anodic direction; negative if consumed) and <em>Number of participating electrons</em> \(n\).</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The coupling adds the species flux of the reaction, by Faraday&#8217;s law:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[-\mathbf{n}\cdot\mathbf{J} = \frac{\nu\, i_{loc}}{n F}\]
+</div>
+</div>
+<div class="paragraph">
+<p>\(i_{loc}\) here is the kinetics expression of that Electrode Surface, evaluated with the current potential and concentration.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+The Electrode Surface Coupling needs kinetics.
+If the Electrode Surface uses the primary condition, or the interface is set to <code>Primary</code>, the case is refused with a message asking for a kinetics expression.
+</td>
+</tr>
+</table>
+</div>
+<div class="sect2">
+<h3 id="coupled-iteration"><a class="anchor" href="#coupled-iteration"></a>Coupled iteration</h3>
+<div class="paragraph">
+<p>The two interfaces are solved one after the other (segregated) until the change between iterations is small.
+The <strong>Stationary</strong> study step controls this loop:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1"><em>Max coupling iterations</em></dt>
+<dd>
+<p>Maximum number of passes (default <code>30</code>).</p>
+</dd>
+<dt class="hdlist1"><em>Coupling tolerance</em></dt>
+<dd>
+<p>Relative change at which the loop stops (default <code>1e-6</code>).
+For tight checks, use a smaller value, for example <code>1e-11</code>.</p>
+</dd>
+<dt class="hdlist1"><em>Coupling damping factor</em></dt>
+<dd>
+<p>Under-relaxation of every coupled physics between iterations (default <code>1</code>, no damping).</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>If the coupled iteration oscillates and grows, lower the damping factor, for example to <code>0.5</code> or <code>0.25</code>.
+When a change in one field returns amplified by a loop gain \(G &gt; 1\) after one pass through both interfaces, the damping factor must be below \(2/(1+G)\).</p>
+</div>
+<div class="paragraph">
+<p>A coupled stationary run writes its result once, after the loop has converged.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="migration"><a class="anchor" href="#migration"></a>Migration of charged species</h3>
+<div class="paragraph">
+<p>In an electrolyte under an applied field, ions also migrate. Check <strong>Migration in electric field</strong> on the species' <strong>Transport Properties</strong> and give its <em>Charge number</em> z and <em>Temperature</em> T. The flux then becomes Nernst–Planck&#8217;s</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[\mathbf{J} = -D\nabla c - z\,\frac{D}{RT}\,F\,c\,\nabla\phi_l\]
+</div>
+</div>
+<div class="paragraph">
+<p>with the Nernst–Einstein mobility D/RT and the electrolyte potential \(\phi_l\) of the Secondary Current Distribution interface. Elmer Studio computes \(\nabla\phi_l\) with the current distribution&#8217;s FluxSolver in every coupling iteration, and adds the migration drift \(-zDF/(RT)\,\nabla\phi_l\) to the convection velocity of the species equation. The species interface is always solved after the current distribution and the flow, so it sees their latest fields.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The drift enters as a convection velocity, which is exact where the potential satisfies Laplace&#8217;s equation (uniform conductivity and no volumetric current source), the usual case in an electrolyte. Migration does not feed back into the conductivity: the electrolyte conductivity stays the one you give.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Checked in <code>tests/test_migration.py</code>: along a strip with a linear potential, the steady profile is the exact exponential \(c_0 + (c_1-c_0)\,(e^{Py/L}-1)/(e^P-1)\) with \(P = -zFV/(RT)\), to 1e-4 for z = 1 and z = −2. With migration off, the profile is linear to 1e-9.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="species-fluxes"><a class="anchor" href="#species-fluxes"></a>Species fluxes</h3>
+<div class="paragraph">
+<p>Transport of Diluted Species results include <code>tds.tflux</code> (the diffusive flux vector −D∇c) and its magnitude <code>tds.tfluxMag</code>. They also include <code>tds.ntflux</code>, the normal total flux through boundaries with a fixed concentration (outward positive). Like <code>cd.iloc</code>, it comes from Elmer&#8217;s reaction loads, so its integral over a boundary is exactly the species transfer through it. Use it, for example, to drive a transport-limited dissolution with a <a href="#deforming">Prescribed Normal Mesh Velocity</a> of <code>-tds.ntflux*Vm</code> (Vm: the metal&#8217;s molar volume).</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="box-selections"><a class="anchor" href="#box-selections"></a>Electrodes on swept geometries: Box Selections</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Boundary numbers follow the geometry.
+When a swept parameter changes the shape, for example the amplitude of a wavy electrode going to zero, the boundaries can be renumbered, and a feature with a manual selection would land on the wrong boundary.</p>
+</div>
+<div class="paragraph">
+<p>Use a Box Selection instead:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Box Selection</b></span>.</p>
+</li>
+<li>
+<p>Set <em>Geometric entity level</em> to <code>Boundary</code>.</p>
+</li>
+<li>
+<p>Enter the box limits, for example <em>y maximum</em> <code>L/2</code> for everything in the lower half.
+Blank limits are unbounded; plain numbers are in the geometry length unit.</p>
+</li>
+<li>
+<p>Choose <em>Include entity if</em> <code>Entity inside box</code> or <code>Entity intersects box</code>.</p>
+</li>
+<li>
+<p>Build the geometry (<kbd>F8</kbd>).</p>
+</li>
+<li>
+<p>In the Electrode Surface (or any physics, mesh or result feature), choose the Box Selection in the <em>Selection</em> list.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Each run of a sweep re-evaluates the box on its own geometry, so the electrode features follow the right boundaries.
+See <a href="selections.html" class="xref page">Selections</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="deforming"><a class="anchor" href="#deforming"></a>Deforming electrodes: dissolution and deposition</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>An electrode that dissolves (electropolishing, electrochemical machining, corrosion) or grows (electrodeposition) changes the shape of the electrolyte, and with it the current distribution. Two settings make the shape follow the current:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>On the <strong>Electrode Surface</strong>, in the <strong>Dissolution</strong> section, check <strong>Deforming electrode surface (the boundary dissolves or grows)</strong>. The boundary then moves along its normal at</p>
+<div class="stemblock">
+<div class="content">
+\[v_n = \varepsilon\,\frac{M\,i_{loc}}{n F \rho_m}\]
+</div>
+</div>
+<div class="paragraph">
+<p>with the <em>Molar mass</em>, <em>Number of participating electrons</em> and <em>Metal density</em> of the same section. Anodic current (positive \(i_{loc}\)) dissolves the metal and the electrolyte grows; cathodic current deposits. <em>Current efficiency</em> \(\varepsilon\) is an expression and may use the local current density <code>iloc</code>, for example <code>iloc &gt; 10[A/cm^2]</code> for a passivation threshold below which nothing dissolves.</p>
+</div>
+</li>
+<li>
+<p>Add a <strong>Deforming Domain</strong> (<span class="menuseq"><b class="menu">Definitions</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Deforming Domain</b></span>, under <strong>Component › Definitions</strong>) on the electrolyte. Its mesh follows the moving electrodes.</p>
+</li>
+<li>
+<p>Any other boundary can move too: a <strong>Prescribed Normal Mesh Velocity</strong> (<span class="menuseq"><b class="menu">Definitions</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Prescribed Normal Mesh Velocity</b></span>) moves it along its outward normal at an expression of the solution. Examples: a species flux times M/ρ for transport-limited dissolution, or <code>aveop1(cd.es1.vdis)</code> to move a flat boundary with the mean recession of an electrode.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Then solve a <strong>Time Dependent</strong> study. At every time step the current distribution is solved, as a stationary problem, on the present shape. The deforming electrodes move by the dissolution velocity times the step, and the mesh behind them is smoothed. Each output time is stored with its own geometry, so plots, cut lines and integrals at a given time see the shape at that time. A parameter <code>t</code> in physics settings is the present time, so a voltage can be ramped.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Deforming Domain setting</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Time integration of the boundary motion</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Second order (Heun)</strong>, the default: a predictor step on the advanced shape, then the average of both velocities. It removes the first-order time-step bias of <strong>explicit Euler</strong>, at twice the solves per step.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Maximum boundary motion per time step</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Steps are shortened automatically, so that no electrode node moves more than this fraction of its boundary element length in one step. The output times are always hit exactly.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Mesh slides along straight walls and symmetry planes</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Non-moving boundaries that are straight and parallel to a coordinate axis keep their shape, while nodes slide along them. This lets an electrode recede along a wall. Symmetry boundaries and the axis of a 2D axisymmetric model always slide; other boundaries are fixed.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Remesh when the mesh gets distorted</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D and 2D axisymmetric: when an element&#8217;s shape quality or size falls below the given fraction of its value after the last remeshing, the mesh is rebuilt on the present shape. The boundary numbers stay, so every feature keeps its selection, and the moving boundaries keep their node grading. Use it when the electrode moves by more than a few element sizes, or rounds off a sharp corner.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect2">
+<h3 id="results-of-a-deforming-electrode"><a class="anchor" href="#results-of-a-deforming-electrode"></a>Results of a deforming electrode</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Electrode Shape (cd)</strong>, a default 1D plot group of 2D models: the moving boundaries' outline at every output time (a <strong>Line Graph</strong> along boundaries, <em>x-axis parameter</em> <strong>x</strong>, expression <code>+y</code>, <strong>All</strong> solutions).</p>
+</li>
+<li>
+<p><code>cd.dx</code>, <code>cd.dy</code>, <code>cd.dz</code>, <code>cd.disp</code>, <code>cd.dispMag</code>: the mesh displacement from the initial shape (until the first remeshing).</p>
+</li>
+<li>
+<p>Coupling operators on the electrode boundary follow the shape. With a Maximum, a Minimum and an Average operator on the anode, <code>(maxop1(y)-minop1(y))/2</code> is the amplitude of a rough surface, and <code>-aveop1(y)</code> the mean removed thickness. Evaluate them over time with a <strong>Global Evaluation</strong> or a <strong>Global</strong> plot.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The <a href="../tutorials/deforming-electrodes.html" class="xref page">deforming electrode tutorial</a> levels a rough anode and checks the rate against linear theory.</p>
+</div>
+<div class="paragraph">
+<p><strong>Transport-limited dissolution</strong> is the same thing without a current distribution. A saturated anode (<strong>Concentration</strong> c<sub>sat</sub> in Transport of Diluted Species) dissolves at a <strong>Prescribed Normal Mesh Velocity</strong> of <code>-tds.ntflux*Vm</code>. The flat outer edge of the diffusion layer keeps its distance δ from the mean surface with a second Prescribed Normal Mesh Velocity, <code>aveop1(tds.ntflux*Vm)</code>, where <code>aveop1</code> is an Average coupling operator on the anode. The test suite checks the levelling rate \(-k\coth(k\delta)\) of this case to 1 %, with the layer thickness held constant to 0.2 %.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Physics are solved quasi-statically: transient terms (for example of Transport of Diluted Species in a tertiary model) are not integrated in time while the electrode moves. Moving meshes work in 2D, 2D axisymmetric and 3D (triangles, quadrilaterals, tetrahedra); remeshing is available in 2D and 2D axisymmetric.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elmer-solvers"><a class="anchor" href="#elmer-solvers"></a>Which Elmer solver runs</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Elmer has no dedicated current-distribution solver.
+With <em>Elmer solver</em> <code>Automatic</code>, Elmer Studio picks one:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Situation</th>
+<th class="tableblock halign-left valign-top">Elmer solver</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Only primary electrodes (or <em>Current distribution type</em> <code>Primary</code>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">StatCurrentSolve</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Kinetics that need a Robin condition</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">HeatSolve, with the conductivity as heat conductivity and the kinetics as heat transfer coefficient and external temperature</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Kinetics, and a Heat Transfer interface in the same component already uses HeatSolve</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ModelPDE, with the kinetics as Robin coefficient and external field</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>A FluxSolver then computes the current density <code>cd.Il</code> once, on the converged solution.
+Transport of Diluted Species runs on ModelPDE.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Forcing <code>StatCurrentSolve (no kinetics)</code> on a model with electrode kinetics stops with an error: kinetics need the HeatSolve or ModelPDE back end.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The linear solver is chosen in <strong>Solver Configurations</strong>; with the automatic choice, 3D current distribution switches from a direct to an iterative solver at about 30 000 degrees of freedom.
+To read the generated case, use <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Show Elmer Input File</b></span>.</p>
+</div>
+<div class="sect2">
+<h3 id="elmer-installations-and-from-source-builds"><a class="anchor" href="#elmer-installations-and-from-source-builds"></a>Elmer installations and from-source builds</h3>
+<div class="paragraph">
+<p>Elmer Studio finds an installed Elmer automatically.
+You can also point it to an Elmer build tree compiled from source: open <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span> or <span class="menuseq"><b class="menu">Developer</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Elmer Installation</b></span>, enter the folder in <em>Elmer installation or build folder</em> and click <strong>Detect</strong>.
+Below the version, a <em>Features</em> line reports a capability probe of that installation: whether its StatCurrentSolve has the diffusion-current term for multi-ion electrolytes, and whether a Fortran compiler for user solvers was found.
+The current-distribution features on this page do not need either.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="meshing-electrodes"><a class="anchor" href="#meshing-electrodes"></a>Meshing electrodes</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Current density is singular at the edge of an electrode that meets an insulator, for example a disc in an insulating plane.
+Refine there with <strong>Size</strong> nodes on the electrode boundary and on the edge point, and keep the global <em>Maximum element growth rate</em> (default <code>1.3</code>) so the fine elements grade into the domain.
+Without growth-rate control, a refined electrode edge sits inside coarse elements; on the disc electrode test that put the resistance off by 6 to 46 %.</p>
+</div>
+<div class="paragraph">
+<p>For periodic or wavy electrodes, a <strong>Mapped</strong> mesh with <strong>Distribution</strong> nodes (element counts and <em>Element ratio</em> grading) gives structured quadrilaterals refined toward the electrode.
+See <a href="mesh.html" class="xref page">Mesh</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="verification"><a class="anchor" href="#verification"></a>Verification</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><code>tests/test_electrochemistry.py</code> checks the interface against closed-form solutions with real Elmer runs:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 75%;">
+<col style="width: 25%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Check</th>
+<th class="tableblock halign-left valign-top">Agreement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1D cell, every kinetics type, against \(i = i_{loc}(V - iL/\sigma)\) (current, and <code>cd.iloc</code> at every electrode node)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1e-9</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Tabulated i(η) through an Interpolation function</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1e-6</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Polarization sweep (V–I curve)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1e-8 at every voltage</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Newman&#8217;s disc electrode, 2D axisymmetric, \(R = 1/(4\sigma a)\) with the far-field term</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">better than 0.5 % (about 0.06 % in a recent run)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sinusoidal anode, current modulation \(a\,k\coth(kL)\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.2 % required (0.02 % measured)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Tertiary Nernst layer, \(i = \sigma V/(L+\Lambda+\beta\delta)\)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1e-8</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Surface Integration of <code>cd.iloc</code> equals <code>cd.es1.Itot</code> (2D axisymmetric and 3D)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1e-9</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Most of these are walked through step by step in <a href="../tutorials/electrochemistry.html" class="xref page">Electrochemistry: current distribution</a>.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="physics.html">Physics interfaces</a></span>
+  <span class="next"><a href="mesh.html">Mesh</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

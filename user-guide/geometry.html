@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Geometry :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-guide/geometry.html">
+    <link rel="prev" href="definitions.html">
+    <link rel="next" href="selections.html">
+    <meta name="description" content="Building geometry: primitives, work planes, extrusion and revolution, Booleans, transforms, fillets, imported CAD and the geometry sequence.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>User guide</li>
+    <li><a href="geometry.html">Geometry</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/user-guide/pages/geometry.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Geometry</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>The geometry is a <strong>sequence</strong> of features under <strong>Geometry 1</strong>, built from top to bottom with the OpenCASCADE kernel of gmsh. Every dimension can be an expression with parameters and units, so a parameter change rebuilds the geometry, including during a parametric sweep.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="geometry-settings"><a class="anchor" href="#geometry-settings"></a>Geometry settings</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Select <strong>Geometry 1</strong> to set:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Length unit</em> (m, mm, cm, µm, nm, km, in, ft). Numbers without a unit in geometry features are in this unit. A value with a unit (<code>5[mm]</code>, or a parameter defined with one) is converted.</p>
+</li>
+<li>
+<p><em>Angular unit</em> (degrees or radians) for rotation and revolution angles.</p>
+</li>
+<li>
+<p><em>Default repair tolerance</em>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="building"><a class="anchor" href="#building"></a>Building</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Command</th>
+<th class="tableblock halign-left valign-top">Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Build Selected</strong> (<kbd>F7</kbd>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Builds the sequence up to and including the selected feature. Use it to look at an intermediate step.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Build All</strong> (<kbd>F8</kbd>, <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Build All</b></span>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Builds the whole sequence and finalizes it.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The last node, <strong>Form Union</strong>, glues all objects into one geometry with shared boundaries, so that fields are continuous across them. Its <em>Action</em> can also keep the objects separate. The <strong>Messages</strong> pane reports the number of domains, boundaries, edges and points.</p>
+</div>
+<div class="paragraph">
+<p>Selecting a feature whose input you pick in the Graphics window (a face-parallel work plane, a fillet) shows the geometry built so far, with the entity labels you need. Selecting a feature inside a work plane shows the plane&#8217;s sketch.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="primitives"><a class="anchor" href="#primitives"></a>Primitives</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Space</th>
+<th class="tableblock halign-left valign-top">Primitives (<span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Primitives</b></span>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Block, Sphere, Cylinder, Cone, Torus, Ellipsoid. Each has a position (corner or centre), an axis and a rotation angle.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D, and inside a work plane</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rectangle, Circle, Ellipse, Polygon, Parametric Curve.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Polygon</dt>
+<dd>
+<p>A list of x and y coordinates. Its <em>Type</em> is <strong>Solid</strong> (a filled region), <strong>Closed curve</strong> or <strong>Open curve</strong>. Two points are enough for an open curve.</p>
+</dd>
+<dt class="hdlist1">Parametric Curve</dt>
+<dd>
+<p>A curve x(s), y(s) for s from a minimum to a maximum, sampled at a number of points, for example a sinusoidal electrode <code>x = lam*s</code>, <code>y = a0*cos(2*pi*s)</code>.</p>
+</dd>
+<dt class="hdlist1">Convert to Solid</dt>
+<dd>
+<p>Joins curves (parametric curves, open polygons, lines) that form a closed outline into a solid region.</p>
+</dd>
+</dl>
+</div>
+<div class="paragraph">
+<p>Circles are made of four arcs with vertices at 0°, 90°, 180° and 270°, as in COMSOL, so their points are numbered the same way.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="work-planes-extrusion-and-revolution-3d"><a class="anchor" href="#work-planes-extrusion-and-revolution-3d"></a>Work planes, extrusion and revolution (3D)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A <strong>Work Plane</strong> (<span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Work Plane</b></span>) holds a 2D sketch in 3D:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Plane type</em> <strong>Quick</strong>: the xy, yz, zx, yx, zy or xz plane, at an <em>Offset</em> along its normal.</p>
+</li>
+<li>
+<p><em>Plane type</em> <strong>Face parallel</strong>: the plane of a planar face of the geometry built so far. Select the work plane, then click the face in the Graphics window. The plane&#8217;s origin is the face centre and its normal points out of the solid. <em>Offset</em> moves it along the normal.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Right-click the work plane to add 2D primitives, Booleans, transforms, <strong>Fillet</strong> and <strong>Chamfer</strong> to its sketch. Then:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Extrude</strong> turns the sketch into a solid along the plane normal, by one or more distances (a negative distance goes the other way).</p>
+</li>
+<li>
+<p><strong>Revolve</strong> rotates it about an axis in the plane by an angle.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Extrude and Revolve pick the last work plane as input by themselves.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="booleans-and-partitions"><a class="anchor" href="#booleans-and-partitions"></a>Booleans and partitions</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Union</strong>, <strong>Difference</strong> (objects to add, objects to subtract) and <strong>Intersection</strong>, with <em>Keep input objects</em> and, for Union, <em>Keep interior boundaries</em>. New Booleans start with sensible inputs (all objects for Union; the first object minus the others for Difference). Change them with the object lists in the Settings window.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="transforms"><a class="anchor" href="#transforms"></a>Transforms</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>Move</strong>, <strong>Copy</strong> (move and keep the original), <strong>Rotate</strong>, <strong>Scale</strong>, <strong>Mirror</strong> and <strong>Array</strong>, each with <em>Input objects</em> (and, except for Copy and Array, <em>Keep input objects</em>).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="fillets-and-chamfers"><a class="anchor" href="#fillets-and-chamfers"></a>Fillets and chamfers</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong>In 2D and in work planes</strong>, <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Fillet</b></span> and <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Chamfer</b></span> round or cut <strong>vertices</strong> of the sketch. Select the feature, then click the corner points in the Graphics window (the sketch shows the point numbers), and set the radius or distance. Corners must be between two straight edges.</p>
+</li>
+<li>
+<p><strong>In 3D</strong>, Fillet and Chamfer act on <strong>edges</strong> of a solid.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="importing-cad"><a class="anchor" href="#importing-cad"></a>Importing CAD</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Import</b></span> reads STEP (<code>.step</code>, <code>.stp</code>), IGES (<code>.iges</code>, <code>.igs</code>) and BREP (<code>.brep</code>) files, with optional repair. Imported parts take part in Booleans and selections like any other object.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="box-selections"><a class="anchor" href="#box-selections"></a>Box Selections</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A <strong>Box Selection</strong> (<span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Box Selection</b></span>) is a named geometry selection: all domains, boundaries, edges or points inside (or intersecting) a box. Leave a limit blank for no limit. Physics, mesh and results features can use it instead of a list of numbers. It stays right when a parameter change renumbers the geometry. See <a href="selections.html#box" class="xref page">Selections</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="how-entities-are-numbered"><a class="anchor" href="#how-entities-are-numbered"></a>How entities are numbered</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Domains, boundaries, edges and points are numbered by <strong>position</strong>, in the order of their bounding boxes: smallest x first, then y, then z, then the box maxima. COMSOL numbers entities in a similar way, so the numbers in COMSOL instructions usually match. Numbers change only when the geometry changes. Turn on <strong>Show Labels</strong> in the Graphics toolbar to see them.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="limits"><a class="anchor" href="#limits"></a>Limits</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Fillets and chamfers in sketches work on corners between straight edges.</p>
+</li>
+<li>
+<p>Form Assembly with identity pairs is not available: the geometry is always a union, or separate objects.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Every geometry feature and its settings is listed in <a href="../reference/geometry.html" class="xref page">Reference › Geometry features</a>.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="definitions.html">Parameters, variables and functions</a></span>
+  <span class="next"><a href="selections.html">Selections</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

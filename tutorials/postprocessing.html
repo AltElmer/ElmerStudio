@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Postprocessing and Visualization :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/tutorials/postprocessing.html">
+    <link rel="prev" href="wrench.html">
+    <link rel="next" href="acoustics.html">
+    <meta name="description" content="Evaluate, plot and compare results over a parametric sweep with datasets, derived values, coupling operators and 1D, 2D, 3D and polar plot groups.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+    <script>
+      window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+                         options: { ignoreHtmlClass: 'nostem|nolatexmath' } };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>Tutorials</li>
+    <li><a href="postprocessing.html">Postprocessing and visualization</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/tutorials/pages/postprocessing.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Postprocessing and Visualization</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This tutorial follows the workflow of the COMSOL guide <em>Essentials of Postprocessing and Visualization</em> in Elmer Studio. The guide&#8217;s own models are COMSOL files, so each walkthrough uses a stand-in model that exercises the same postprocessing steps: a spinning pulley in 2D, a verification against Lamé&#8217;s solution, the heat sink in 3D, and a 2D axisymmetric coil.</p>
+</div>
+<div class="paragraph">
+<p>What you will learn:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>run a Parametric Sweep and evaluate maxima, point values and global expressions over all parameter values;</p>
+</li>
+<li>
+<p>define Integration coupling operators and Definitions variables, and use them in result expressions;</p>
+</li>
+<li>
+<p>plot point values, tables, contours with labels, arrows and annotations;</p>
+</li>
+<li>
+<p>show 3D results as wireframes, isosurfaces and streamlines;</p>
+</li>
+<li>
+<p>build new datasets (Cut Point, Cut Plane, Parametric Extrusion 2D, Revolution 2D) and plot on them;</p>
+</li>
+<li>
+<p>draw a polar plot, and integrate 2D axisymmetric results in the revolved geometry.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Every number quoted under <strong>Check the results</strong> comes from the regression tests <code>tests/test_tutorial_postprocessing.py</code> and <code>tests/test_electrochemistry.py</code>. The screenshots come from the GUI walkthroughs <code>tools/screenshot_postprocessing.py</code> and <code>tools/screenshot_revolved.py</code>.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+The Results ribbon, Model Builder and Settings window work as in COMSOL. A plot group holds plots, a dataset says what a plot or evaluation is computed on, and a derived value writes its result to a table. See <a href="../user-guide/results.html" class="xref page">Results</a> for the general concepts.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="pulley-evaluations-over-a-parametric-sweep"><a class="anchor" href="#pulley-evaluations-over-a-parametric-sweep"></a>Pulley: evaluations over a parametric sweep</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A thin aluminum disk with a hub and six openings spins about its center. The centrifugal load is a <strong>Rotating Frame</strong> with angular velocity <code>n[rpm]</code>, and a Parametric Sweep runs n from 2000 to 8000 rpm. The pulley is not in the Application Libraries; you build it in a few steps.</p>
+</div>
+<div class="sect2">
+<h3 id="model"><a class="anchor" href="#model"></a>Model</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span>, choose <strong>Model Wizard</strong>, then <strong>2D</strong>. Under <strong>Structural Mechanics</strong> select <strong>Solid Mechanics (solid)</strong>, click <strong>Add</strong>, then <strong>Study</strong>, choose <strong>Stationary</strong> and click <strong>Done</strong>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parameters</b></span> and enter the parameters in the table of <strong>Parameters 1</strong>:</p>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 20%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Expression</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>n</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>4000</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rotational speed (rpm)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>R</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>60[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Pulley radius</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rh</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>10[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Hub radius</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Ro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>12[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Opening radius</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>35[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Opening pitch radius</p></td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p>Click <strong>Geometry 1</strong> and set <em>Length unit</em> to <code>mm</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Circle</b></span> eight times and set <em>Radius</em> (and <em>x</em>, <em>y</em> under <em>Position</em>) as follows:</p>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 16.6666%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3335%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Circle</th>
+<th class="tableblock halign-left valign-top">Radius</th>
+<th class="tableblock halign-left valign-top">x</th>
+<th class="tableblock halign-left valign-top">y</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1 (disk)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>R</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>0</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>0</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2 (hub)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rh</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>0</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>0</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Ro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*cos(0*pi/3+pi/6)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*sin(0*pi/3+pi/6)</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">4</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Ro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*cos(1*pi/3+pi/6)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*sin(1*pi/3+pi/6)</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">5</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Ro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*cos(2*pi/3+pi/6)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*sin(2*pi/3+pi/6)</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">6</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Ro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*cos(3*pi/3+pi/6)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*sin(3*pi/3+pi/6)</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">7</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Ro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*cos(4*pi/3+pi/6)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*sin(4*pi/3+pi/6)</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">8</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Ro</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*cos(5*pi/3+pi/6)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Rp*sin(5*pi/3+pi/6)</code></p></td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Difference</b></span>. Put <strong>Circle 1</strong> in <em>Objects to add</em> and Circles 2 to 8 in <em>Objects to subtract</em>. Press <kbd>F8</kbd> to build all.</p>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Circles are built from four arcs with vertices at 0°, 90°, 180° and 270°, as in COMSOL. The disk therefore has geometry points at (60, 0) mm and (−60, 0) mm, which you use for point evaluations below.
+</td>
+</tr>
+</table>
+</div>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Material</b></span>, pick <strong>Aluminum</strong> in the Add Material window and add it. The first material goes to all domains.</p>
+</li>
+<li>
+<p>Click <strong>Solid Mechanics (solid)</strong> and set <em>2D approximation</em> to <strong>Plane stress</strong>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Fixed Constraint</b></span> and click the four arcs of the hub hole in the Graphics window.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Domains</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Rotating Frame</b></span>, click the pulley domain and set <em>Angular velocity</em> to <code>n[rpm]</code>. The axis is parallel to z through <em>Axis point</em> (0, 0). See <a href="../reference/physics-solid.html" class="xref page">Solid Mechanics (solid)</a> for the feature settings.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="coupling-operators-and-a-variable"><a class="anchor" href="#coupling-operators-and-a-variable"></a>Coupling operators and a variable</h3>
+<div class="paragraph">
+<p>The change of the diameter along x is the displacement of the far-right point minus that of the far-left point. Two <strong>Integration</strong> coupling operators on single points pick these values.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Right-click <strong>Definitions</strong> (under <strong>Component 1</strong>) and choose <strong>Integration</strong>. <em>Operator name</em> is filled in as <code>intop1</code>. Set <em>Geometric entity level</em> to <strong>Point</strong> and click the point at (60, 0) mm.</p>
+</li>
+<li>
+<p>Right-click <strong>Definitions</strong> again and choose <strong>Integration</strong> (<code>intop2</code>). Set <em>Geometric entity level</em> to <strong>Point</strong> and click the point at (−60, 0) mm.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Definitions</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Variables</b></span> and add the row <em>Name</em> <code>diam</code>, <em>Expression</em> <code>intop1(R+u)-intop2(-R+u)</code>, <em>Description</em> <code>Deformed diameter</code>.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+An Integration operator over a single point returns the value at that point, as in COMSOL. See <a href="../user-guide/definitions.html" class="xref page">Parameters, variables and functions</a>.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="study"><a class="anchor" href="#study"></a>Study</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Select <strong>Study 1</strong> and click <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Sweep</b></span>. <em>Parameter name</em> is already <code>n</code> (the first parameter). Set <em>Parameter value list</em> to <code>range(2000,2000,8000)</code> and leave <em>Parameter unit</em> empty.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span> (or press <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>). The study solves four stationary problems, for n = 2000, 4000, 6000 and 8000 rpm.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Elmer Studio creates the default plot group <strong>Stress (solid)</strong>, which shows the von Mises stress on the deformed shape for the last parameter value.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_pulley_1_stress.png" alt="Default 2D plot group Stress (solid): von Mises stress in Pa on the pulley with six openings, n = 8000 rpm">
+</div>
+<div class="title">Figure 1. Default stress plot at n = 8000 rpm</div>
+</div>
+<div class="paragraph">
+<p>See <a href="../user-guide/studies.html" class="xref page">Studies and solving</a> for sweeps and solution selection.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="surface-maximum-over-the-sweep"><a class="anchor" href="#surface-maximum-over-the-sweep"></a>Surface Maximum over the sweep</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Right-click <strong>Derived Values</strong> (under <strong>Results</strong>) and choose <strong>Surface Maximum</strong>.</p>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+The Results ribbon button is labeled <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Volume Maximum</b></span>. In a 2D component it creates the same node, named <strong>Surface Maximum 1</strong>, because derived values are named after the space dimension as in COMSOL.
+</td>
+</tr>
+</table>
+</div>
+</li>
+<li>
+<p>Set <em>Time/parameter selection</em> to <strong>All</strong>.</p>
+</li>
+<li>
+<p>In the <em>Expressions</em> table enter <code>solid.disp</code> with <em>Unit</em> <code>mm</code>, and <code>solid.mises</code> with <em>Unit</em> <code>MPa</code>.</p>
+</li>
+<li>
+<p>Click <strong>Evaluate</strong> at the top of the Settings window.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The Table window lists, for each n, the maximum displacement and the maximum von Mises stress, each with its location.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_pulley_2_surface_maximum.png" alt="Surface Maximum settings and the resulting table with columns n, Displacement magnitude (mm), von Mises stress (MPa) and their locations">
+</div>
+<div class="title">Figure 2. Surface Maximum of displacement and von Mises stress for every n</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="cut-point-and-point-graph"><a class="anchor" href="#cut-point-and-point-graph"></a>Cut Point and Point Graph</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Cut Point</b></span>. Under <em>Point Data</em> set <em>x</em> to <code>19</code> and <em>y</em> to <code>54</code> (in the geometry unit, mm). <em>Dataset</em> is already the study solution.</p>
+</li>
+<li>
+<p>Select <strong>Results</strong> and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Point Graph</b></span>. Elmer Studio adds a 1D Plot Group with a Point Graph in it. Rename the plot group to <code>Stress at Cut Point</code> (<kbd>F2</kbd>).</p>
+</li>
+<li>
+<p>In the Point Graph settings check that <em>Dataset (Cut Point)</em> is <strong>Cut Point 1</strong>, and set <em>y-axis expression</em> to <code>solid.mises</code>, <em>Unit</em> to <code>MPa</code> and <em>Marker</em> to <strong>Circle</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The x-axis is the sweep parameter n: the graph shows one value per solution.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_pulley_3_point_graph.png" alt="Point Graph of von Mises stress in MPa at the cut point against n from 2000 to 8000">
+</div>
+<div class="title">Figure 3. von Mises stress at the Cut Point (19, 54) mm versus n</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="point-evaluation-on-geometry-points"><a class="anchor" href="#point-evaluation-on-geometry-points"></a>Point Evaluation on geometry points</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Point Evaluation</b></span>.</p>
+</li>
+<li>
+<p>Click the point at (60, 0) mm and the point at (−60, 0) mm in the Graphics window. In the screenshot they are points 32 and 1.</p>
+</li>
+<li>
+<p>Set <em>Time/parameter selection</em> to <strong>All</strong>.</p>
+</li>
+<li>
+<p>In the <em>Expressions</em> table enter <code>u</code> (the x displacement), <em>Unit</em> <code>mm</code>, <em>Description</em> <code>Radial displacement</code>.</p>
+</li>
+<li>
+<p>Click <strong>Evaluate</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The table has one column per point, in increasing point number: the left point moves to −x and the right point to +x, by the same amount.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_pulley_4_point_evaluation.png" alt="Point Evaluation settings with points 32 and 1 selected and a table of radial displacement for each n">
+</div>
+<div class="title">Figure 4. Point Evaluation of the x displacement at the far-left and far-right points</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="global-evaluation-and-table-graph"><a class="anchor" href="#global-evaluation-and-table-graph"></a>Global Evaluation and Table Graph</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global Evaluation</b></span>. <em>Time/parameter selection</em> is <strong>All</strong> by default.</p>
+</li>
+<li>
+<p>Enter <code>diam-2*R</code> in the <em>Expressions</em> table with <em>Description</em> <code>Diameter change</code> and click <strong>Evaluate</strong>. The result is in metres, because <code>R</code> and the displacement are evaluated in SI units.</p>
+</li>
+<li>
+<p>Select <strong>Results</strong> and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Table Graph</b></span>. Elmer Studio adds a new 1D Plot Group.</p>
+</li>
+<li>
+<p><em>Table</em> is the newest table, the one of the Global Evaluation (<strong>Table 3</strong> in the screenshot). Keep <em>x-axis data (column, 1-based; 0 = row index)</em> at <code>1</code> (the n column) and set <em>Marker</em> to <strong>Circle</strong>.</p>
+</li>
+<li>
+<p>Click the parent <strong>1D Plot Group</strong> and set <em>y-axis label</em> to <code>Diameter change (m)</code>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_pulley_5_table_graph.png" alt="Table Graph titled Diameter change, rising from about 2e-7 m at n = 2000 to about 3.4e-6 m at n = 8000">
+</div>
+<div class="title">Figure 5. Table Graph of the diameter change computed with the coupling operators</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="contours-arrows-and-an-annotation"><a class="anchor" href="#contours-arrows-and-an-annotation"></a>Contours, arrows and an annotation</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">2D Plot Group</b></span> and rename it <code>Stress with annotations</code>.</p>
+</li>
+<li>
+<p>In its <strong>Surface 1</strong> set <em>Expression</em> to <code>solid.mises</code> and <em>Unit</em> to <code>MPa</code>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Contour</b></span>. Set <em>Expression</em> <code>solid.mises</code>, <em>Unit</em> <code>MPa</code>, <em>Total levels</em> <code>8</code>, check <em>Level labels</em>, set <em>Coloring</em> to <strong>Uniform</strong>, <em>Color</em> to <strong>Black</strong> and clear <em>Color legend</em>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Arrow Volume</b></span>. Set <em>Vector expression</em> to <code>solid.u_vec</code>, <em>x grid points</em> and <em>y grid points</em> to <code>14</code>, and <em>Color</em> to <strong>Black</strong>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Annotation</b></span>. Set <em>Text</em> to <code>eval(solid.mises, MPa)</code>, <em>x</em> to <code>19</code> and <em>y</em> to <code>54</code> (mm). Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><code>eval(expression, unit)</code> in an annotation is replaced by the value at the annotation&#8217;s position. Here it shows 1.947 MPa at the Cut Point for n = 8000 rpm, the last point of the Point Graph.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_pulley_6_annotation_contours_arrows.png" alt="Pulley stress surface with black labeled contour lines, black arrows pointing outward and the annotation 1.947 MPa">
+</div>
+<div class="title">Figure 6. Stress with labeled contours, displacement arrows and an evaluated annotation</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results"><a class="anchor" href="#check-the-results"></a>Check the results</h3>
+<div class="paragraph">
+<p><code>tests/test_tutorial_postprocessing.py</code> builds the same model and checks:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The sweep values are 2000, 4000, 6000 and 8000. The Surface Maximum table has the columns <em>Displacement magnitude (mm)</em>, <em>Location (x, y, z) (m)</em>, <em>von Mises stress (MPa)</em>, <em>Location (x, y, z) (m)</em>.</p>
+</li>
+<li>
+<p>The maximum displacement, the maximum von Mises stress and the Point Graph values all scale with n², to a relative tolerance of 1e-6 (linear elasticity with a centrifugal load ρΩ²r).</p>
+</li>
+<li>
+<p>At 8000 rpm the maximum von Mises stress lies between the hoop stress of a plain spinning annulus with the same hub and rim (about 5.7 MPa) and six times that value. The maximum displacement lies between 1e-4 mm and 1e-2 mm. The screenshot shows 6.135 MPa.</p>
+</li>
+<li>
+<p>The Point Evaluation is positive at the far-right point and negative at the far-left point, and the two magnitudes agree within 5 %.</p>
+</li>
+<li>
+<p><code>diam-2*R</code> from <code>intop1</code> and <code>intop2</code> equals the difference of the two point values (converted to metres) to a relative 1e-9. In the screenshots, at n = 2000: 0.00010472 mm − (−0.000104717 mm) = 2.09437e-7 m.</p>
+</li>
+<li>
+<p>The Table Graph draws one line over n = 2000 to 8000, titled <em>Table Graph: Diameter change</em>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="rotating-annulus-verification-against-lamé"><a class="anchor" href="#rotating-annulus-verification-against-lamé"></a>Rotating annulus: verification against Lamé</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A free spinning annulus has a closed-form plane-stress solution, so it checks the Rotating Frame load and the point evaluation.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Create a <strong>2D</strong> model with <strong>Solid Mechanics (solid)</strong> and a <strong>Stationary</strong> study, as for the pulley. Add the parameter <code>n</code> = <code>10000</code>.</p>
+</li>
+<li>
+<p>Set the geometry <em>Length unit</em> to <code>mm</code>. Add a Circle with <em>Radius</em> <code>60</code> and <em>Sector angle</em> <code>90</code>, a Circle with <em>Radius</em> <code>10</code>, and a Difference that subtracts the small circle from the quarter disk.</p>
+</li>
+<li>
+<p>Add the material <strong>Structural steel</strong>.</p>
+</li>
+<li>
+<p>Set <em>2D approximation</em> to <strong>Plane stress</strong>.</p>
+</li>
+<li>
+<p>Add a <strong>Roller</strong> on the straight edge at x = 0 and another <strong>Roller</strong> on the straight edge at y = 0. Both rims stay free.</p>
+</li>
+<li>
+<p>Add a <strong>Rotating Frame</strong> on the domain with <em>Angular velocity</em> <code>n[rpm]</code>.</p>
+</li>
+<li>
+<p>Click <strong>Mesh 1</strong> and set <em>Element size</em> to <strong>Extra fine</strong>.</p>
+</li>
+<li>
+<p>Compute, then add a <strong>Point Evaluation</strong> on the points (10, 0) mm and (60, 0) mm with the expressions <code>solid.sy</code> and <code>u</code>. On the x-axis σ<sub>yy</sub> is the hoop stress.</p>
+</li>
+</ol>
+</div>
+<div class="sect2">
+<h3 id="check-the-results-2"><a class="anchor" href="#check-the-results-2"></a>Check the results</h3>
+<div class="paragraph">
+<p>With ρ = 7850 kg/m³, ν = 0.3, E = 200 GPa, a = 10 mm, b = 60 mm and Ω = 10 000 rpm, Lamé&#8217;s plane-stress solution gives</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>hoop stress at the bore: \(\sigma_\theta(a) = \frac{3+\nu}{4}\rho\Omega^2\left(b^2 + \frac{1-\nu}{3+\nu}a^2\right)\) ≈ 25.7 MPa,</p>
+</li>
+<li>
+<p>hoop stress at the rim: \(\sigma_\theta(b) = \frac{3+\nu}{4}\rho\Omega^2\left(a^2 + \frac{1-\nu}{3+\nu}b^2\right)\) ≈ 6.13 MPa,</p>
+</li>
+<li>
+<p>rim displacement \(u(b) = b\,\sigma_\theta(b)/E\) ≈ 1.84 µm.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><code>test_rotating_annulus_lame</code> requires the computed hoop stresses at both rims within 3 % and the rim displacement within 1 %. The README records the measured agreement: hoop stress at the bore within 0.7 %, rim displacement within 0.01 %.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="heat-sink-3d-plots-and-derived-datasets"><a class="anchor" href="#heat-sink-3d-plots-and-derived-datasets"></a>Heat sink: 3D plots and derived datasets</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The heat sink is an aluminum base with six fins (Heat Transfer in Solids, <code>ht</code>, see <a href="../reference/physics-ht.html" class="xref page">Heat Transfer in Solids (ht)</a>). A heat flux carrying the total power P0 enters through the bottom face, and every other face loses heat by convection (h = 15 W/(m²·K), 20 °C). A sweep over P0 provides the parameter values for the Parametric Extrusion at the end.</p>
+</div>
+<div class="sect2">
+<h3 id="model-and-study"><a class="anchor" href="#model-and-study"></a>Model and study</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Application Libraries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Heat sink - conduction with convective cooling</b></span>.</p>
+</li>
+<li>
+<p>Select <strong>Study 1</strong> and click <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Sweep</b></span>. <em>Parameter name</em> is already <code>P0</code>. Set <em>Parameter value list</em> to <code>range(5,5,20)</code> and <em>Parameter unit</em> to <code>W</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span>. The four solutions are for P0 = 5, 10, 15 and 20 W.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="wireframe-isosurfaces-and-streamlines"><a class="anchor" href="#wireframe-isosurfaces-and-streamlines"></a>Wireframe, isosurfaces and streamlines</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span> and rename it <code>Isosurfaces and streamlines</code>.</p>
+</li>
+<li>
+<p>In <strong>Surface 1</strong> set <em>Expression</em> <code>T</code>, <em>Unit</em> <code>degC</code>, check <em>Wireframe</em>, set <em>Coloring</em> to <strong>Uniform</strong>, <em>Color</em> to <strong>Gray</strong> and clear <em>Color legend</em>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Isosurface</b></span>. Set <em>Expression</em> <code>T</code>, <em>Unit</em> <code>degC</code> and <em>Total levels</em> <code>6</code>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Streamline</b></span>. Set <em>Vector expression</em> to <code>ht.tflux</code>, <em>Positioning</em> to <strong>Start point controlled (selected boundaries)</strong>, <em>Number of streamlines</em> to <code>30</code> and <em>Line type</em> to <strong>Tube</strong>.</p>
+</li>
+<li>
+<p>Right-click <strong>Streamline 1</strong> and choose <strong>Selection</strong>. Click the bottom face of the base (z = 0), where the heat enters. The streamlines start on the selected boundaries.</p>
+</li>
+<li>
+<p>Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_heatsink_7_isosurface_streamlines.png" alt="Heat sink drawn as a gray wireframe with colored temperature isosurfaces and tube streamlines of the conductive heat flux rising into the fins">
+</div>
+<div class="title">Figure 7. Wireframe, temperature isosurfaces and heat-flux streamlines (P0 = 20 W)</div>
+</div>
+<div class="paragraph">
+<p>The plot shows two legends: the streamlines are colored by the heat flux magnitude, the isosurfaces by temperature (110.8 °C to 113.8 °C at 20 W).</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="cut-plane-in-a-2d-plot-group"><a class="anchor" href="#cut-plane-in-a-2d-plot-group"></a>Cut Plane in a 2D plot group</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Cut Plane</b></span>. Set <em>Dataset</em> to <strong>Study 1/Solution 1</strong>, <em>Plane type</em> to <strong>Quick</strong>, <em>Plane</em> to <strong>zx-planes</strong> and <em>Coordinate</em> to <code>20</code> (mm, the middle of the 40 mm depth).</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">2D Plot Group</b></span>, rename it <code>Cut plane y = 20 mm</code> and set its <em>Dataset</em> to <strong>Cut Plane 1</strong>.</p>
+</li>
+<li>
+<p>In <strong>Surface 1</strong> set <em>Expression</em> <code>T</code>, <em>Unit</em> <code>degC</code> and <em>Color table</em> <strong>ThermalLight</strong>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Arrow Volume</b></span>. Set <em>Vector expression</em> to <code>ht.tflux</code>, <em>x grid points</em> to <code>24</code>, <em>y grid points</em> to <code>18</code> and <em>Color</em> to <strong>Black</strong>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The cut plane is drawn in its in-plane coordinates: x across the fins and z upward.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_heatsink_8_cut_plane.png" alt="2D plot of the cut plane: base and six fins colored by temperature with black arrows of the heat flux pointing up the fins">
+</div>
+<div class="title">Figure 8. Temperature and heat-flux arrows on the cut plane y = 20 mm</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="parametric-extrusion-over-the-sweep"><a class="anchor" href="#parametric-extrusion-over-the-sweep"></a>Parametric Extrusion over the sweep</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Extrusion 2D</b></span>. Set <em>Dataset (cut plane or 2D solution)</em> to <strong>Cut Plane 1</strong>. Leave <em>Parameter values (indices from 1, empty = all)</em> empty and <em>Level scale factor</em> at <code>1</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span>, rename it <code>Parametric extrusion over P0</code> and set <em>Dataset</em> to <strong>Parametric Extrusion 2D 1</strong>.</p>
+</li>
+<li>
+<p>In <strong>Surface 1</strong> set <em>Expression</em> <code>T</code>, <em>Unit</em> <code>degC</code> and <em>Color table</em> <strong>ThermalLight</strong>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The dataset stacks the cut plane of every sweep solution at the height <em>parameter value × Level scale factor</em> (in geometry units) and fills the space in between. Here the third axis is P0 from 5 to 20, so the plot shows how the temperature on the cut plane rises with the dissipated power (42.7 °C to 113.8 °C).</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_heatsink_9_parametric_extrusion.png" alt="3D solid made of the fin cross-section extruded along the parameter axis, colored by temperature from 42.7 to 113.8 degC">
+</div>
+<div class="title">Figure 9. Cut plane extruded over P0 = 5 to 20 W</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Datasets chain: a Cut Plane takes a solution, a Parametric Extrusion takes a Cut Plane, and a Mirror can take either. See <a href="../reference/datasets.html" class="xref page">Datasets</a> for every dataset setting.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results-3"><a class="anchor" href="#check-the-results-3"></a>Check the results</h3>
+<div class="paragraph">
+<p>The heat sink walkthrough has no closed form, so the datasets and plots are checked on a 40 × 20 × 10 mm aluminum block with 300 K at x = 0 and 400 K at x = 40 mm, where the temperature is exactly linear in x (<code>test_cut_plane_mirror_extrusion</code>, <code>test_plot_scenes_and_polar</code>):</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>A yz Cut Plane at x = 10 mm reads 325 K everywhere (to 1e-6 K). Its in-plane coordinates run 0 to 20 mm and 0 to 10 mm, and its area integrates to 20 × 10 mm² to 1e-12 m².</p>
+</li>
+<li>
+<p>On an xy cut plane the temperature is 300 K + 2.5 K/mm · x, and the heat flux points toward −x with zero z component.</p>
+</li>
+<li>
+<p>A Mirror in x = 0 doubles the nodes and the volume, and copies the values.</p>
+</li>
+<li>
+<p>A Parametric Extrusion of an xy cut plane over three levels (0, 1, 2) with <em>Level scale factor</em> 5 has twice the cells of the plane, the volume 40 × 20 × 10 mm³ and the mean temperature 350 K (to 1e-6 K).</p>
+</li>
+<li>
+<p>A Mirror of a quick yz Cut Plane at x = 30 mm reads 375 K.</p>
+</li>
+<li>
+<p>Every 3D plot type (Surface with wireframe, Slice by coordinates, Isosurface, filled Contour with labels, Arrow Volume on a 5 × 4 × 3 grid, Streamline, Line, Mesh) draws without error. A Selection subnode restricts a Surface plot to the selected boundary.</p>
+</li>
+<li>
+<p>The annotation <code>T = eval(T, degC)</code> at x = 20 mm reads <code>T = 76.85</code> (350 K).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="coil-revolution-2d-and-polar-plots"><a class="anchor" href="#coil-revolution-2d-and-polar-plots"></a>Coil: Revolution 2D and polar plots</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A copper coil around an iron core in air, modeled in 2D axisymmetry (Magnetic Fields, <code>mf</code>, see <a href="../reference/physics-mf.html" class="xref page">Magnetic Fields (mf)</a>). Two views turn the r-z solution into something easier to read: a revolved 3D view, and a polar plot of |B| on a circle around the coil.</p>
+</div>
+<div class="sect2">
+<h3 id="model-and-study-2"><a class="anchor" href="#model-and-study-2"></a>Model and study</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Application Libraries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Coil with iron core - 2D axisymmetric magnetic fields</b></span>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span>.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="revolution-2d-dataset"><a class="anchor" href="#revolution-2d-dataset"></a>Revolution 2D dataset</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Revolution 2D</b></span>. Set <em>Dataset</em> to <strong>Study 1/Solution 1</strong>. Keep <em>Start angle</em> <code>-90</code> and <em>Revolution angle</em> <code>225</code>, and set <em>Number of layers</em> to <code>48</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span>, rename it <code>Revolution 2D</code> and set <em>Dataset</em> to <strong>Revolution 2D 1</strong>.</p>
+</li>
+<li>
+<p>In <strong>Surface 1</strong> set <em>Expression</em> <code>mf.normB</code> and <em>Unit</em> <code>mT</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Surface 1</strong> and choose <strong>Selection</strong>. <em>Geometric entity level</em> is <strong>Domain</strong>; click the core and the coil, leaving the air out. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_coil_10_revolution.png" alt="3D view of the iron core and the copper coil revolved through 225 degrees, colored by magnetic flux density norm in mT up to about 220 mT">
+</div>
+<div class="title">Figure 10. Core and coil revolved through 225°, colored by the flux density</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+For a quick look without a dataset, a 2D Plot Group of an axisymmetric model has the check box <em>Show 2D axisymmetric revolution (3D)</em>.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="polar-plot"><a class="anchor" href="#polar-plot"></a>Polar plot</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Polar Plot Group</b></span>. It already contains <strong>Line Graph (Polar) 1</strong>.</p>
+</li>
+<li>
+<p>In <strong>Line Graph (Polar) 1</strong> set <em>Radius expression</em> to <code>mf.normB</code> and <em>Unit</em> to <code>mT</code>.</p>
+</li>
+<li>
+<p>Under <em>Evaluation Circle</em> set <em>Center, x</em> and <em>Center, y</em> to <code>0</code>, <em>Radius</em> to <code>40</code> (mm), <em>Start angle</em> to <code>-90</code>, <em>End angle</em> to <code>90</code> and <em>Points</em> to <code>181</code>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>In the r-z plane, x is r and y is z, so the half circle from −90° to 90° runs from the axis below the coil, around the coil at r = 40 mm, to the axis above it. The polar plot group&#8217;s <em>Zero angle</em> is <strong>Right (0 deg = +x)</strong> by default.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_post_coil_11_polar.png" alt="Polar plot of the magnetic flux density norm in mT on a half circle of radius 40 mm from -90 to 90 degrees">
+</div>
+<div class="title">Figure 11. Flux density norm on a circle of radius 40 mm around the coil</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results-4"><a class="anchor" href="#check-the-results-4"></a>Check the results</h3>
+<div class="ulist">
+<ul>
+<li>
+<p>The Revolution 2D settings (start angle, revolution angle, layers) are read as entered, also when the dataset is chained to a Cut Plane (<code>test_cut_plane_mirror_extrusion</code>).</p>
+</li>
+<li>
+<p>A 2D axisymmetric solution shown with <em>Show 2D axisymmetric revolution (3D)</em> becomes a 3D scene that carries the field and sweeps into negative z (<code>tests/test_revolve.py</code>).</p>
+</li>
+<li>
+<p>The polar evaluation is checked on the linear-temperature block: on a circle of radius 8 mm around (20, 10) mm in an xy cut plane, the values are 350 K + 20 K · cos θ to 1e-6 K, and the plot is drawn on polar axes with one line (<code>test_plot_scenes_and_polar</code>).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="integrals-of-2d-axisymmetric-models"><a class="anchor" href="#integrals-of-2d-axisymmetric-models"></a>Integrals of 2D axisymmetric models</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>In a 2D axisymmetric component, <strong>Volume Integration</strong>, <strong>Surface Integration</strong> and <strong>Volume Average</strong> integrate in the revolved geometry, with the weight 2πr. This is COMSOL&#8217;s <em>Compute integral in revolved geometry</em> and it is on by default. Clear the check box to integrate over the r-z plane instead. See <a href="../reference/derived-values.html" class="xref page">Derived values</a>.</p>
+</div>
+<div class="paragraph">
+<p>The screenshots use a small model: a cylinder of electrolyte (R = 2 mm, H = 5 mm, conductivity 5 S/m, primary current distribution), a disc electrode r &lt; R/2 at z = 0 held at 0.1 V, and the electrolyte potential 0 on the top.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+In a 2D component the derived values are named after the entity dimension: the boundary integral is <strong>Line Integration</strong> and the domain integral is <strong>Surface Integration</strong>. In the revolved geometry they still return a surface and a volume integral.
+</td>
+</tr>
+</table>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Right-click <strong>Derived Values</strong> and choose <strong>Line Integration</strong>. Click the electrode boundary, enter <code>cd.iloc</code> in the <em>Expressions</em> table and click <strong>Evaluate</strong>. <em>Compute integral in revolved geometry</em> is checked, so the result is the electrode current in A.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/revolved_1_surface_integration_cd_iloc.png" alt="Line Integration of cd.iloc over the electrode boundary with Compute integral in revolved geometry checked; the table shows 0.00105805 A">
+</div>
+<div class="title">Figure 12. Electrode current from the local current density, integrated over the revolved electrode</div>
+</div>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global Evaluation</b></span>, enter <code>cd.es1.Itot</code> (the total current of the electrode, from the reaction loads) and click <strong>Evaluate</strong>. Both tables show 0.00105805 A.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/revolved_2_global_evaluation_itot.png" alt="Global Evaluation of cd.es1.Itot with the same value 0.00105805 A">
+</div>
+<div class="title">Figure 13. The electrode current reported by the electrode feature</div>
+</div>
+</li>
+<li>
+<p>Right-click <strong>Derived Values</strong> and choose <strong>Surface Integration</strong>. Leave <em>Selection</em> at <strong>All domains</strong>, enter <code>1</code> with <em>Description</em> <code>Volume</code> and click <strong>Evaluate</strong>. The result is the cylinder volume πR²H = 6.28319e-8 m³. The screenshot shows the cylinder through a Revolution 2D dataset (start −90°, 270°).</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/revolved_3_volume_integration_revolved.png" alt="Surface Integration of 1 over all domains with the revolved option checked; the table shows 6.28319e-08">
+</div>
+<div class="title">Figure 14. Volume of the revolved cylinder</div>
+</div>
+</li>
+<li>
+<p>Clear <em>Compute integral in revolved geometry</em> and click <strong>Evaluate</strong> again. The result is now the area of the r-z section, R·H = 1e-5 m².</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/revolved_4_volume_integration_unchecked.png" alt="Surface Integration with the revolved option cleared; the table shows 1e-05">
+</div>
+<div class="title">Figure 15. The same integral over the r-z plane</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+An integral over the r-z plane is not a physical quantity of the 3D object. Keep the check box on unless you want the plane integral on purpose.
+</td>
+</tr>
+</table>
+</div>
+<div class="sect2">
+<h3 id="check-the-results-5"><a class="anchor" href="#check-the-results-5"></a>Check the results</h3>
+<div class="paragraph">
+<p><code>tests/test_electrochemistry.py</code> checks, on the same cylinder:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>With the electrode across the whole bottom, the volume is πR²H, the lateral surface 2πRH and the Surface Integration of <code>cd.iloc</code> over the electrode equals <code>cd.es1.Itot</code> = πR²σV/H, all to 1e-9. The revolved average of <code>cd.iloc</code> is σV/H to 1e-9.</p>
+</li>
+<li>
+<p>Unchecked, the volume integral is R·H and the side boundary integral is H, to 1e-9. The revolved mean radius is 2R/3 (within 1 %) and the r-z plane mean radius R/2 (to 1e-9).</p>
+</li>
+<li>
+<p>New Volume Integration, Surface Integration and Volume Average nodes have the option on; the option is shown only for 2D axisymmetric models. The column units are those of the revolved measure: m³ for the volume, A for <code>cd.iloc</code> over a boundary.</p>
+</li>
+<li>
+<p>With the disc electrode r &lt; R/2 (the screenshot model), the revolved integral of <code>cd.iloc</code> equals <code>cd.es1.Itot</code> to 1e-9, and the current lies between π(R/2)²σV/H and πR²σV/H.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="where-to-go-next"><a class="anchor" href="#where-to-go-next"></a>Where to go next</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="acoustics.html" class="xref page">Acoustics</a> uses Grid 3D, Parametric Curve 3D, Radiation Pattern and Directivity plots on an acoustics solution.</p>
+</li>
+<li>
+<p><a href="application-library.html" class="xref page">Application Library examples</a> lists every example model.</p>
+</li>
+<li>
+<p><a href="../reference/plots.html" class="xref page">Plot groups and plots</a> and <a href="../reference/result-variables.html" class="xref page">Result variables</a> list every plot setting and result variable.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="wrench.html">Wrench: solid mechanics</a></span>
+  <span class="next"><a href="acoustics.html">Acoustics</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

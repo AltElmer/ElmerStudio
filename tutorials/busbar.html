@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Busbar: Joule Heating :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/tutorials/busbar.html">
+    <link rel="prev" href="application-library.html">
+    <link rel="next" href="wrench.html">
+    <meta name="description" content="Build the busbar model of the COMSOL introduction in Elmer Studio: electric currents heat a copper busbar bolted with titanium bolts.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>Tutorials</li>
+    <li><a href="busbar.html">Busbar: Joule heating</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/tutorials/pages/busbar.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Busbar: Joule Heating</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>A copper busbar carries a direct current between three titanium bolts.
+The current heats the bar (Joule heating) and the bar loses that heat to the surrounding air by convection.
+You build the geometry from parameters, solve the coupled electric and thermal problem, then sweep the busbar width and plot how the average temperature falls as the bar gets wider.</p>
+</div>
+<div class="ulist">
+<div class="title">What you will learn</div>
+<ul>
+<li>
+<p>Set up a multiphysics model with the Model Wizard (Joule Heating).</p>
+</li>
+<li>
+<p>Sketch on a work plane, round corners, and extrude; place work planes on faces of the part you built.</p>
+</li>
+<li>
+<p>Assign two materials and apply boundary conditions by clicking faces.</p>
+</li>
+<li>
+<p>Use a user-controlled mesh driven by a parameter.</p>
+</li>
+<li>
+<p>Run a parametric sweep and evaluate a coupling operator (<code>aveop1(T)</code>) over all sweep values.</p>
+</li>
+</ul>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Model at a glance</caption>
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Space dimension</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Physics</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electric Currents (ec) + Heat Transfer in Solids (ht), coupled by Electromagnetic Heating</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Study</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stationary, with a Parametric Sweep over the width <code>wbb</code> (6 values)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mesh</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Quadratic tetrahedra; about 37 000 nodes at <code>wbb</code> = 5 cm, growing to about 77 000 at 10 cm</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solve time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">6 to 8 minutes for the whole sweep on a desktop PC (two recorded runs: 350 s and 447 s)</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If you know COMSOL, this is the busbar from <em>Introduction to COMSOL Multiphysics</em>. The workflow is the same; the differences are called out in notes along the way. Elmer Studio is an independent project and is not affiliated with COMSOL.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="start-a-new-model"><a class="anchor" href="#start-a-new-model"></a>Start a new model</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>N</kbd></span>) and choose <strong>Model Wizard</strong>.</p>
+</li>
+<li>
+<p>On <strong>Select Space Dimension</strong>, choose <strong>3D</strong>.</p>
+</li>
+<li>
+<p>On <strong>Select Physics</strong>, expand <strong>Heat Transfer › Electromagnetic Heating</strong>, select <strong>Joule Heating</strong> and click <strong>Add</strong>.
+The list on the right now shows Electric Currents (ec) and Heat Transfer in Solids (ht).</p>
+</li>
+<li>
+<p>Click <strong>Study</strong>, select <strong>General Studies › Stationary</strong> and click <strong>Done</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The Model Builder now contains <strong>Component 1</strong> with <strong>Geometry 1</strong>, <strong>Materials</strong>, <strong>Electric Currents (ec)</strong>, <strong>Heat Transfer in Solids (ht)</strong>, <strong>Multiphysics</strong> (with the Electromagnetic Heating coupling), <strong>Mesh 1</strong> and <strong>Study 1</strong>.
+Elmer Studio has already added the default features: <strong>Current Conservation 1</strong>, <strong>Electric Insulation 1</strong>, <strong>Solid 1</strong>, <strong>Thermal Insulation 1</strong> and the <strong>Initial Values</strong> nodes.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="parameters"><a class="anchor" href="#parameters"></a>Parameters</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>On the <strong>Home</strong> ribbon, click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parameters</b></span>. This selects <strong>Parameters 1</strong> under <strong>Global Definitions</strong>.</p>
+</li>
+<li>
+<p>In the Settings window, type the following rows into the table. Each new row appears when you start typing in the empty last row; the <em>Value</em> column fills in by itself.</p>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 33.3333%;">
+<col style="width: 50.0001%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Expression</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">L</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>9[cm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Length of lower part of the busbar</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">rad_1</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>6[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Radius of the titanium bolts</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">tbb</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>5[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Thickness of the busbar</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">wbb</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>5[cm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Width of the busbar</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">mh</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>3[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Maximum element size</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">htc</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>5[W/(m^2*K)]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat transfer coefficient</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Vtot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>20[mV]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Applied electric potential</p></td>
+</tr>
+</tbody>
+</table>
+</li>
+</ol>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+The <strong>Load from File</strong> and <strong>Save to File</strong> buttons under the table read and write the list as a text file with one parameter per line (name, expression, description, separated by spaces).
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="geometry"><a class="anchor" href="#geometry"></a>Geometry</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The busbar is an L-shaped profile drawn in the xz-plane and extruded by the width <code>wbb</code>.
+The bolts are circles drawn on faces of that extruded bar and extruded through it.
+The geometry stays in the default length unit, metres; all sizes come from the parameters.
+See <a href="../user-guide/geometry.html" class="xref page">Geometry</a> for how work planes, building and entity numbers work.</p>
+</div>
+<div class="sect2">
+<h3 id="work-plane-1-the-l-profile"><a class="anchor" href="#work-plane-1-the-l-profile"></a>Work Plane 1: the L profile</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Geometry 1</strong>, then click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Work Plane</b></span>.</p>
+</li>
+<li>
+<p>In the Settings of <strong>Work Plane 1</strong>, keep <em>Plane type</em> <code>Quick</code> and set <em>Plane</em> to <code>xz-plane</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 1</strong> and choose <strong>Primitives › Rectangle</strong>. In <strong>Rectangle 1</strong> set <em>Width</em> <code>L+2*tbb</code> and <em>Height</em> <code>0.1</code>. Leave the position at <code>0</code>, <code>0</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 1</strong> again and choose <strong>Primitives › Rectangle</strong>. In <strong>Rectangle 2</strong> set <em>Width</em> <code>L+tbb</code>, <em>Height</em> <code>0.1-tbb</code>, <em>x</em> <code>0</code> and <em>y</em> <code>tbb</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 1</strong> and choose <strong>Booleans and Partitions › Difference</strong>. In <strong>Difference 1</strong> check <code>r1</code> under <em>Objects to add</em> and <code>r2</code> under <em>Objects to subtract</em>.</p>
+</li>
+<li>
+<p>Press <kbd>F7</kbd> (<strong>Build Selected</strong>) to build the work plane up to this node.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Next, round the inner corner of the L with radius <code>tbb</code> and the outer corner of the bend with radius <code>2*tbb</code>.
+A plane fillet refers to the corners by point number. Points are numbered by position, x first, then y: in the L profile, point 3 is the inner corner at (<code>95[mm]</code>, <code>5[mm]</code>).</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Right-click <strong>Work Plane 1</strong> and choose <strong>Conversions › Fillet</strong> (or, with a node of the work plane selected, click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Fillet</b></span>). <strong>Fillet 1</strong> is added to the work plane. The Graphics window shows the plane sketch built so far, with its points numbered.</p>
+</li>
+<li>
+<p>Click point <strong>3</strong>, the inner corner, in the Graphics window (or type <code>3</code> into <em>Vertices to fillet (point numbers, if not picked)</em>), and set <em>Radius</em> to <code>tbb</code>.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_busbar_1_workplane_fillet_points.png" alt="Settings of Fillet 1 with point 3 and radius tbb; the Graphics window shows the L profile with points 1 to 6">
+</div>
+<div class="title">Figure 1. The plane sketch at Fillet 1: the L profile with its six corner points numbered by position</div>
+</div>
+</li>
+<li>
+<p>Add a second fillet the same way. In <strong>Fillet 2</strong>, pick point <strong>6</strong> and set <em>Radius</em> to <code>2*tbb</code>. Point 6 is the outer corner of the bend at (<code>100[mm]</code>, <code>0</code>). After Fillet 1, the rounded inner corner has two end points instead of one, so the corners further right move up by one number. The sketch at Fillet 2 shows the new numbers.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+In 2D models and inside work planes, <strong>Fillet</strong> and <strong>Chamfer</strong> act on the sketch&#8217;s corner points. In a 3D geometry sequence, they act on the edges of a solid.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="extrude-1-the-bar"><a class="anchor" href="#extrude-1-the-bar"></a>Extrude 1: the bar</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Fillet 2</strong>, then click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Extrude</b></span>. <strong>Extrude 1</strong> is added after the work plane with <code>wp1</code> checked under <em>Input objects</em>.</p>
+</li>
+<li>
+<p>Set <em>Distance from work plane</em> to <code>wbb</code>.</p>
+</li>
+<li>
+<p>Press <kbd>F7</kbd>. The bar is 100 mm high, 100 mm long and <code>wbb</code> wide.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="work-plane-2-the-upper-bolt"><a class="anchor" href="#work-plane-2-the-upper-bolt"></a>Work Plane 2: the upper bolt</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>With <strong>Extrude 1</strong> selected, click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Work Plane</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Work Plane 2</strong> set <em>Plane type</em> to <code>Face parallel</code>. The Graphics window shows the geometry built so far with its boundary numbers.</p>
+</li>
+<li>
+<p>Type <code>8</code> into <em>Planar face (boundary number)</em>. Boundary 8 is the inner face of the vertical leg, at x = 95 mm; it turns blue in the Graphics window. Instead of typing, you can click that face: a picked face appears in the <em>Boundary Selection</em> list and takes precedence over the typed number.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_busbar_2_face_parallel_pick.png" alt="Settings of Work Plane 2 with Plane type Face parallel and planar face 8; the Graphics window shows the extruded L with boundary numbers and face 8 highlighted">
+</div>
+<div class="title">Figure 2. Picking the face for the face-parallel work plane: boundary 8 is highlighted</div>
+</div>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 2</strong> and choose <strong>Primitives › Circle</strong>. Set <em>Radius</em> to <code>rad_1</code>. Keep <em>x</em> and <em>y</em> at <code>0</code>: the work plane&#8217;s origin is the centre of face 8.</p>
+</li>
+<li>
+<p>Click <strong>Circle 1</strong>, then click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Extrude</b></span>. <strong>Extrude 2</strong> takes <code>wp2</code> as input. Set <em>Distance from work plane</em> to <code>-2*tbb</code>.</p>
+<div class="paragraph">
+<p>The face normal points out of the bar, so a negative distance extrudes the circle into the vertical leg and <code>tbb</code> out of its far side.</p>
+</div>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="work-plane-3-the-two-lower-bolts"><a class="anchor" href="#work-plane-3-the-two-lower-bolts"></a>Work Plane 3: the two lower bolts</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>With <strong>Extrude 2</strong> selected, click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Work Plane</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Work Plane 3</strong> set <em>Plane type</em> to <code>Face parallel</code> and type <code>4</code> into <em>Planar face (boundary number)</em> (or click the face). Boundary 4 is the top face of the horizontal leg.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 3</strong> and choose <strong>Primitives › Circle</strong>. Set <em>Radius</em> <code>rad_1</code>, <em>x</em> <code>-L/2+1.5[cm]</code> and <em>y</em> <code>-wbb/4</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 3</strong> and choose <strong>Transforms › Copy</strong>. In <strong>Copy 1</strong> check the circle (<code>c2</code>) under <em>Input objects</em> and set the displacement <em>y</em> to <code>wbb/2</code>.</p>
+</li>
+<li>
+<p>Click <strong>Copy 1</strong>, then click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Extrude</b></span>. <strong>Extrude 3</strong> takes <code>wp3</code> as input. Set <em>Distance from work plane</em> to <code>-2*tbb</code>.</p>
+</li>
+<li>
+<p>Click <strong>Geometry 1</strong> and press <kbd>F8</kbd> (<strong>Build All Objects</strong>).</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The geometry has 7 domains: domain 1 is the copper bar and domains 2–7 are the bolts.
+Each bolt is split in two where it passes the surface of the bar.
+<strong>Form Union</strong> at the end of the sequence joins everything into one mesh-compatible assembly.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_busbar_3_geometry.png" alt="Settings of Geometry 1 with Geometry Statistics, and the busbar with three bolts in the Graphics window">
+</div>
+<div class="title">Figure 3. The finished geometry: the copper L with three bolt holes</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Save now with <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>S</kbd></span>. Models are stored as <code>.esm</code> files.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="materials"><a class="anchor" href="#materials"></a>Materials</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Material</b></span>. The <strong>Add Material</strong> window opens on the right.</p>
+</li>
+<li>
+<p>Select <strong>Built-in › Copper</strong> and click <strong>Add to Component</strong>. The first material you add covers all domains.</p>
+</li>
+<li>
+<p>Select <strong>Metals › Titanium beta-21S</strong> and click <strong>Add to Component</strong>. This material starts with an empty selection.</p>
+</li>
+<li>
+<p>In the Settings of <strong>Titanium beta-21S</strong>, click the six bolt domains 2, 3, 4, 5, 6 and 7 in the Graphics window. They turn blue and appear in the <em>Domain Selection</em> list.
+<strong>Transparency</strong> in the Graphics toolbar helps to see the bolt parts inside the bar.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The Material Contents table marks every property the physics needs with a check mark: density, thermal conductivity, heat capacity and electrical conductivity.
+<strong>Copper</strong> still lists all domains; as in COMSOL, where two materials share a domain, the one lower in the Model Builder is used.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_busbar_4_titanium_material.png" alt="Settings of the Titanium beta-21S material with domains 2 to 7 selected and the Material Contents table; the bolts are highlighted in the Graphics window">
+</div>
+<div class="title">Figure 4. Titanium beta-21S assigned to the bolt domains 2–7</div>
+</div>
+<div class="paragraph">
+<p>See <a href="../user-guide/materials.html" class="xref page">Materials</a> for the material library and user materials.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="physics"><a class="anchor" href="#physics"></a>Physics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Current enters through the end face of the upper bolt and leaves through the bottom faces of the two lower bolts.
+Every other outside surface loses heat by convection.</p>
+</div>
+<div class="sect2">
+<h3 id="electric-currents"><a class="anchor" href="#electric-currents"></a>Electric Currents</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Electric Currents (ec)</strong> in the Model Builder.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electric Potential</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Electric Potential 1</strong>, click boundary 43, the end face of the upper bolt sticking out of the vertical leg. Set <em>Electric potential</em> to <code>Vtot</code>.</p>
+</li>
+<li>
+<p>Click <strong>Electric Currents (ec)</strong> again and click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Ground</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Ground 1</strong>, click boundaries 7 and 14, the bottom faces of the two lower bolts.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+To rotate the view and reach the bottom faces, drag with the left mouse button; <kbd>F5</kbd> zooms back to the whole model. Clicking a selected entity again removes it from the selection.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>All remaining boundaries keep the default <strong>Electric Insulation 1</strong>.
+The settings are listed in <a href="../reference/physics-ec.html" class="xref page">Electric Currents (ec)</a>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="heat-transfer-in-solids"><a class="anchor" href="#heat-transfer-in-solids"></a>Heat Transfer in Solids</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Heat Transfer in Solids (ht)</strong> and click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Heat Flux</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Heat Flux 1</strong>, set <em>Flux type</em> to <code>Convective heat flux</code>, <em>Heat transfer coefficient</em> to <code>htc</code> and <em>External temperature</em> to <code>293.15[K]</code> (the default).</p>
+</li>
+<li>
+<p>Select the outside surfaces except the three bolt contact faces:</p>
+<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+<p>Click <strong>Select All</strong> in the Graphics window toolbar. All 43 boundaries are added to the list.</p>
+</li>
+<li>
+<p>In the <em>Boundary Selection</em> list, hold <kbd>Ctrl</kbd> and click <code>7</code>, <code>8</code>, <code>9</code>, <code>12</code>, <code>14</code>, <code>15</code>, <code>16</code>, <code>19</code>, <code>21</code>, <code>23</code>, <code>25</code>, <code>27</code>, <code>33</code>, <code>34</code>, <code>35</code>, <code>36</code>, <code>38</code> and <code>43</code>.</p>
+</li>
+<li>
+<p>Click the <strong>Remove</strong> button (the minus sign) next to the list. 25 boundaries remain.</p>
+</li>
+</ol>
+</div>
+</li>
+</ol>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+In COMSOL, a boundary condition with all boundaries selected acts only on the exterior ones. In Elmer Studio, only the default features (such as Thermal Insulation) are restricted to exterior boundaries; a feature you add acts on every boundary in its list. The 15 boundaries removed above besides 7, 14 and 43 are the interfaces between the bolts and the bar, which must not lose heat.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The Joule heat source needs no setup: the <strong>Electromagnetic Heating</strong> coupling under <strong>Multiphysics</strong> feeds the resistive losses of Electric Currents into Heat Transfer on all domains.
+See <a href="../reference/physics-ht.html" class="xref page">Heat Transfer in Solids (ht)</a> and <a href="../user-guide/physics.html" class="xref page">Physics interfaces</a>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="mesh"><a class="anchor" href="#mesh"></a>Mesh</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The mesh is controlled by the parameter <code>mh</code>.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>On the <strong>Mesh</strong> ribbon, click <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Free Tetrahedral</b></span>. <strong>Mesh 1</strong> switches to a user-controlled sequence and gets two nodes, <strong>Size 1</strong> and <strong>Free Tetrahedral 1</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Size 1</strong>. Set <em>Element size</em> to <code>Custom</code>, then set:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Maximum element size</em>: <code>mh</code></p>
+</li>
+<li>
+<p><em>Minimum element size</em>: <code>mh-mh/3</code></p>
+</li>
+<li>
+<p><em>Curvature factor</em>: <code>0.2</code></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Build Mesh</b></span>. The Messages window reports the number of elements and nodes.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Elements are quadratic, because both physics interfaces use quadratic discretization by default.
+See <a href="../user-guide/mesh.html" class="xref page">Mesh</a> for the other size settings.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="study"><a class="anchor" href="#study"></a>Study</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>First solve one width, then add the sweep.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Study 1</strong> and click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>). The Progress window and a Convergence Plot tab show the solver at work; three default plot groups appear under <strong>Results</strong> when it finishes.</p>
+</li>
+<li>
+<p>To sweep the width, click <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Sweep</b></span>. <strong>Parametric Sweep 1</strong> is added at the top of <strong>Study 1</strong>.</p>
+</li>
+<li>
+<p>Set <em>Parameter name</em> to <code>wbb</code>, <em>Parameter value list</em> to <code>range(5,1,10)</code> and <em>Parameter unit</em> to <code>cm</code>.
+That is six widths from 5 cm to 10 cm in steps of 1 cm.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The geometry and mesh are rebuilt for every width. Before computing, add the coupling operator you will evaluate afterwards.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Right-click <strong>Definitions</strong> under <strong>Component 1</strong> and choose <strong>Average</strong>.</p>
+</li>
+<li>
+<p>In <strong>Average 1</strong>, set <em>Operator name</em> to <code>aveop1</code>. Leave the <em>Domain Selection</em> at all domains.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span>. The Messages window lists each sweep step, for example <code>Parametric sweep: wbb = 0.1 (6/6)</code>.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+The operator defined under Definitions works in any result expression: <code>aveop1(T)</code> is the volume average of the temperature over the selected domains, like COMSOL&#8217;s Average component coupling.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>See <a href="../user-guide/studies.html" class="xref page">Studies and solving</a> and <a href="../user-guide/definitions.html" class="xref page">Parameters, variables and functions</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="results"><a class="anchor" href="#results"></a>Results</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After the sweep, the plot groups show the last parameter value (<code>wbb</code> = 10 cm) unless you change <em>Solution selection</em> in the plot group.</p>
+</div>
+<div class="sect2">
+<h3 id="temperature-and-potential"><a class="anchor" href="#temperature-and-potential"></a>Temperature and potential</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Temperature (ht)</strong> to see the surface temperature. The top bolt, where the current enters, is the hottest part.</p>
+</li>
+<li>
+<p>Click <strong>Electric Potential (ec)</strong>. The Multislice plot shows the potential falling from 20 mV at the upper bolt to 0 at the two grounded bolts.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_busbar_6_multislice_potential.png" alt="Electric Potential (ec) plot group with a Multislice of V from 0 to 0.02 V; the Messages window lists the sweep steps and the solution time">
+</div>
+<div class="title">Figure 5. Default Electric Potential (ec) plot group: Multislice of the electric potential</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="average-temperature-versus-width"><a class="anchor" href="#average-temperature-versus-width"></a>Average temperature versus width</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global Evaluation</b></span>. In <strong>Global Evaluation 1</strong>:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Dataset</em>: <code>Study 1/Solution 1</code></p>
+</li>
+<li>
+<p><em>Time/parameter selection</em>: <code>All</code> (the default)</p>
+</li>
+<li>
+<p>In the <em>Expressions</em> table, type <code>aveop1(T)</code> in the <em>Expression</em> column and <code>Average temperature</code> in <em>Description</em>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Click <strong>Evaluate</strong> at the top of the Settings window. The Table window lists one row per width.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global</b></span>. A <strong>1D Plot Group</strong> with a <strong>Global 1</strong> plot is added.</p>
+</li>
+<li>
+<p>In <strong>Global 1</strong>, set <em>Expression (global, e.g. aveop1(T), or a field to reduce)</em> to <code>aveop1(T)</code> and <em>Reduction</em> to <code>Global (scalar expression)</code>.</p>
+</li>
+<li>
+<p>Click <strong>Plot</strong>. The x-axis is the sweep parameter, <code>wbb (cm)</code>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_busbar_7_aveop_vs_wbb.png" alt="1D Plot Group with Global: aveop1(T) falling from about 323 K at wbb 5 cm to about 309 K at 10 cm; the Table window lists wbb and the average temperature">
+</div>
+<div class="title">Figure 6. Average temperature of the busbar against its width, with the Global Evaluation table below</div>
+</div>
+<div class="paragraph">
+<p>See <a href="../user-guide/results.html" class="xref page">Results</a>, <a href="../reference/plots.html" class="xref page">Plot groups and plots</a> and <a href="../reference/derived-values.html" class="xref page">Derived values</a>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="check-the-results"><a class="anchor" href="#check-the-results"></a>Check the results</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>These are the checks in <code>tests/test_tutorial_busbar.py</code>, which builds this model step by step and runs the sweep; they follow what the COMSOL tutorial text states.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The geometry has <strong>7 domains</strong>; domains 2–7 are the bolts.</p>
+</li>
+<li>
+<p>At <code>wbb</code> = 5 cm the maximum temperature is <strong>above 300 K</strong>, well above the ambient 293.15 K (about 330.5 K).</p>
+</li>
+<li>
+<p>The temperature difference across the whole device is <strong>less than 10 K</strong> (8.0 K at 5 cm, 8.5 K at 10 cm).</p>
+</li>
+<li>
+<p>The <strong>average temperature decreases</strong> with every step of the width sweep: about 322.8 K at 5 cm, 318.5 K at 6 cm, 315.3 K at 7 cm, 312.8 K at 8 cm, 310.9 K at 9 cm and 309.2 K at 10 cm.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The values in brackets come from a verification run of the test model; your last digit may differ because the mesh is generated afresh.</p>
+</div>
+<div class="paragraph">
+<p>The project README lists two further physical checks:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The top bolt is the hottest part: the maximum temperature sits on the end face of the upper bolt, where the current enters.</p>
+</li>
+<li>
+<p>The Joule power generated in the bar equals the heat lost by convection to within 0.4 % (about 3.2 W at 5 cm; the verification run gave 0.3 % at every width).</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>To check the power balance yourself, compare a Volume Integration of <code>ec.Qrh</code> (the Joule loss density) with a Surface Integration of <code>htc*(T-293.15[K])</code> over the 25 convective boundaries.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="what-next"><a class="anchor" href="#what-next"></a>What next</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Change <code>htc</code> or <code>Vtot</code> in <strong>Parameters 1</strong> and compute again; the solution follows the parameters.</p>
+</li>
+<li>
+<p>Look at the current density: add a 3D Plot Group with a Slice of <code>ec.normJ</code>.</p>
+</li>
+<li>
+<p><span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span> lists the <strong>Busbar</strong> example in the Application Libraries. It is a simpler busbar built from blocks, with bolt holes but no bolts, that solves in a few seconds.</p>
+</li>
+<li>
+<p>Continue with the <a href="wrench.html" class="xref page">Wrench: Stationary Solid Mechanics</a> tutorial: stationary solid mechanics and a mesh convergence study.</p>
+</li>
+<li>
+<p>Keyboard shortcuts are listed in <a href="../keyboard-shortcuts.html" class="xref page">Keyboard and mouse</a>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="application-library.html">Application Library examples</a></span>
+  <span class="next"><a href="wrench.html">Wrench: solid mechanics</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

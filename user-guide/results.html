@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Results :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-guide/results.html">
+    <link rel="prev" href="studies.html">
+    <link rel="next" href="elmer.html">
+    <meta name="description" content="Plot groups and plots, datasets, derived values, tables and export.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>User guide</li>
+    <li><a href="results.html">Results</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/user-guide/pages/results.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Results</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Everything under <strong>Results</strong> works on the solutions of your studies. You can add, change and re-plot results without solving again.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Node</th>
+<th class="tableblock halign-left valign-top">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Datasets</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">What results are computed on: a study&#8217;s solution, or a cut line, cut plane, grid, revolution, mirror and so on, made from one.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Derived Values</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Numbers: integrals, averages, maxima and minima, point values, global quantities.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Tables</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The numbers that derived values produce.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Plot groups</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A 3D, 2D, 1D or polar view holding one or more plots.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Export</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Images, data, VTU files and reports.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="plot-groups"><a class="anchor" href="#plot-groups"></a>Plot groups</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Add one with <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span>, <strong>2D Plot Group</strong>, <strong>1D Plot Group</strong> or <strong>Polar Plot Group</strong>. Each plot group has:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>a <em>Dataset</em> and a <em>Solution selection</em>: the last solution, a time, a parameter value or an eigenmode;</p>
+</li>
+<li>
+<p>a <em>Title</em> (automatic or your own), and a color legend with optional max/min;</p>
+</li>
+<li>
+<p>for 1D groups, axis labels, log scales, <strong>Manual axis limits</strong> (x and y minimum and maximum, in the plotted units), grid and legend position.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Plots inside the group inherit its dataset (<em>Dataset: From parent</em>) unless they set their own. Click <strong>Plot</strong> (or press <kbd>F8</kbd>) to redraw. A study creates default plot groups when it finishes, for example <strong>Temperature (ht)</strong> and <strong>Isothermal Contours (ht)</strong>.</p>
+</div>
+<div class="sect2">
+<h3 id="plots-for-3d-and-2d-groups"><a class="anchor" href="#plots-for-3d-and-2d-groups"></a>Plots for 3D and 2D groups</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Plot</th>
+<th class="tableblock halign-left valign-top">Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Surface</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An expression on the surfaces (3D) or over the domains (2D), with a color table, or uniform color and wireframe.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Volume</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An expression inside the domains (3D).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Slice</strong>, <strong>Multislice</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Planes through the model, set by count or coordinates. Multislice uses several planes in x, y and z at once.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Isosurface</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Surfaces of constant value, with a level legend.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Contour</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Lines of constant value (2D) as lines, tubes or filled bands, optionally with level labels.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Arrow Volume</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Arrows of a vector field, at the mesh nodes or on a regular grid, with normalized or scaled length.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Streamline</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Streamlines of a vector field, started on selected boundaries or at points, as lines, tubes or ribbons.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Mesh</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The mesh of the dataset.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Line</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An expression along edges or boundary curves, as lines or tubes.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Annotation</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Text at a position, with <code>eval(expr, unit)</code> for values.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Radiation Pattern</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An acoustic exterior-field quantity on a circle (polar) or sphere (3D).</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Attributes you can add under a plot:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Deformation</strong>: shows the plot on the deformed shape, for example the displacement in solid mechanics, scaled.</p>
+</li>
+<li>
+<p><strong>Selection</strong>: restricts the plot to some domains or boundaries.</p>
+</li>
+<li>
+<p><strong>Color Expression</strong>: colors a plot (arrows, streamlines, lines) by another expression.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="plots-for-1d-and-polar-groups"><a class="anchor" href="#plots-for-1d-and-polar-groups"></a>Plots for 1D and polar groups</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Plot</th>
+<th class="tableblock halign-left valign-top">Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Line Graph</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An expression along a Cut Line (or along boundaries in 2D, including a Box Selection), against arc length or a coordinate. With <strong>All</strong> in the plot group&#8217;s selection, one curve per output time, and per parameter value of a Parametric Sweep.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Point Graph</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An expression at a Cut Point against time or the sweep parameter.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Global</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Global quantities (coupling operators such as <code>aveop1(T)</code>, eigenfrequencies, electrode currents) against time, frequency or the sweep parameter.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Table Graph</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Columns of a Table.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Line Graph (Polar)</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An expression along a circle, against angle.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Directivity</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The exterior-field level against angle and frequency.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Each graph has line style, width, color, markers and a legend.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="expressions-and-units"><a class="anchor" href="#expressions-and-units"></a>Expressions and units</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Each plot has an expression and a unit. Click the button beside the expression for the list of variables in the solution. Expressions combine:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>solution variables with COMSOL-style names (<code>T</code>, <code>ht.tfluxMag</code>, <code>solid.mises</code>, <code>spf.U</code>, <code>cd.iloc</code>, <code>acpr.Lp</code>, …), listed in <a href="../reference/result-variables.html" class="xref page">Result variables</a>;</p>
+</li>
+<li>
+<p>coordinates <code>x</code>, <code>y</code>, <code>z</code>, parameters, Definitions variables and coupling operators;</p>
+</li>
+<li>
+<p>functions and operators, including <code>real</code>, <code>imag</code>, <code>abs</code>, <code>arg</code>, <code>conj</code> for complex fields.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The <em>Unit</em> list offers the units of the expression&#8217;s quantity (°C, °F or K for a temperature, MPa for a stress, mm for a displacement, …).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="datasets"><a class="anchor" href="#datasets"></a>Datasets</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Dataset</th>
+<th class="tableblock halign-left valign-top">Gives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Solution</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A study&#8217;s solution (created with the study).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Cut Line</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Points along a line from Point 1 to Point 2, for line graphs.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Cut Point</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One point, optionally snapped to the closest boundary, for point graphs.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Cut Plane</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A plane through a 3D solution, for a 2D plot group (quick plane at a coordinate, or point and normal).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Parametric Extrusion 2D</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A 2D dataset or cut plane extruded over the solutions of a sweep, the parameter becoming the third axis.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Revolution 2D</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A 2D axisymmetric solution revolved into 3D, over a start and revolution angle, with layers.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Mirror</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A dataset mirrored in a plane (3D) or line (2D). Datasets can be chained, for example a mirrored cut plane.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Grid 2D</strong>, <strong>Grid 3D</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A regular grid of points, which may extend beyond the mesh (acoustic exterior fields).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Parametric Curve 3D</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A curve x(s), y(s), z(s), for example a spiral around a loudspeaker.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="derived-values"><a class="anchor" href="#derived-values"></a>Derived values</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Add them from <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">&#8230;&#8203;</b></span> (Evaluation group) or by right-clicking <strong>Derived Values</strong>. Give one or more expressions with units and descriptions, then click <strong>Evaluate</strong>. The result goes to the <strong>Table</strong> pane and a <strong>Table</strong> node.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Derived value</th>
+<th class="tableblock halign-left valign-top">Computes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Volume/Surface/Line Integration</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The integral of an expression over the selected domains or boundaries. For a boundary flux such as <code>cd.iloc</code>, the integral equals the conservative total current.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Volume Average</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The integral divided by the volume.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Volume Maximum/Minimum</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The extreme value and its location.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Point Evaluation</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Values at clicked geometry points or at coordinates.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Global Evaluation</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Global expressions (coupling operators, parameters, eigenfrequencies, electrode currents), for every solution of a sweep at once if you choose.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The names follow the space dimension, as in COMSOL: in 2D, <strong>Surface Integration</strong> integrates over domains and <strong>Line Integration</strong> over boundaries.</p>
+</div>
+<div class="sect2">
+<h3 id="2d-axisymmetric-models"><a class="anchor" href="#2d-axisymmetric-models"></a>2D axisymmetric models</h3>
+<div class="paragraph">
+<p>In 2D axisymmetric models, integrals and averages are taken in the <strong>revolved geometry</strong>, weighted by 2πr (<em>Compute integral in revolved geometry</em>, on by default). A <strong>Surface Integration</strong> of a heat flux over a boundary is then the total heat flow through the revolved surface. Clear the check box to integrate over the r-z plane.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="tables"><a class="anchor" href="#tables"></a>Tables</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Each evaluation writes to a Table (shown in the <strong>Table</strong> pane). Copy it to the clipboard or export it as CSV with the pane&#8217;s buttons, or plot it with a <strong>Table Graph</strong>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="export"><a class="anchor" href="#export"></a>Export</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Node</th>
+<th class="tableblock halign-left valign-top">Writes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Image</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A PNG of a plot group, at a given width and height.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Data</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The node coordinates and comma-separated expressions, as CSV.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>VTK Unstructured Grid</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The solution as <code>.vtu</code>, for ParaView.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Report</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An HTML report with the parameters, the model tree and images of the plot groups.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Click <strong>Export</strong> at the top of the node&#8217;s Settings window to write the file. <strong>Image Snapshot</strong> in the Graphics toolbar saves the current view directly.</p>
+</div>
+<div class="paragraph">
+<p>Every results node and setting is listed in the reference: <a href="../reference/plots.html" class="xref page">Plots</a>, <a href="../reference/datasets.html" class="xref page">Datasets</a>, <a href="../reference/derived-values.html" class="xref page">Derived values</a>, <a href="../reference/export.html" class="xref page">Export</a>.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="studies.html">Studies and solving</a></span>
+  <span class="next"><a href="elmer.html">Elmer under the hood</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

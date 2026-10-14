@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Acoustics :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/tutorials/acoustics.html">
+    <link rel="prev" href="postprocessing.html">
+    <link rel="next" href="electrochemistry.html">
+    <meta name="description" content="Solve frequency-domain pressure acoustics, compute the exterior field beyond the mesh, and plot isosurfaces, grids, spirals, radiation patterns and directivity.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+    <script>
+      window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+                         options: { ignoreHtmlClass: 'nostem|nolatexmath' } };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>Tutorials</li>
+    <li><a href="acoustics.html">Acoustics</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/tutorials/pages/acoustics.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Acoustics</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This tutorial covers Pressure Acoustics, Frequency Domain (<code>acpr</code>) in Elmer Studio: radiation and scattering problems, the field outside the meshed air domain, and the far-field plots used for loudspeakers. It follows the vented-loudspeaker part of the COMSOL guide <em>Essentials of Postprocessing and Visualization</em> and the COMSOL blog post <em>How to Use the Boundary Element Method in Acoustics Modeling</em>, with stand-in models.</p>
+</div>
+<div class="paragraph">
+<p>What you will learn:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>close an air domain with <strong>Spherical Wave Radiation</strong> and drive it with a <strong>Normal Acceleration</strong> or an incident plane wave;</p>
+</li>
+<li>
+<p>compute the pressure anywhere outside the mesh with <strong>Exterior Field Calculation</strong>;</p>
+</li>
+<li>
+<p>plot isosurfaces with a filled level legend, a Grid 3D dataset with a Multislice, and a Parametric Curve 3D;</p>
+</li>
+<li>
+<p>draw a Radiation Pattern (polar and 3D) and a Directivity plot over frequency;</p>
+</li>
+<li>
+<p>check the method against two closed-form solutions: a pulsating sphere and a rigid spherical scatterer.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The checked numbers come from <code>tests/test_tutorial_acoustics.py</code>. The screenshots come from the GUI walkthrough <code>tools/screenshot_acoustics.py</code>.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Elmer has no boundary elements. Where COMSOL couples FEM with BEM or uses a perfectly matched layer, Elmer Studio closes the air domain with Spherical Wave Radiation and evaluates the field outside it with the Exterior Field Calculation, a Kirchhoff–Helmholtz integral over a closed surface of the FEM domain. Elmer&#8217;s HelmholtzSolver uses the e<sup>iωt</sup> convention, as COMSOL does.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="concepts"><a class="anchor" href="#concepts"></a>Concepts</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Feature or variable</th>
+<th class="tableblock halign-left valign-top">What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Spherical Wave Radiation</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Boundary condition for outgoing spherical waves (3D, 2D axisymmetric) or cylindrical waves (2D) from the <em>Source location</em>. Optionally adds an incident plane wave, <em>Incident pressure field</em> <strong>Plane wave</strong>, for scattering in the total-field formulation.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Exterior Field Calculation</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Kirchhoff–Helmholtz integral over the selected closed surface. Provides <code>acpr.efc1.pext</code> (pressure, real part), <code>acpr.efc1.abs_pext</code> and <code>acpr.efc1.Lp_pext</code> (sound pressure level) for the first such feature. Inside the mesh these variables take the computed pressure, outside it the integral. With an incident plane wave they describe the scattered field.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>acpr.p_t</code>, <code>acpr.p_im</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Total acoustic pressure, real and imaginary part.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>acpr.Lp</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sound pressure level of the computed pressure, in dB (re 20 µPa, from the RMS value).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>acpr.p_s</code>, <code>acpr.Lp_s</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scattered pressure (real part) and its level, available when an incident plane wave is defined.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>See <a href="../reference/physics-acpr.html" class="xref page">Pressure Acoustics, Frequency Domain (acpr)</a> for every setting and <a href="../user-guide/physics.html" class="xref page">Physics interfaces</a> for how physics features are added.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+The physics-controlled mesh of an acoustics model is calibrated to at most λ/5 at the highest study frequency, so a frequency sweep refines the mesh for its top frequency.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="pulsating-sphere-verification"><a class="anchor" href="#pulsating-sphere-verification"></a>Pulsating sphere: verification</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A sphere of radius a = 0.1 m oscillates radially in air. The air between the sphere and an outer sphere of radius 0.6 m is modeled in 2D axisymmetry. The exact pressure is</p>
+</div>
+<div class="paragraph">
+<p>\(p(r) = \rho c\, u\, \frac{ika}{1+ika}\,\frac{a}{r}\,e^{-ik(r-a)}\)</p>
+</div>
+<div class="paragraph">
+<p>with u = a<sub>n</sub>/(iω) the velocity amplitude for the normal acceleration a<sub>n</sub> = 1 m/s², and k = ω/c.</p>
+</div>
+<div class="sect2">
+<h3 id="model"><a class="anchor" href="#model"></a>Model</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span>, choose <strong>Model Wizard</strong>, then <strong>2D Axisymmetric</strong>. Under <strong>Acoustics</strong> select <strong>Pressure Acoustics, Frequency Domain (acpr)</strong>, click <strong>Add</strong>, then <strong>Study</strong>, choose <strong>Frequency Domain</strong> and click <strong>Done</strong>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Circle</b></span>: <em>Radius</em> <code>0.6</code>, <em>Sector angle</em> <code>180</code>, <em>Rotation</em> <code>-90</code>. This is the half disk on the r ≥ 0 side of the axis.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Circle</b></span>: <em>Radius</em> <code>0.1</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Difference</b></span>: the half disk in <em>Objects to add</em>, the small circle in <em>Objects to subtract</em>. Press <kbd>F8</kbd>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Material</b></span> and add <strong>Air</strong>. In its <em>Material Contents</em> table set <em>Speed of sound</em> to <code>343</code> and <em>Density</em> to <code>1.2</code> (the values the reference solution uses).</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Normal Acceleration</b></span> and click the arcs of the small sphere. Keep <em>Inward normal acceleration</em> at <code>1</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Spherical Wave Radiation</b></span> and click the arcs of the outer sphere. Keep the <em>Source location</em> at the origin.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Exterior Field Calculation</b></span> and click the arcs of the outer sphere.</p>
+</li>
+<li>
+<p>Click <strong>Mesh 1</strong> and set <em>Element size</em> to <strong>Extremely fine</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Step 1: Frequency Domain</strong> and set <em>Frequencies</em> to <code>250 500 1000</code>. Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span>.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="plots"><a class="anchor" href="#plots"></a>Plots</h3>
+<div class="paragraph">
+<p>The default plot groups show the acoustic pressure and the sound pressure level in the r-z plane. To see the field beyond the mesh, click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Polar Plot Group</b></span>, delete <strong>Line Graph (Polar) 1</strong> (right-click, <strong>Delete</strong>), select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Radiation Pattern</b></span>. Set <em>Evaluation distance</em> to <code>3[m]</code>, five times the mesh radius. A pulsating sphere radiates equally in every direction, so the curve is a circle.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results"><a class="anchor" href="#check-the-results"></a>Check the results</h3>
+<div class="paragraph">
+<p><code>test_pulsating_sphere_radiation_and_exterior_field</code> checks at 250, 500 and 1000 Hz:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>In the mesh, for 0.2 m &lt; r &lt; 0.5 m, the computed pressure agrees with the exact solution within 0.2 % of its maximum.</p>
+</li>
+<li>
+<p>The Kirchhoff–Helmholtz integral over the outer boundary gives the pressure at r = 3 m (five times the mesh radius, nine directions from −80° to 80°) within 1.5 %.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><code>test_pulsating_sphere_3d_exterior_field</code> repeats the problem in 3D: an outer sphere of 0.5 m, the default (λ/5) physics-controlled mesh, 500 Hz, and the Exterior Field Calculation on the outer surface. At four points 1.8 m to 2.1 m from the center (about four times the mesh radius) the exterior field agrees with the exact solution within 2 %.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="spherical-scatterer-bem-benchmark"><a class="anchor" href="#spherical-scatterer-bem-benchmark"></a>Spherical scatterer: BEM benchmark</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A rigid sphere of radius 0.25 m sits in a plane wave of amplitude 1 Pa traveling along +z. COMSOL publishes this case as a BEM benchmark; here the air domain (radius 1 m) is FEM, the incident wave enters through the Spherical Wave Radiation boundary, and the scattered field beyond the mesh comes from an Exterior Field Calculation on the sphere surface.</p>
+</div>
+<div class="sect2">
+<h3 id="model-and-study"><a class="anchor" href="#model-and-study"></a>Model and study</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Application Libraries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Spherical scatterer - acoustic scattering benchmark (2D axisymmetric)</b></span>.</p>
+</li>
+<li>
+<p>Look at the physics features under <strong>Pressure Acoustics, Frequency Domain</strong>:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Spherical Wave Radiation 1</strong> on the outer arc, with <em>Incident pressure field</em> <strong>Plane wave</strong>, <em>Pressure amplitude</em> <code>1[Pa]</code> and <em>Wave direction</em> <strong>+z direction</strong>;</p>
+</li>
+<li>
+<p><strong>Exterior Field Calculation 1</strong> on the sphere surface;</p>
+</li>
+<li>
+<p>the sphere surface itself keeps the default <strong>Sound Hard Boundary (Wall)</strong>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>The study computes 500 Hz and 1400 Hz (ka ≈ 2.3 and 6.4). Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span>.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+With an incident plane wave, the variables <code>acpr.p_s</code> and <code>acpr.Lp_s</code> give the scattered field (total minus incident) inside the mesh, and <code>acpr.efc1.Lp_pext</code> gives the scattered field anywhere.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="revolution-2d-plot"><a class="anchor" href="#revolution-2d-plot"></a>Revolution 2D plot</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Revolution 2D</b></span>. Set <em>Dataset</em> to <strong>Study 1/Solution 1</strong>, <em>Start angle</em> to <code>-90</code>, <em>Revolution angle</em> to <code>270</code> and <em>Number of layers</em> to <code>72</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span>, rename it <code>Sound Pressure Level, 500 Hz</code> and set <em>Dataset</em> to <strong>Revolution 2D 1</strong>. In the solution list below it, which reads <em>Parameter value (freq (Hz))</em> for this study, choose <strong>freq=500 Hz</strong>.</p>
+</li>
+<li>
+<p>In <strong>Surface 1</strong> set <em>Expression</em> to <code>acpr.Lp</code>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_7_scatterer_spl_revolution.png" alt="3D view of the revolved air domain around the sphere colored by sound pressure level from 87 to 96 dB at 500 Hz">
+</div>
+<div class="title">Figure 1. Total sound pressure level around the scatterer at 500 Hz, revolved through 270°</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="polar-plot-of-the-scattered-field"><a class="anchor" href="#polar-plot-of-the-scattered-field"></a>Polar plot of the scattered field</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Polar Plot Group</b></span> and rename it <code>Scattered field at 3 m</code>. Right-click <strong>Line Graph (Polar) 1</strong> and choose <strong>Delete</strong>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Radiation Pattern</b></span>. <em>Expression</em> is <code>acpr.efc1.Lp_pext</code> by default.</p>
+</li>
+<li>
+<p>Set <em>Evaluation distance</em> to <code>3[m]</code>, <em>Number of angles</em> to <code>181</code>, <em>Start angle</em> to <code>-90</code>, <em>End angle</em> to <code>90</code> and <em>Parameter values (indices from 1, empty = current)</em> to <code>1 2</code>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>In an axisymmetric model the angle runs in the r-z half plane, so 90° is the +z axis, the direction in which the incident wave travels. At 1400 Hz the scattered field has a strong lobe in that direction.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_8_scatterer_scattered_polar.png" alt="Polar Radiation Pattern of the exterior-field sound pressure level at 3 m for 500 Hz and 1400 Hz from -90 to 90 degrees">
+</div>
+<div class="title">Figure 2. Scattered sound pressure level at 3 m for 500 Hz and 1400 Hz</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results-2"><a class="anchor" href="#check-the-results-2"></a>Check the results</h3>
+<div class="paragraph">
+<p><code>test_spherical_scatterer_benchmark</code> compares with the analytic series for a rigid sphere, at 500 Hz and 1400 Hz:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>acpr.p_s</code> (with its imaginary part) inside the mesh, for 1.2a &lt; r &lt; 0.8R, agrees within 5 % of its maximum.</p>
+</li>
+<li>
+<p><code>acpr.efc1.Lp_pext</code> at 3 m, beyond the mesh, on 13 angles from 0° to 180°, agrees within 0.8 dB.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="loudspeaker-radiation"><a class="anchor" href="#loudspeaker-radiation"></a>Loudspeaker radiation</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The stand-in loudspeaker is a closed box of 20 × 20 × 30 cm with a piston of 6 cm radius on its top face, radiating into a sphere of air of radius 0.5 m. The piston has a normal acceleration of 1 m/s². The outer sphere has Spherical Wave Radiation and an Exterior Field Calculation, so the field is available far beyond the mesh.</p>
+</div>
+<div class="sect2">
+<h3 id="model-and-study-2"><a class="anchor" href="#model-and-study-2"></a>Model and study</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Application Libraries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Loudspeaker radiation - 3D acoustics, exterior field and radiation patterns</b></span>.</p>
+</li>
+<li>
+<p>Click <strong>Step 1: Frequency Domain</strong> and set <em>Frequencies</em> to <code>200 300 450 650 900</code> (the screenshots use these five frequencies; the example&#8217;s own list also works).</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span>. In the run shown in the screenshots the solve took about two minutes.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="isosurfaces-of-the-pressure"><a class="anchor" href="#isosurfaces-of-the-pressure"></a>Isosurfaces of the pressure</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span> and rename it <code>Acoustic Pressure, Isosurfaces</code>. Right-click <strong>Surface 1</strong> and choose <strong>Delete</strong>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Isosurface</b></span>. Set <em>Expression</em> to <code>acpr.p_t</code>, <em>Total levels</em> to <code>8</code> and <em>Color table</em> to <strong>Wave</strong>. <em>Legend type</em> is <strong>Filled</strong> by default: the legend shows one block per level interval. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_1_isosurfaces.png" alt="Nested isosurfaces of the total acoustic pressure above the box outline, with a blocked red-white-blue legend">
+</div>
+<div class="title">Figure 3. Isosurfaces of the acoustic pressure at 900 Hz, with a filled level legend</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="grid-3d-and-multislice-beyond-the-mesh"><a class="anchor" href="#grid-3d-and-multislice-beyond-the-mesh"></a>Grid 3D and Multislice beyond the mesh</h3>
+<div class="paragraph">
+<p>A Grid 3D dataset is a regular grid of points. Inside the mesh it takes the computed values; the exterior-field variables are defined everywhere, so the grid can reach beyond the air domain.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Grid 3D</b></span>. Set <em>Dataset</em> to <strong>Study 1/Solution 1</strong>. Set <em>x minimum (empty = dataset bounds)</em> to <code>-1.5</code>, <em>x maximum</em> to <code>1.5</code> and <em>x resolution (points)</em> to <code>35</code>, and the same for y and z.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span> and rename it <code>Sound Pressure Level, Grid 3D</code>.</p>
+</li>
+<li>
+<p>In <strong>Surface 1</strong> set <em>Expression</em> to <code>acpr.Lp</code>. Right-click <strong>Surface 1</strong>, choose <strong>Selection</strong> and click the box and piston faces, everything except the outer sphere.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Multislice</b></span>. Set its <em>Dataset</em> to <strong>Grid 3D 1</strong>, <em>Expression</em> to <code>acpr.efc1.Lp_pext</code>, <em>x-planes</em> to <code>1</code>, <em>y-planes</em> to <code>1</code> and <em>z-planes</em> to <code>0</code>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>A plot can use its own dataset inside a plot group, so the Multislice draws on the grid while the Surface draws on the solution.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_2_grid3d_multislice.png" alt="Two orthogonal slices through a 3 m grid colored by exterior-field sound pressure level, with the loudspeaker box at the center">
+</div>
+<div class="title">Figure 4. Sound pressure level on two planes of a 3 m grid, three times the size of the mesh</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="parametric-curve-3d-a-spiral-around-the-speaker"><a class="anchor" href="#parametric-curve-3d-a-spiral-around-the-speaker"></a>Parametric Curve 3D: a spiral around the speaker</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Curve 3D</b></span> and rename it <code>Spiral</code>. Set <em>Dataset</em> to <strong>Study 1/Solution 1</strong>, <em>Minimum</em> to <code>0</code>, <em>Maximum</em> to <code>1</code> and <em>Resolution (points)</em> to <code>600</code>.</p>
+</li>
+<li>
+<p>Under <em>Expressions</em> set</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>x</em>: <code>(0.6+0.6*s)*cos(8*pi*s)</code></p>
+</li>
+<li>
+<p><em>y</em>: <code>(0.6+0.6*s)*sin(8*pi*s)</code></p>
+</li>
+<li>
+<p><em>z</em>: <code>-0.9+1.8*s</code></p>
+<div class="paragraph">
+<p>The spiral starts at a radius of 0.6 m, outside the 0.5 m mesh, and widens to 1.2 m while it rises from z = −0.9 m to 0.9 m.</p>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span> and rename it <code>Sound Pressure Level along a spiral</code>. In <strong>Surface 1</strong> set <em>Expression</em> to <code>acpr.Lp</code> and add a <strong>Selection</strong> with the box and piston faces, as above.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Line</b></span>. Set <em>Dataset</em> to <strong>Spiral</strong>, <em>Expression (empty = uniform color)</em> to <code>acpr.efc1.Lp_pext</code>, <em>Line type</em> to <strong>Tube</strong> and <em>Tube radius (fraction of model size)</em> to <code>0.012</code>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_3_parametric_curve_spiral.png" alt="A tube spiral around the loudspeaker box colored by sound pressure level from about 26 to 33 dB">
+</div>
+<div class="title">Figure 5. Exterior-field sound pressure level along the spiral</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="radiation-pattern-polar"><a class="anchor" href="#radiation-pattern-polar"></a>Radiation Pattern, polar</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Polar Plot Group</b></span> and rename it <code>Radiation Pattern</code>. Right-click <strong>Line Graph (Polar) 1</strong> and choose <strong>Delete</strong>.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Radiation Pattern</b></span>. Keep <em>Expression</em> <code>acpr.efc1.Lp_pext</code>.</p>
+</li>
+<li>
+<p>Set <em>Evaluation distance</em> to <code>1[m]</code>, <em>Plane</em> to <strong>xz-plane (angle from x toward z)</strong>, <em>Number of angles</em> to <code>181</code>, <em>Start angle</em> to <code>0</code>, <em>End angle</em> to <code>360</code> and <em>Parameter values (indices from 1, empty = current)</em> to <code>1 3 5</code>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Parameter values 1, 3 and 5 are 200 Hz, 450 Hz and 900 Hz. The piston faces +z, which is 90° in this plane. The pattern is almost round at 200 Hz and loses level toward the back (270°) as the frequency rises.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_4_radiation_pattern_polar.png" alt="Polar plot of the exterior-field sound pressure level at 1 m for three frequencies, with a dip toward 270 degrees at 900 Hz">
+</div>
+<div class="title">Figure 6. Radiation pattern at 1 m in the xz-plane for 200, 450 and 900 Hz</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="radiation-pattern-3d"><a class="anchor" href="#radiation-pattern-3d"></a>Radiation Pattern, 3D</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span> and rename it <code>Radiation Pattern 3D</code>.</p>
+</li>
+<li>
+<p>In <strong>Surface 1</strong> set <em>Expression</em> to <code>acpr.Lp</code>, <em>Coloring</em> to <strong>Uniform</strong>, <em>Color</em> to <strong>Gray</strong> and clear <em>Color legend</em>. Add a <strong>Selection</strong> with the box and piston faces.</p>
+</li>
+<li>
+<p>Select the plot group and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Radiation Pattern</b></span>. Set <em>Evaluation distance</em> to <code>1[m]</code>, <em>Number of angles</em> to <code>180</code> and <em>Dynamic range (3D pattern)</em> to <code>30</code>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>In a 3D plot group the Radiation Pattern is drawn on a sphere of directions: the distance from the center follows the level, and values more than the dynamic range below the maximum are drawn at the center.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_5_radiation_pattern_3d.png" alt="Closed 3D radiation pattern surface colored by sound pressure level, larger toward +z">
+</div>
+<div class="title">Figure 7. 3D radiation pattern at 900 Hz</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="directivity"><a class="anchor" href="#directivity"></a>Directivity</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Select <strong>Results</strong> and click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Directivity</b></span>. Elmer Studio adds a 1D Plot Group with a Directivity plot. Rename the plot group to <code>Directivity</code>.</p>
+</li>
+<li>
+<p>Set <em>Evaluation distance</em> to <code>1[m]</code>, <em>Number of angles</em> to <code>91</code>, <em>Start angle (from the axis)</em> to <code>-180</code>, <em>End angle</em> to <code>180</code> and <em>Contour levels</em> to <code>13</code>. Keep <em>Reference axis</em> <strong>+z</strong> and <em>Normalization</em> <strong>On-axis value = 0 dB</strong>. Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The Directivity plot shows the level against angle and frequency (on a logarithmic axis), normalized so the on-axis value is 0 dB at every frequency.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_acoustics_6_directivity.png" alt="Filled contour map of the normalized exterior-field level, angle from -180 to 180 degrees against frequency 200 to 900 Hz; the level falls off the axis at high frequency">
+</div>
+<div class="title">Figure 8. Directivity: level versus angle from the +z axis and frequency</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results-3"><a class="anchor" href="#check-the-results-3"></a>Check the results</h3>
+<div class="paragraph">
+<p><code>test_loudspeaker_postprocessing</code> solves the loudspeaker at 300 Hz and 800 Hz and checks at 800 Hz:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>A Grid 3D dataset from −1.5 m to 1.5 m (13 points per axis) gives finite <code>acpr.efc1.Lp_pext</code> everywhere.</p>
+</li>
+<li>
+<p>No jump at the edge of the mesh: in eight directions, the level at 0.47 m (computed in the mesh) and at 0.53 m (Kirchhoff–Helmholtz integral) differ by less than 2 dB. Spherical spreading alone accounts for 1.0 dB.</p>
+</li>
+<li>
+<p>Far away the level falls by 3 dB to 9 dB per doubling of distance (median at about 1 m minus median at about 2 m), around the −6 dB of spherical spreading.</p>
+</li>
+<li>
+<p>The polar Radiation Pattern is labeled <em>Exterior-field sound pressure level</em> in dB, and the level in front (+z) exceeds the level behind by more than 1 dB.</p>
+</li>
+<li>
+<p>The 3D Radiation Pattern draws in a 3D plot group.</p>
+</li>
+<li>
+<p>The Directivity is 0 dB on the axis at both frequencies (to 1e-9), and no direction more than 60° off the axis is louder than 0.5 dB.</p>
+</li>
+<li>
+<p>The level along a spiral (Parametric Curve 3D) is finite and varies along the curve.</p>
+</li>
+<li>
+<p>Isosurfaces with 8 levels have a filled legend of 9 blocks.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="where-to-go-next"><a class="anchor" href="#where-to-go-next"></a>Where to go next</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="postprocessing.html" class="xref page">Postprocessing and Visualization</a> covers datasets, derived values, coupling operators and 1D, 2D, 3D and polar plot groups in general.</p>
+</li>
+<li>
+<p><a href="application-library.html" class="xref page">Application Library examples</a> lists every example model.</p>
+</li>
+<li>
+<p><a href="../reference/plots.html" class="xref page">Plot groups and plots</a> and <a href="../reference/datasets.html" class="xref page">Datasets</a> list every setting of the Radiation Pattern, Directivity, Grid 3D and Parametric Curve 3D.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="postprocessing.html">Postprocessing and visualization</a></span>
+  <span class="next"><a href="electrochemistry.html">Electrochemistry: current distribution</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

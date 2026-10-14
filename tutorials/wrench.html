@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Wrench: Stationary Solid Mechanics :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/tutorials/wrench.html">
+    <link rel="prev" href="busbar.html">
+    <link rel="next" href="postprocessing.html">
+    <meta name="description" content="Model a steel wrench under a hand load in Elmer Studio, find where the stress exceeds 200 MPa, and run a mesh convergence study.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>Tutorials</li>
+    <li><a href="wrench.html">Wrench: solid mechanics</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/tutorials/pages/wrench.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Wrench: Stationary Solid Mechanics</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>A steel ring wrench grips a hexagonal bolt head while a 150 N hand force pushes down on the end of the handle.
+You compute the stress and deflection, mark the regions where the stress exceeds 200 MPa, and refine the mesh in a parametric sweep to see which results converge and which do not.</p>
+</div>
+<div class="ulist">
+<div class="title">What you will learn</div>
+<ul>
+<li>
+<p>Build a 3D part from a parametric 2D sketch (circle, rectangle, polygon, Booleans) and an extrusion.</p>
+</li>
+<li>
+<p>Apply a fixed constraint and a load given as a total force.</p>
+</li>
+<li>
+<p>Plot von Mises stress and a "safety" plot made from a logical expression.</p>
+</li>
+<li>
+<p>Find a maximum and its location with a Volume Maximum and a Maximum coupling operator.</p>
+</li>
+<li>
+<p>Run a mesh convergence study by sweeping a parameter that controls the element size.</p>
+</li>
+</ul>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Model at a glance</caption>
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Space dimension</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Physics</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solid Mechanics (solid), linear elastic</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Study</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Stationary, with a Parametric Sweep over the mesh divider <code>hd</code> (4 meshes)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mesh</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Quadratic tetrahedra, from about 2 300 nodes (<code>hd</code> = 1) to 12 200 nodes (<code>hd</code> = 4)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solve time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">About 20 seconds for all four meshes (one recorded run: 19.9 s)</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+COMSOL users know this model as the wrench from <em>Introduction to COMSOL Multiphysics</em>. COMSOL imports the wrench from its own geometry file, which is not public, so this tutorial builds a comparable hex-socket wrench from parameters. Loads, materials, plots and the convergence study follow the same workflow. Elmer Studio is an independent project and is not affiliated with COMSOL.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="start-a-new-model"><a class="anchor" href="#start-a-new-model"></a>Start a new model</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>N</kbd></span>) and choose <strong>Model Wizard</strong>.</p>
+</li>
+<li>
+<p>On <strong>Select Space Dimension</strong>, choose <strong>3D</strong>.</p>
+</li>
+<li>
+<p>On <strong>Select Physics</strong>, expand <strong>Structural Mechanics</strong>, select <strong>Solid Mechanics (solid)</strong> and click <strong>Add</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Study</strong>, select <strong>General Studies › Stationary</strong> and click <strong>Done</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><strong>Solid Mechanics (solid)</strong> comes with <strong>Linear Elastic Material 1</strong>, <strong>Initial Values 1</strong> and <strong>Free 1</strong>: every boundary is free until you add a constraint or a load.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="parameters"><a class="anchor" href="#parameters"></a>Parameters</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parameters</b></span>.</p>
+</li>
+<li>
+<p>In the Settings window, enter the following rows in the table:</p>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 33.3333%;">
+<col style="width: 50.0001%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Expression</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">F</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>150[N]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Applied load</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">hd</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>1</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Element size divider</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">h0</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>1[cm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Starting element size</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">R</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>18[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Head outer radius</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">AF</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>17[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Hex across flats</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rc</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>AF/sqrt(3)</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Hex circumradius</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Lh</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>150[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Handle length</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">W</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>12[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Handle width</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">T</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>6[mm]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Wrench thickness</p></td>
+</tr>
+</tbody>
+</table>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The <em>Value</em> column shows each value in SI units, for example <code>0.00981495</code> for <code>Rc</code>.
+<code>hd</code> has no unit: it only divides the element size later on.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="geometry"><a class="anchor" href="#geometry"></a>Geometry</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The wrench is sketched in the xy-plane: a round head of radius <code>R</code>, a straight handle reaching to x = <code>Lh</code>, and a hexagonal hole for the bolt.
+The sketch is then extruded by the thickness <code>T</code>.
+See <a href="../user-guide/geometry.html" class="xref page">Geometry</a> and <a href="../reference/geometry.html" class="xref page">Geometry features</a> for the feature settings.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Geometry 1</strong>, then click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Work Plane</b></span>. Keep <em>Plane type</em> <code>Quick</code> and <em>Plane</em> <code>xy-plane</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 1</strong> and choose <strong>Primitives › Circle</strong>. Set <em>Radius</em> to <code>R</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 1</strong> and choose <strong>Primitives › Rectangle</strong>. Set <em>Width</em> <code>Lh</code>, <em>Height</em> <code>W</code>, <em>x</em> <code>0</code> and <em>y</em> <code>-W/2</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 1</strong> and choose <strong>Booleans and Partitions › Union</strong>. In <strong>Union 1</strong> check <code>c1</code> and <code>r1</code> under <em>Input objects</em> and clear <em>Keep interior boundaries</em>.</p>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 1</strong> and choose <strong>Primitives › Polygon</strong>. Keep <em>Type</em> <code>Solid</code> and enter the six corners of the hexagon. The coordinates are separated by spaces, so do not put spaces inside an expression:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>x</em>: <code>Rc*cos(0*pi/3) Rc*cos(1*pi/3) Rc*cos(2*pi/3) Rc*cos(3*pi/3) Rc*cos(4*pi/3) Rc*cos(5*pi/3)</code></p>
+</li>
+<li>
+<p><em>y</em>: <code>Rc*sin(0*pi/3) Rc*sin(1*pi/3) Rc*sin(2*pi/3) Rc*sin(3*pi/3) Rc*sin(4*pi/3) Rc*sin(5*pi/3)</code></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Right-click <strong>Work Plane 1</strong> and choose <strong>Booleans and Partitions › Difference</strong>. In <strong>Difference 1</strong> check <code>uni1</code> under <em>Objects to add</em> and <code>pol1</code> under <em>Objects to subtract</em>.</p>
+</li>
+<li>
+<p>Click <strong>Difference 1</strong>, then click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Extrude</b></span>. <strong>Extrude 1</strong> takes <code>wp1</code> as input. Set <em>Distance from work plane</em> to <code>T</code>.</p>
+</li>
+<li>
+<p>Click <strong>Geometry 1</strong> and press <kbd>F8</kbd> (<strong>Build All Objects</strong>).</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The Geometry Statistics in the Settings window report 1 domain and 12 boundaries.
+Boundaries 4 to 9 are the six flats of the hexagonal hole; boundary 12 is the end face of the handle at x = 150 mm.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_wrench_1_geometry.png" alt="Settings of Geometry 1 with 1 domain and 12 boundaries; the Graphics window shows the wrench with its hexagonal hole">
+</div>
+<div class="title">Figure 1. The finished wrench geometry: a 150 mm handle, 6 mm thick</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="materials"><a class="anchor" href="#materials"></a>Materials</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Material</b></span>.</p>
+</li>
+<li>
+<p>In the <strong>Add Material</strong> window, select <strong>Built-in › Structural steel</strong> and click <strong>Add to Component</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Being the first material, <strong>Structural steel</strong> covers the whole wrench.
+Its Young&#8217;s modulus is 200 GPa and its Poisson&#8217;s ratio 0.3.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="physics"><a class="anchor" href="#physics"></a>Physics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The bolt holds the socket in place; the hand pushes the handle end down, perpendicular to the wrench.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Solid Mechanics (solid)</strong> and click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Fixed Constraint</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Fixed Constraint 1</strong>, click the six flats of the hexagonal hole, boundaries 4, 5, 6, 7, 8 and 9. Zoom in with the mouse wheel to reach them.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_wrench_2_fixed_constraint.png" alt="Settings of Fixed Constraint 1 with boundaries 4 to 9; the flats of the hexagonal hole are highlighted in blue">
+</div>
+<div class="title">Figure 2. Fixed Constraint 1 on the six hexagon flats</div>
+</div>
+</li>
+<li>
+<p>Click <strong>Solid Mechanics (solid)</strong> again and click <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Boundary Load</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Boundary Load 1</strong>, click the end face of the handle, boundary 12.</p>
+</li>
+<li>
+<p>Set <em>Load type</em> to <code>Total force</code> and <em>F_tot z</em> to <code>-F</code>. Leave <em>F_tot x</em> and <em>F_tot y</em> at <code>0</code>.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_wrench_3_boundary_load_total_force.png" alt="Settings of Boundary Load 1 with boundary 12, Load type Total force and F_tot z equal to -F">
+</div>
+<div class="title">Figure 3. Boundary Load 1: a total force of −F in z on the handle end</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+With <em>Load type</em> <code>Total force</code>, Elmer Studio divides the force by the area of the selected faces, so the 150 N are spread evenly over the 72 mm² end face. Elmer itself only knows forces per unit area; the conversion happens when the input file is written.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>All other boundaries stay free (<strong>Free 1</strong>).
+The settings are listed in <a href="../reference/physics-solid.html" class="xref page">Solid Mechanics (solid)</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="mesh"><a class="anchor" href="#mesh"></a>Mesh</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The element size is tied to the parameters, so that sweeping <code>hd</code> refines the mesh.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>On the <strong>Mesh</strong> ribbon, click <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Free Tetrahedral</b></span>. <strong>Mesh 1</strong> switches to a user-controlled sequence with <strong>Size 1</strong> and <strong>Free Tetrahedral 1</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Size 1</strong>. Set <em>Element size</em> to <code>Custom</code>, then set:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Maximum element size</em>: <code>h0/hd</code></p>
+</li>
+<li>
+<p><em>Minimum element size</em>: <code>h0/(4*hd)</code></p>
+</li>
+<li>
+<p><em>Curvature factor</em>: <code>0.1</code></p>
+</li>
+<li>
+<p><em>Resolution of narrow regions</em>: <code>0.2</code></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Build Mesh</b></span>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>With <code>hd</code> = 1 the maximum element size is 1 cm and the mesh is coarse: about 1 000 elements.
+<em>Resolution of narrow regions</em> uses COMSOL&#8217;s definition, the approximate number of element layers across a narrow region.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_wrench_4_mesh_size.png" alt="Settings of Size 1 with Custom element size, maximum h0/hd, minimum h0/(4*hd), curvature factor 0.1 and resolution of narrow regions 0.2">
+</div>
+<div class="title">Figure 4. Size 1 with the element size tied to h0 and hd</div>
+</div>
+<div class="paragraph">
+<p>See <a href="../user-guide/mesh.html" class="xref page">Mesh</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="study"><a class="anchor" href="#study"></a>Study</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Study 1</strong> and click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>).</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The solution takes a few seconds. <strong>Results</strong> gets a <strong>Stress (solid)</strong> plot group.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="results"><a class="anchor" href="#results"></a>Results</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="von-mises-stress"><a class="anchor" href="#von-mises-stress"></a>Von Mises stress</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Stress (solid)</strong>. The plot shows the von Mises stress on the deformed shape of the wrench (the deformation is scaled up so you can see it).</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The stress is highest in the handle next to the head, where the bending moment is largest and the cross-section changes.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="safety-plot"><a class="anchor" href="#safety-plot"></a>Safety plot</h3>
+<div class="paragraph">
+<p>Show where the von Mises stress exceeds 200 MPa:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">3D Plot Group</b></span>. A new plot group with a <strong>Surface</strong> plot is added.</p>
+</li>
+<li>
+<p>In the plot group, change <em>Label</em> to <code>Safety</code>.</p>
+</li>
+<li>
+<p>Click its <strong>Surface 1</strong> and set <em>Expression</em> to <code>solid.mises &gt; 200[MPa]</code>.</p>
+</li>
+<li>
+<p>Click <strong>Plot</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>A comparison returns 1 where it is true and 0 elsewhere: red marks the region above 200 MPa, blue the rest.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_wrench_6_safety_plot.png" alt="Safety plot group with a Surface of solid.mises greater than 200 MPa; the red region is on the handle next to the head">
+</div>
+<div class="title">Figure 5. Safety plot: red where the von Mises stress exceeds 200 MPa</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="maximum-stress-and-its-location"><a class="anchor" href="#maximum-stress-and-its-location"></a>Maximum stress and its location</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Volume Maximum</b></span>. In <strong>Volume Maximum 1</strong>, enter <code>solid.mises</code> in the <em>Expression</em> column of the <em>Expressions</em> table and <code>MPa</code> in <em>Unit</em>.</p>
+</li>
+<li>
+<p>Click <strong>Evaluate</strong>. The Table window shows the maximum von Mises stress and its location (x, y, z).</p>
+</li>
+<li>
+<p>Right-click <strong>Definitions</strong> under <strong>Component 1</strong> and choose <strong>Maximum</strong>. In <strong>Maximum 1</strong> set <em>Operator name</em> to <code>maxop1</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global Evaluation</b></span>, enter <code>maxop1(solid.mises)</code> as expression and click <strong>Evaluate</strong>. The value equals the Volume Maximum.</p>
+</li>
+</ol>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Like COMSOL&#8217;s component couplings, <code>maxop1(...)</code> can be used in any result expression, for example in an Annotation or a Global plot.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>See <a href="../reference/derived-values.html" class="xref page">Derived values</a> and <a href="../user-guide/definitions.html" class="xref page">Parameters, variables and functions</a>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="mesh-convergence-study"><a class="anchor" href="#mesh-convergence-study"></a>Mesh convergence study</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A single mesh does not tell you how accurate a result is. Refine the mesh by sweeping <code>hd</code>.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <strong>Study 1</strong> and click <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Sweep</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Parametric Sweep 1</strong> set <em>Parameter name</em> to <code>hd</code>, <em>Parameter value list</em> to <code>range(1,1,4)</code> and leave <em>Parameter unit</em> empty.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span>. The mesh is rebuilt for each value of <code>hd</code>; the maximum element size goes from 10 mm down to 2.5 mm.</p>
+</li>
+<li>
+<p>Click <strong>Stress (solid)</strong> to see the finest solution.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_wrench_5_stress_von_mises.png" alt="Stress (solid) plot group with a Volume plot of the von Mises stress on the deformed wrench, peaking where the handle meets the head">
+</div>
+<div class="title">Figure 6. Von Mises stress on the finest mesh (hd = 4); the messages list the four meshes and the solution time</div>
+</div>
+</li>
+<li>
+<p>Click <strong>Volume Maximum 1</strong>, set <em>Time/parameter selection</em> to <code>All</code> and click <strong>Evaluate</strong>. The table now has one row per value of <code>hd</code>.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_wrench_7_volume_maximum.png" alt="Settings of Volume Maximum 1 with expression solid.mises in MPa; the table lists hd, the maximum von Mises stress and its location">
+</div>
+<div class="title">Figure 7. Volume Maximum of the von Mises stress for each mesh, with its location</div>
+</div>
+</li>
+<li>
+<p>Plot the tip deflection against <code>hd</code>: click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global</b></span>. In <strong>Global 1</strong>, set <em>Expression (global, e.g. aveop1(T), or a field to reduce)</em> to <code>w</code> and <em>Reduction</em> to <code>Minimum</code>, then click <strong>Plot</strong>.</p>
+<div class="paragraph">
+<p><code>w</code> is the z-displacement; its minimum is the downward deflection of the handle tip.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_wrench_8_tip_deflection_vs_hd.png" alt="1D Plot Group with a Global plot of the minimum of w against hd, levelling off near -3.117 mm">
+</div>
+<div class="title">Figure 8. Tip deflection against the mesh divider hd</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>See <a href="../user-guide/studies.html" class="xref page">Studies and solving</a>, <a href="../user-guide/results.html" class="xref page">Results</a> and <a href="../reference/plots.html" class="xref page">Plot groups and plots</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="check-the-results"><a class="anchor" href="#check-the-results"></a>Check the results</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>These are the checks in <code>tests/test_tutorial_wrench.py</code>, which builds this model and runs the convergence sweep.
+The numbers in brackets are from one recorded run.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>The mesh refines with every step of <code>hd</code></strong>: the node count increases strictly (2 319, 5 206, 7 881 and 12 200 nodes).</p>
+</li>
+<li>
+<p><strong><code>maxop1(solid.mises)</code> equals the Volume Maximum</strong> of <code>solid.mises</code> for every mesh (to a relative 1e-12).</p>
+</li>
+<li>
+<p><strong>The tip deflection agrees with beam theory</strong>: it lies between 0.85 and 1.05 times the cantilever value F·L³/(3·E·I), with L = 150 mm − 17 mm/√3 measured from the socket corners and I = W·T³/12. Beam theory gives 3.19 mm; the model gives 3.100 mm at <code>hd</code> = 1 and 3.117 mm at <code>hd</code> = 4 (0.97 to 0.98 of the beam value; the head is stiffer than a slender beam).</p>
+</li>
+<li>
+<p><strong>The tip deflection converges</strong>: it grows with every refinement and each change is smaller than the first (3.100, 3.112, 3.116, 3.117 mm).</p>
+</li>
+<li>
+<p><strong>A small region exceeds 200 MPa</strong>: between 0 and 20 % of the volume (7.9 % on the coarsest mesh, 4.9 % on the finest).</p>
+</li>
+<li>
+<p><strong>The peak stress sits at the corner where the handle meets the head</strong> (about x = 17.4 mm, y = 6 mm).</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+The maximum von Mises stress does not converge (348, 410, 409 and 384 MPa in the recorded run). This stand-in wrench has a sharp re-entrant corner between handle and head, where the elastic stress is singular: refining the mesh does not settle it. COMSOL&#8217;s wrench has fillets there, which is why its maximum stress converges. Judge convergence on quantities such as the deflection, or round the corner with a fillet.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="what-next"><a class="anchor" href="#what-next"></a>What next</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Round the handle/head corner: add a <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Fillet</b></span> on the two vertical edges where the handle meets the head, compute the sweep again, and compare the maximum stress per mesh with the sharp-corner values above.</p>
+</li>
+<li>
+<p>Change <code>F</code> and compute again; in this linear model all stresses and displacements scale with the load.</p>
+</li>
+<li>
+<p>Try the <a href="busbar.html" class="xref page">Busbar: Joule Heating</a> tutorial for a coupled electric and thermal model with a parametric sweep.</p>
+</li>
+<li>
+<p>Keyboard shortcuts are listed in <a href="../keyboard-shortcuts.html" class="xref page">Keyboard and mouse</a>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="busbar.html">Busbar: Joule heating</a></span>
+  <span class="next"><a href="postprocessing.html">Postprocessing and visualization</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

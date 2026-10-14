@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Installation :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/installation.html">
+    <link rel="prev" href="index.html">
+    <link rel="next" href="quick-start.html">
+    <meta name="description" content="Install Elmer Studio and the Elmer FEM solver on Windows, macOS or Linux.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="./_/css/site.css">
+    <link rel="stylesheet" href="./_/css/site-extra.css">
+    <link rel="icon" href="./_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="./_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="./installation.html">Install</a>
+        <a class="navbar-item" href="./quick-start.html">Quick start</a>
+        <a class="navbar-item" href="./tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="./user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="./reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Introduction</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Elmer Studio</a></li>
+    <li>Getting started</li>
+    <li><a href="installation.html">Installation</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/ROOT/pages/installation.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Installation</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Elmer Studio is the desktop. The <strong>Elmer</strong> solver that does the computation is a separate program, so installation has two parts:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><a href="#install-studio">Install Elmer Studio</a>: a ready-to-run package, or from source.</p>
+</li>
+<li>
+<p><a href="#install-elmer">Install Elmer</a>: the official CSC builds.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Elmer Studio finds Elmer by itself in the usual places. Without Elmer you can still build geometry and meshes, but you cannot solve.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Requirements</caption>
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Operating system</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Windows 10/11 (x64), macOS on Apple silicon (arm64), Linux x86-64 (glibc-based distributions such as Ubuntu 22.04+)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Graphics</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Any OpenGL 3.2 driver. Without a GPU there is a <a href="#no-gpu">software fallback</a>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Memory</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">4 GB is enough for the tutorials; large 3D models need more.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Elmer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Elmer 9.0 or newer (the official CSC builds, a distribution package, or your own build from source)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="install-studio"><a class="anchor" href="#install-studio"></a>1. Install Elmer Studio</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Every release on the <a href="https://github.com/AltElmer/ElmerStudio/releases">GitHub Releases page</a> carries these files (version 1.0.0 shown):</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 33.3333%;">
+<col style="width: 50.0001%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">System</th>
+<th class="tableblock halign-left valign-top">File</th>
+<th class="tableblock halign-left valign-top">How to use it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Windows</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ElmerStudio-1.0.0-windows-x64-setup.exe</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Installer. Run it, then start <strong>Elmer Studio</strong> from the Start menu.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Windows</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ElmerStudio-1.0.0-windows-x64-portable.zip</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No installation. Extract it anywhere and run <code>ElmerStudio.exe</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">macOS</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ElmerStudio-1.0.0-macos-arm64.dmg</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open it and drag <strong>Elmer Studio</strong> to <strong>Applications</strong>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Linux</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ElmerStudio-1.0.0-linux-x86_64.AppImage</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>chmod +x</code> the file, then run it.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Linux</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ElmerStudio-1.0.0-linux-x86_64.tar.gz</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Extract it and run the <code>ElmerStudio</code> program inside.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Any</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>elmerstudio-1.0.0-py3-none-any.whl</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Python wheel: <code>pip install</code> it into Python 3.10 or newer, then run <code>elmerstudio</code>.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+The macOS build is not signed. The first time, right-click <strong>Elmer Studio</strong> in <strong>Applications</strong> and choose <strong>Open</strong>. Afterwards it opens normally.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Each package is tested before release by starting the packaged application on an example, building its geometry and, where Elmer is present, solving and plotting it.</p>
+</div>
+<div class="sect2">
+<h3 id="from-source"><a class="anchor" href="#from-source"></a>From source</h3>
+<div class="paragraph">
+<p>Use this to follow the latest development or to change the code. You need Python 3.10 or newer.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git clone https://github.com/AltElmer/ElmerStudio.git
+cd ElmerStudio</code></pre>
+</div>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Windows</dt>
+<dd>
+<p>Double-click <code>run_elmerstudio.bat</code>. The first run creates a virtual environment in <code>.venv</code> and installs the dependencies (PySide6, VTK, PyVista, gmsh, NumPy, Matplotlib).</p>
+</dd>
+<dt class="hdlist1">Linux and macOS</dt>
+<dd>
+<p>Run <code>./run_elmerstudio.sh</code>. It does the same.</p>
+</dd>
+<dt class="hdlist1">Manually</dt>
+<dd>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">python -m venv .venv
+.venv/bin/pip install -r requirements.txt      # Windows: .venv\Scripts\pip
+.venv/bin/python -m elmerstudio</code></pre>
+</div>
+</div>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="install-elmer"><a class="anchor" href="#install-elmer"></a>2. Install Elmer</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 80%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">System</th>
+<th class="tableblock halign-left valign-top">Where to get Elmer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Windows</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Download the installer from the <a href="https://www.nic.funet.fi/pub/sci/physics/elmer/bin/windows/">CSC download area</a> and install it with the default options. Elmer Studio looks in <code>C:\Program Files\Elmer*</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ubuntu, Debian</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add the official PPA, then install:<br>
+<code>sudo add-apt-repository ppa:elmer-csc-ubuntu/elmer-csc-ppa</code><br>
+<code>sudo apt update &amp;&amp; sudo apt install elmerfem-csc</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">macOS</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Homebrew or a build from source. Elmer Studio looks in <code>/Applications/Elmer*</code>, <code>/opt/homebrew/opt/elmer</code>, <code>/usr/local/opt/elmer</code> and <code>/usr/local</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Any</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A from-source build tree of <a href="https://github.com/ElmerCSC/elmerfem">elmerfem</a> can be selected directly (see below).</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect2">
+<h3 id="how-elmer-studio-finds-elmer"><a class="anchor" href="#how-elmer-studio-finds-elmer"></a>How Elmer Studio finds Elmer</h3>
+<div class="paragraph">
+<p>At startup Elmer Studio looks in these places, in order:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>the folder saved in <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span>;</p>
+</li>
+<li>
+<p>the <code>ELMER_HOME</code> environment variable (or <code>--elmer-home</code> on the command line);</p>
+</li>
+<li>
+<p><code>ElmerSolver</code> on your <code>PATH</code>;</p>
+</li>
+<li>
+<p>the standard install folders listed above.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The <strong>Messages</strong> pane then reports <code>Elmer found: …</code> with the solver&#8217;s version. If it shows <strong>Elmer was not found</strong>, open <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span>. In the dialog:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>click <strong>Browse&#8230;&#8203;</strong> and choose the Elmer installation folder (the one that contains <code>bin/ElmerSolver</code>), then click <strong>Detect</strong>;</p>
+</li>
+<li>
+<p>or point it at a CMake build directory of elmerfem. Elmer Studio recognises a build tree and sets up the solver, its modules and libraries from it.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><strong>Detect</strong> shows the solver version and a one-line report on what this Elmer can do beyond the 9.0 release. It reports whether StatCurrentSolve has the diffusion-current term (multi-ion electrolytes) and whether a Fortran compiler is available for user solvers. It also says when the selection is a from-source build tree. Elmer Studio adapts to the build it finds: a feature that needs one of these is used only where it is present.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<span class="menuseq"><b class="menu">Developer</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Elmer Installation</b></span> opens the same dialog.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="parallel-runs-optional"><a class="anchor" href="#parallel-runs-optional"></a>Parallel runs (optional)</h3>
+<div class="paragraph">
+<p>To solve on several cores, set <em>Number of MPI processes</em> on a <strong>Study</strong> node. This needs an MPI build of Elmer (<code>ElmerSolver_mpi</code> plus <code>mpiexec</code>). Elmer Studio partitions the mesh with ElmerGrid by itself. The Windows <code>-nompi</code> builds of Elmer run serially.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="3-check-that-everything-works"><a class="anchor" href="#3-check-that-everything-works"></a>3. Check that everything works</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Start Elmer Studio. The <strong>New</strong> window opens.</p>
+</li>
+<li>
+<p>Choose an Application Library example, for example <strong>Heat sink</strong>. Or later, from <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Application Libraries</b></span>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>).</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>After a few seconds a temperature plot appears in the Graphics window, and the <strong>Messages</strong> pane reports the solution time. If it does, you&#8217;re ready for the <a href="quick-start.html" class="xref page">Quick start</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="no-gpu"><a class="anchor" href="#no-gpu"></a>Graphics without a GPU</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The 3D view needs OpenGL 3.2. Virtual machines, remote desktops and CI runners often have no GPU driver. Use Mesa&#8217;s software renderer:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Linux: <code>pip install vtk-osmesa</code>, or start with <code>LIBGL_ALWAYS_SOFTWARE=1</code>.</p>
+</li>
+<li>
+<p>Windows: copy Mesa&#8217;s <code>opengl32.dll</code> (from the mesa-dist-win project) next to <code>python.exe</code> in <code>.venv</code>.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Without any usable OpenGL, the Graphics window shows a notice. Everything else, including solving, plots in 1D and tables, keeps working.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="command-line-options"><a class="anchor" href="#command-line-options"></a>Command-line options</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-text hljs" data-lang="text">elmerstudio [model.esm] [--example KEY] [--elmer-home DIR] [--no-new]</code></pre>
+</div>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Option</th>
+<th class="tableblock halign-left valign-top">Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>model.esm</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open a saved model.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--example KEY</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Open an Application Library example: <code>busbar</code>, <code>heat_sink</code>, <code>cantilever</code>, <code>flow_cylinder</code>, <code>capacitor</code>, <code>coil</code>, <code>sphere</code>, <code>loudspeaker</code>, <code>scatterer</code>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--elmer-home DIR</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Use this Elmer installation instead of the saved preference.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>--no-new</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Start with an empty desktop instead of the <strong>New</strong> window.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>From source, run the same options as <code>python -m elmerstudio &#8230;&#8203;</code>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="updating-and-uninstalling"><a class="anchor" href="#updating-and-uninstalling"></a>Updating and uninstalling</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Installer (Windows):</strong> run the newer installer over the old one. Uninstall from <strong>Settings › Apps</strong>.</p>
+</li>
+<li>
+<p><strong>Portable zip, AppImage, tarball, macOS app:</strong> replace or delete the file or folder.</p>
+</li>
+<li>
+<p>Your models (<code>.esm</code> files) are separate and stay where you saved them.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="index.html">Introduction</a></span>
+  <span class="next"><a href="quick-start.html">Quick start: your first model</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="./_/js/site.js" data-ui-root-path="./_"></script>
+<script async src="./_/js/vendor/highlight.js"></script>
+<script src="./_/js/vendor/lunr.js"></script>
+<script src="./_/js/search-ui.js" id="search-ui-script" data-site-root-path="." data-snippet-length="100" data-stylesheet="./_/css/search.css"></script>
+<script async src="./search-index.js"></script>
+  </body>
+</html>
