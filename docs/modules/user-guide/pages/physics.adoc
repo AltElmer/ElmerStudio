@@ -23,9 +23,9 @@ Each feature's Settings window has:
 |xref:reference:physics-es.adoc[Electrostatics] (es) |Charge Conservation, Space Charge Density, Ground, Electric Potential, Surface Charge Density, Zero Charge |StatElecSolver
 |xref:reference:physics-ec.adoc[Electric Currents] (ec) |Current Conservation, Ground, Electric Potential, Normal Current Density, Electric Insulation |StatCurrentSolver
 |xref:reference:physics-mf.adoc[Magnetic Fields] (mf), 2D and 2D axisymmetric |Ampère's Law, External Current Density, Magnetic Insulation, Magnetic Potential, Perfect Magnetic Conductor |MagnetoDynamics2D + CalcFields
-|xref:reference:physics-spf.adoc[Laminar Flow] (spf) |Fluid Properties, Volume Force, Gravity, Wall (no slip or slip), Inlet (velocity or pressure), Outlet, Symmetry, Open Boundary; Stokes flow option |FlowSolve (stabilized P1-P1)
+|xref:reference:physics-spf.adoc[Laminar Flow] (spf) |Fluid Properties, Volume Force, Gravity, Wall (no slip or slip), Inlet (velocity or pressure), Outlet (optionally normal flow), Symmetry, Open Boundary; Stokes flow option |FlowSolve (stabilized P1-P1)
 |xref:reference:physics-acpr.adoc[Pressure Acoustics, Frequency Domain] (acpr) |Pressure Acoustics (domain), Sound Hard Boundary (Wall), Sound Soft Boundary, Pressure, Normal Acceleration, Impedance, Plane Wave Radiation, Spherical Wave Radiation (with incident plane wave), Exterior Field Calculation |HelmholtzSolver
-|xref:reference:physics-tds.adoc[Transport of Diluted Species] (tds) |Transport Properties (diffusion, convection by a given or Laminar-Flow velocity), Reactions, Concentration, Flux (including mass transfer), Electrode Surface Coupling, No Flux, Symmetry, Outflow |ModelPDE
+|xref:reference:physics-tds.adoc[Transport of Diluted Species] (tds) |Transport Properties (diffusion, convection by a given or Laminar-Flow velocity), Reactions, Concentration, Flux (including mass transfer), Electrode Surface Coupling, No Flux, Symmetry, Outflow; migration in the electrolyte potential |AdvectionDiffusion with streamline diffusion (default), or ModelPDE
 |xref:reference:physics-cd.adoc[Secondary Current Distribution] (cd) |Electrolyte, Current Source, Electrode Surface (primary, Butler–Volmer, linearized, Tafel, limiting current, user-defined kinetics), Electrolyte Potential, Electrolyte Current Density, Insulation, Symmetry |StatCurrentSolve, HeatSolve or ModelPDE, + FluxSolver. See xref:electrochemistry.adoc[Electrochemistry].
 |xref:reference:physics-pde.adoc[Coefficient Form PDE] (pde) |c, a, f, d~a~, β coefficients; Dirichlet, Flux/Source, Zero Flux |ModelPDE
 |===
@@ -43,7 +43,20 @@ Select the interface node itself (for example *Heat Transfer in Solids (ht)*) fo
 * _Discretization_: the element order, linear or quadratic. The mesh follows it by default.
 * model options, such as 2D plane stress or plane strain in Solid Mechanics, or primary or secondary current distribution;
 * the choice of Elmer solver, where there is one (see xref:electrochemistry.adoc[Electrochemistry]);
+* _Consistent Stabilization_ (Transport of Diluted Species): *Streamline diffusion*, on by default (<<stabilization>>);
 * _Additional Elmer solver keywords_: lines appended verbatim to this interface's `Solver` section in the `.sif`, for anything the GUI doesn't expose.
+
+[#stabilization]
+== Convection-dominated transport
+
+When convection dominates diffusion over an element, a Galerkin discretization makes the solution oscillate from node to node along the stream. Convection dominates when the element Péclet number, Pe~h~ = \|u\|h/(2D), exceeds 1. A dissolved species in a liquid is the usual case: D ≈ 10^-9^ m²/s gives Pe~h~ = 2.5 at 1 mm/s on 5 µm elements. Transport of Diluted Species therefore uses *streamline diffusion* by default. This is streamline-upwind Petrov–Galerkin (SUPG) stabilization, in Elmer's AdvectionDiffusion solver. It is consistent: it vanishes for the exact solution, so it doesn't smear a converged result.
+
+* Untick *Streamline diffusion* on the interface node for the plain Galerkin form (Elmer ModelPDE). Models saved before this option existed open with it unticked, and their results stay as they were.
+* A *Reactions* feature with a first-order rate constant k needs the Galerkin form: the interface falls back to it, with a warning in the log.
+
+Heat Transfer and Laminar Flow are always stabilized.
+
+The flow itself matters as much. A thin boundary layer at an outlet needs a velocity field that stays parallel there. Tick *Normal flow* on the Laminar Flow *Outlet* to set the tangential velocity to zero. Without it, the pressure outlet on stretched near-wall elements distorts the flow over the last few element columns.
 
 == Multiphysics
 

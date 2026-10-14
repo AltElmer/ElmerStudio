@@ -34,7 +34,42 @@ register(NodeType("component", "Component", "comp", "component", deletable=True,
                   ]))
 register(NodeType("definitions", "Definitions", "defs", "definitions", label="Definitions", numbered=False,
                   deletable=False, can_disable=False,
-                  children=["variables", "cpl.average", "cpl.integration", "cpl.maximum", "cpl.minimum"]))
+                  children=["variables", "cpl.average", "cpl.integration", "cpl.maximum", "cpl.minimum",
+                            "dg.ddom", "dg.pnmv"]))
+# Deformed geometry (COMSOL: Definitions > Deforming Domain, Prescribed Normal Mesh Velocity): in a Time Dependent
+# study the physics are solved on the present shape at every step and moving boundaries carry the mesh along
+register(NodeType("dg.ddom", "Deforming Domain", "dd", "feature_domain", selection="domain", selection_all=True,
+                  description="Domains whose mesh follows moving boundaries in a Time Dependent study: Electrode Surfaces "
+                              "with 'Deforming electrode surface' checked (they dissolve or grow at the Faraday rate) and "
+                              "Prescribed Normal Mesh Velocity boundaries. The physics are solved on the present shape at "
+                              "every time step; the mesh follows the moving boundaries smoothly.",
+                  equation=r"$\frac{\partial \mathbf{x}}{\partial t}\cdot\mathbf{n} = v_n\quad\text{on moving boundaries}$",
+                  props=[
+    Prop("integrator", "Time integration of the boundary motion:", "choice", "heun",
+         choices=[("heun", "Second order (Heun)"), ("euler", "First order (explicit Euler)")], section="Boundary Motion",
+         tip="Heun solves the physics twice per time step (on the present and on the predicted shape) and removes the "
+             "first-order time-step bias of explicit Euler"),
+    Prop("cfl", "Maximum boundary motion per time step (fraction of the boundary element size):", default="0.3",
+         unit="1", section="Boundary Motion",
+         tip="Time steps are shortened automatically so that no moving node travels farther than this fraction of its "
+             "boundary element length; the output times are always hit exactly"),
+    Prop("slide", "Mesh slides along straight walls and symmetry planes", "bool", True, section="Mesh Motion",
+         tip="Non-moving boundaries of the deforming domain that are straight and parallel to a coordinate plane keep "
+             "their shape while nodes slide along them; other boundaries are fixed"),
+    Prop("remesh", "Remesh when the mesh gets distorted", "bool", False, section="Mesh Motion",
+         tip="Rebuild the mesh of the deformed shape (2D) when an element's shape quality or size drops below the given "
+             "fraction of what it was after the last remeshing"),
+    Prop("qmin", "Remesh below element quality ratio:", default="0.3", unit="1", section="Mesh Motion",
+         visible=lambda p: bool(p.get("remesh")))]))
+register(NodeType("dg.pnmv", "Prescribed Normal Mesh Velocity", "pnmv", "feature_boundary", selection="boundary",
+                  description="A boundary of a Deforming Domain that moves along its normal (out of the domain) at the "
+                              "given velocity, an expression of the solution on the present shape: e.g. a species flux "
+                              "times M/rho for a transport-limited dissolution, or aveop1(...) to move a boundary with "
+                              "the mean recession of another.",
+                  equation=r"$\frac{\partial \mathbf{x}}{\partial t}\cdot\mathbf{n} = v_n$",
+                  props=[Prop("vn", "Normal mesh velocity (outward):", "string", "0", section="Normal Mesh Velocity",
+                              symbol="v_n", tip="m/s unless a unit is written; any result expression (solution "
+                                                "variables, coupling operators, parameters)")]))
 # Component couplings: nonlocal operators usable in results expressions, e.g. aveop1(T)
 for _kind, _title, _prefix, _icon in (("cpl.average", "Average", "aveop", "average"),
                                       ("cpl.integration", "Integration", "intop", "integration"),
@@ -81,6 +116,12 @@ def bind_results(model, sol, geo=None):
                      if str(r.get("name", "")).strip()}
     from .electrochem import electrode_results
     gl, var, flux = electrode_results(model, sol, params)
+    from .model import selection_entities
+    for ph in (comp.children if comp else []):           # fixed-concentration boundaries carry a species reaction
+        if ph.kind == "physics.tds" and ph.enabled:
+            for f in ph.children:
+                if f.kind == "tds.conc" and f.enabled and f.selection is not None:
+                    flux = set(flux) | set(selection_entities(f, sol.meta))
     sol.globals = gl
     if flux != sol.flux_boundaries:
         sol.flux_boundaries, sol._blump, sol._lscale = flux, None, {}
@@ -121,7 +162,8 @@ register(NodeType("study.time", "Time Dependent", "time", "time_dependent", prop
     Prop("tunit", "Time unit:", "choice", "s", choices=[("s", "s"), ("ms", "ms"), ("min", "min"), ("h", "h"), ("d", "d")],
          section="Study Settings"),
     Prop("times", "Output times:", "string", "range(0,0.1,1)", section="Study Settings",
-         tip="range(start,step,stop) or a list of equally spaced times"),
+         tip="range(start,step,stop), a list of times, or several ranges with growing steps, e.g. "
+             "range(0,0.01,0.1) range(0.2,0.1,1) range(2,1,100); the solver steps from one output time to the next"),
     Prop("substeps", "Solver steps per output step:", "int", 1, section="Study Settings"),
     Prop("bdf", "BDF order:", "choice", "2", choices=[("1", "1 (backward Euler)"), ("2", "2")], section="Study Settings"),
     Prop("coupling", "Max coupling iterations per step:", "int", 10, section="Study Settings"),
@@ -485,7 +527,11 @@ _LINESTYLE = [Prop("lstyle", "Line style:", "choice", "-", choices=[("-", "Solid
               Prop("nmarkers", "Number of markers:", "int", 10, section="Coloring and Style",
                    visible=lambda p: p.get("marker", "none") != "none"),
               Prop("legend_text", "Legend:", "string", "", section="Legends")]
-register(NodeType("plot.linegraph", "Line Graph", "lngr", "line_graph", props=[
+register(NodeType("plot.linegraph", "Line Graph", "lngr", "line_graph", selection="boundary",
+                  selection_visible=lambda p: p.get("__sdim", 3) == 2,
+                  description="An expression along a Cut Line, or (2D) along the selected boundaries of a solution "
+                              "dataset, e.g. the shape of a dissolving electrode with x-axis x and expression y.",
+                  props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
     Prop("expr", "y-axis expression:", "rexpr", "", section="y-Axis Data"),
     Prop("unit", "Unit:", "runit", "", section="y-Axis Data"),

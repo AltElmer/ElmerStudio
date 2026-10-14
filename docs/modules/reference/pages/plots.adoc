@@ -429,7 +429,9 @@ Results ribbon
 [#plot-linegraph]
 == Line Graph
 
-Results ribbon
+An expression along a Cut Line, or (2D) along the selected boundaries of a solution dataset, e.g. the shape of a dissolving electrode with x-axis x and expression y.
+
+Selection: Boundaries · Results ribbon
 
 [cols="3,1,1,2,3",options="header",stripes=even]
 |===

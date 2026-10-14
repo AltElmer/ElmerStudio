@@ -1,0 +1,136 @@
+= Electrochemistry: deforming electrodes
+:description: A dissolving anode that changes shape over time: electropolishing levels a rough surface, checked against the analytic levelling law.
+:page-math: true
+:page-pagination:
+
+In electropolishing and electrochemical machining, the anode dissolves where the current leaves it, so its shape changes over time. Crests of a rough surface draw more current than troughs and dissolve faster, and the surface levels out. This tutorial models one wavelength of a rough anode facing a flat cathode, lets it dissolve for ten minutes, and checks the levelling rate against the classical linear theory.
+
+.What you will learn
+* Make an electrode surface move with its dissolution rate (*Deforming electrode surface*), and let the mesh follow it (*Deforming Domain*).
+* Run a *Time Dependent* study in which the shape changes.
+* Plot the electrode shape at every output time, and evaluate the roughness amplitude with coupling operators.
+
+.Model at a glance
+[cols="1,2"]
+|===
+|Space dimension |2D
+|Physics |Secondary Current Distribution (`+cd+`), primary current distribution, with a Deforming Domain
+|Study |Time Dependent, 0 to 600 s
+|Solve time |about 2 minutes (40 time steps, 81 solves)
+|Expected result |the amplitude decays exponentially with the removed thickness, at the rate k·coth(kL)
+|===
+
+== The physics
+
+The electrolyte potential solves Laplace's equation (primary current distribution: no kinetics, so the current is limited by the electrolyte's resistance). At every instant, the metal recedes along the electrode normal at the *dissolution velocity*:
+
+[latexmath]
+++++
+v_n = \varepsilon\,\frac{M\,i_{loc}}{n F \rho_m}
+++++
+
+with the local current density latexmath:[i_{loc}], molar mass M, number of electrons n, metal density latexmath:[\rho_m] and current efficiency latexmath:[\varepsilon].
+
+For a small roughness latexmath:[h = a\cos kx] at distance L from the cathode, linear theory gives the local current density latexmath:[i \propto 1 + a k \coth(kL) \cos kx]. Feeding it into the dissolution velocity gives the levelling law, in terms of the mean removed thickness latexmath:[\bar h]:
+
+[latexmath]
+++++
+\frac{d \ln a}{d \bar h} = -k \coth(kL)
+++++
+
+Every material and operating constant cancels: the amplitude falls by a factor e for every 1/k of metal removed, here 32 µm. This makes it a clean check of the moving boundary.
+
+== 1. Model, parameters and geometry
+
+. menu:File[New] › *Model Wizard* › *2D* › *Electrochemistry* › *Secondary Current Distribution* › *Add* › *Study* › *Time Dependent* › *Done*.
+. In *Parameters 1*:
++
+[cols="1,2,3",options="header"]
+|===
+|Name |Expression |Description
+|`+lam+` |`+200[um]+` |Wavelength of the surface roughness
+|`+L+` |`+300[um]+` |Gap from the mean anode surface to the cathode
+|`+a0+` |`+10[um]+` |Initial amplitude of the roughness
+|`+V+` |`+50[mV]+` |Cell voltage
+|`+sigma+` |`+10[S/m]+` |Electrolyte conductivity
+|===
+. Select *Geometry 1* and set _Length unit_ to *µm*.
+. Draw the anode as a *Parametric Curve* (right-click *Geometry 1* › *Primitives* › *Parametric Curve*): _x_ `+lam*s+`, _y_ `+a0*cos(2*pi*s)+`, with s from 0 to 1, 121 points.
+. Close the cell with a *Polygon* of _Type_ *Open curve*: _x_ `+lam lam 0 0+`, _y_ `+a0 L L a0+`.
+. Add *Convert to Solid* with both curves as input.
+. Add four *Box Selections* (menu:Geometry[Box Selection], level *Boundary*), labelled after what they select: *Anode* (_y maximum_ `+L/2+`), *Cathode* (_y minimum_ `+L/2+`), *Left wall* (_x maximum_ `+lam/10+`) and *Right wall* (_x minimum_ `+0.9*lam+`). They stay right when the geometry is rebuilt.
+. Press kbd:[F8].
+
+== 2. Physics
+
+. Select *Secondary Current Distribution* and set _Current distribution type_ to *Primary*.
+. In *Electrolyte 1*, set _Electrical conductivity_ to *User defined*, `+sigma+`.
+. Add an *Electrode Surface* (menu:Physics[Boundaries > Electrode Surface]), label it *Anode*, and choose the *Anode* box selection. Keep _Electric potential_ `+0[V]+`. In the *Dissolution* section keep iron's molar mass, two electrons and density, and check *Deforming electrode surface (the boundary dissolves or grows)*. _Current efficiency_ stays `+1+`.
++
+.The anode: a primary electrode that dissolves
+image::ROOT:screenshots/tutorial_deform_1_electrode_surface.png[Electrode Surface with Deforming electrode surface checked,role=screenshot]
+. Add an *Electrolyte Potential* on the *Cathode* with _Electrolyte potential_ `+-V+`. The current then flows from the anode to the cathode, and the anode dissolves.
+. Add a *Symmetry* on each wall. The walls are symmetry planes of a periodic surface, and the mesh slides along them.
+. Add a *Deforming Domain* (menu:Definitions[Deforming Domain]; it goes under *Component 1 › Definitions*). It applies to all domains. The defaults are right: second-order (Heun) time integration, at most 0.3 boundary elements of motion per step, and a mesh that slides along straight walls.
++
+.Deforming Domain: how the boundary and the mesh move
+image::ROOT:screenshots/tutorial_deform_2_deforming_domain.png[Deforming Domain settings,role=screenshot]
+
+TIP: COMSOL users: *Deforming Domain* sits under *Definitions*, as in COMSOL. The check box on the Electrode Surface replaces the *Deforming Electrode Surface* boundary condition, and *Prescribed Normal Mesh Velocity* (also under Definitions) moves any other boundary with an expression.
+
+== 3. Mesh
+
+A structured mesh suits this geometry. Set *Mesh 1* to *User-controlled mesh*, add *Mapped*, and four *Distribution* nodes: 40 elements on the anode and on the cathode, 30 on each wall.
+
+== 4. Study
+
+Select *Step 1: Time Dependent* and set _Output times_ to `+range(0,60,600)+` (seconds).
+
+.Time Dependent step: one output every minute
+image::ROOT:screenshots/tutorial_deform_3_time_dependent.png[Time Dependent settings,role=screenshot]
+
+Press kbd:[Ctrl+=]. At every time step, Elmer Studio solves the current distribution on the present shape. It moves the anode at its dissolution velocity and smooths the mesh behind it. It shortens time steps automatically where the boundary moves fast. The *Messages* pane reports 40 time steps and 81 solves (the Heun predictor doubles them).
+
+== 5. Results
+
+The default plots show the electrolyte potential and the current density on the deformed geometry at the selected time.
+
+.Electrolyte potential after 600 s: the anode has receded by about 35 µm and is much smoother
+image::ROOT:screenshots/tutorial_deform_4_potential_final.png[Potential on the deformed geometry,role=screenshot]
+
+A deforming electrode also gets an *Electrode Shape (cd)* plot group. It is a *Line Graph* along the moving boundaries, with _x-axis parameter_ *x* and expression `+y`, drawn for *All* output times.
+
+.Electrode Shape: the anode outline every minute
+image::ROOT:screenshots/tutorial_deform_5_electrode_shape.png[Anode outlines over time,role=screenshot]
+
+=== Amplitude and removed thickness
+
+To put numbers on the levelling:
+
+. Add a *Maximum*, a *Minimum* and an *Average* coupling operator (menu:Definitions[Component Couplings]), each with _Geometric entity level_ *Boundary* and the *Anode* selection.
+. Add a *Global Evaluation* with _Time/parameter selection_ *All* and two expressions:
+* `+(maxop1(y)-minop1(y))/2+`, unit `+um+`, description *Amplitude*;
+* `+-aveop1(y)+`, unit `+um+`, description *Mean removed thickness*.
+. Click *Evaluate*.
+
+.Amplitude and removed thickness at every output time
+image::ROOT:screenshots/tutorial_deform_6_amplitude_table.png[Global Evaluation table,role=screenshot]
+
+A *1D Plot Group* with a *Global* plot of the amplitude, on a logarithmic y axis, shows a straight line: the decay is exponential.
+
+.The amplitude decays exponentially
+image::ROOT:screenshots/tutorial_deform_7_amplitude_vs_time.png[Amplitude against time, log scale,role=screenshot]
+
+== 6. Check the results
+
+* *Levelling rate.* From the table, the amplitude falls from 10 µm to 3.39 µm while 34.8 µm of metal is removed, and a fit of latexmath:[\ln a] against the removed thickness over all output times gives latexmath:[d\ln a/d\bar h] = −31 100 m⁻¹. Linear theory gives latexmath:[-k\coth(kL)] = −31 416 m⁻¹, 1.0 % away. The difference is the theory's own error: it neglects terms of order latexmath:[(a k)^2], and here latexmath:[a_0 k] = 0.31.
+* *Small amplitudes.* The test suite (`tests/test_deforming.py`) runs the same cell with a 2 µm amplitude. The measured rate then agrees with linear theory within 1 %. A control run with a uniform recession velocity (_Current efficiency_ `+1[A/m^2]/iloc+`) shows no levelling. So the levelling comes from the current distribution, not from the mesh smoothing.
+* *A flat anode.* With `+a0 = 0+`, the gap grows as the metal dissolves, and the current falls. The recession has a closed form, latexmath:[(L_0+h)^2 = L_0^2 + 2 c\,\sigma V t] with latexmath:[c = M/(nF\rho_m)]. Elmer Studio reproduces it within 2·10⁻⁴, and the electrode current within 10⁻⁹ of latexmath:[\sigma V \lambda/(L_0+h)].
+
+== What next
+
+* *Electrochemical machining* moves boundaries much further, and sharp corners round off. Check *Remesh when the mesh gets distorted* on the Deforming Domain, so the mesh is rebuilt on the new shape when its elements degrade (2D models).
+* *Passivation thresholds:* the current efficiency can depend on the local current density, for example `+iloc > 10[A/cm^2]+`, so that only areas above the threshold dissolve.
+* *Kinetics:* the electrode may use any kinetics of the Electrode Surface. Butler–Volmer kinetics reduce the levelling, because the kinetic resistance evens out the current.
+
+The Deforming Domain and the moving electrode surface are described in xref:user-guide:electrochemistry.adoc#deforming[User guide › Electrochemistry].

@@ -632,10 +632,20 @@ feature("cd.es", "Electrode Surface", "es", "feature_boundary", "boundary", "bc"
                Prop("M", "Molar mass (dissolving metal):", default="55.845[g/mol]", unit="kg/mol", section="Dissolution",
                     symbol="M", tip="Used by the dissolution-rate result variable cd.es<n>.vdis = M i / (n F rho)"),
                Prop("nel", "Number of participating electrons:", default="2", unit="1", section="Dissolution", symbol="n"),
-               Prop("rhom", "Metal density:", default="7870[kg/m^3]", unit="kg/m^3", section="Dissolution", symbol="ρ_m")],
+               Prop("rhom", "Metal density:", default="7870[kg/m^3]", unit="kg/m^3", section="Dissolution", symbol="ρ_m"),
+               Prop("moving", "Deforming electrode surface (the boundary dissolves or grows)", "bool", False,
+                    section="Dissolution",
+                    tip="In a Time Dependent study with a Deforming Domain, the electrode recedes along its normal at "
+                        "the dissolution velocity M i_loc/(n F rho) (anodic current dissolves, cathodic deposits)"),
+               Prop("eff", "Current efficiency of the dissolution:", "string", "1", section="Dissolution", symbol="ε",
+                    visible=lambda p: bool(p.get("moving")),
+                    tip="Fraction of the current that removes metal; may depend on the local current density iloc "
+                        "(A/m^2), e.g. iloc > 10[A/cm^2] for a passivation threshold")],
         description="Electrode reaction at the electrolyte boundary: overpotential eta = phis_ext - Eeq - phil, local current "
                     "density i_loc(eta) entering the electrolyte (anodic positive).",
         equation=r"$-\mathbf{n}\cdot\mathbf{i}_l = i_{loc}(\eta),\quad \eta = \phi_{s,ext}-E_{eq}-\phi_l$")
+
+
 
 
 def _cd_solvers(ph, ctx):
@@ -670,6 +680,8 @@ def _cd_solvers(ph, ctx):
             **(linsys("iterative", "CG", "ILU0", 1e-10, 500) if ctx.n_nodes > 100_000 else linsys("direct", "UMFPack")),
             "Exec Solver": "After Timestep",        # once, on the converged (coupled) solution
             "__post__": True}
+    if tds_migration(ctx.model):                    # migrating species read grad(phil) in every coupling iteration
+        flux.update({"Calculate Grad": True, "Exec Solver": "Always"})
     return [s, flux]
 
 
@@ -796,9 +808,21 @@ feature("spf.inlet", "Inlet", "inl", "feature_boundary", "boundary", "bc", _spf_
                Prop("p0", "Pressure:", default="0", unit="Pa", section="Pressure Conditions", symbol="p₀",
                     visible=lambda p: p.get("type") == "pressure")],
         equation=r"$\mathbf{u} = -U_0\mathbf{n}$")
-feature("spf.outlet", "Outlet", "out", "feature_boundary", "boundary", "bc",
-        lambda n, ctx, d=None: ({"External Pressure": ctx.value(n.get("p0"))} if str(n.get("p0", "0")).strip() not in ("0", "0[Pa]") else {}),
-        props=[Prop("p0", "Pressure:", default="0", unit="Pa", section="Pressure Conditions", symbol="p₀")],
+def _spf_outlet(n, ctx, d=None):
+    out = {"External Pressure": ctx.value(n.get("p0"))} if str(n.get("p0", "0")).strip() not in ("0", "0[Pa]") else {}
+    if n.get("normal", False):
+        # the flow leaves along the normal: the tangential velocity components vanish
+        out["Normal-Tangential Velocity"] = True
+        for i in range(1, ctx.sdim):
+            out[f"Velocity {i + 1}"] = 0.0
+    return out
+
+
+feature("spf.outlet", "Outlet", "out", "feature_boundary", "boundary", "bc", _spf_outlet,
+        props=[Prop("p0", "Pressure:", default="0", unit="Pa", section="Pressure Conditions", symbol="p₀"),
+               Prop("normal", "Normal flow", "bool", False, section="Pressure Conditions",
+                    tip="The tangential velocity is zero at the outlet: a parallel outflow, which keeps a fully "
+                        "developed profile undisturbed up to the outlet")],
         equation=r"$[-p\mathbf{I}+\mathbf{K}]\mathbf{n} = -p_0\mathbf{n}$")
 feature("spf.symmetry", "Symmetry", "sym", "feature_boundary", "boundary", "bc",
         lambda n, ctx, d=None: {"Normal-Tangential Velocity": True, "Velocity 1": 0.0},
@@ -969,19 +993,81 @@ define_physics(PhysicsDef(
 
 
 # =========================================================================== Transport of Diluted Species (ModelPDE)
-def _tds_tp(n, ctx, d):
-    out = {"Diffusion Coefficient": ctx.value(n.get("D")), "Time Derivative Coefficient": 1.0}
+def tds_migration(model) -> bool:
+    """True when a Transport of Diluted Species interface lets its species migrate in the electrolyte potential."""
+    comp = model.component
+    return comp is not None and any(f.kind == "tds.tp" and f.enabled and f.get("mig") and ph.enabled
+                                    for ph in comp.children if ph.kind == "physics.tds" for f in ph.children)
+
+
+def tds_stabilized(ph) -> bool:
+    """True when a Transport of Diluted Species interface runs Elmer's AdvectionDiffusion with SUPG (streamline
+    diffusion) rather than the Galerkin ModelPDE.  AdvectionDiffusion has no linear reaction term: an interface with
+    a first-order rate constant stays Galerkin."""
+    return bool(ph is not None and ph.get("stab", False)) and not any(
+        f.kind == "tds.reac" and f.enabled and str(f.get("k", "0")).strip() not in ("", "0") for f in ph.children)
+
+
+def _tds_velocity(n, ctx):
+    """The convection velocity of a Transport Properties feature: None for the Laminar Flow field as it is (no
+    migration), otherwise one expression per direction (with the migration drift), [] when there is none."""
     if n.get("usrc", "user") == "spf":
+        if not n.get("mig"):
+            return None
+        vel = [f"u_spf_{c}" for c in "xyz"[:ctx.sdim]]
+    else:
+        vel = [str(n.get(f"u{c}", "0")).strip() or "0" for c in "xyz"[:ctx.sdim]]
+    if n.get("mig"):
+        # Nernst-Planck: the migration flux -z u_m F c grad(phil), with the Nernst-Einstein mobility u_m = D/(RT),
+        # is a drift velocity -z D F/(R T) grad(phil) added to the convection (phil's gradient from its FluxSolver)
+        if not any(ph.kind == "physics.cd" and ph.enabled for ph in ctx.model.component.children):
+            from .sif import SifError
+            raise SifError(f"{n.label}: migration needs a Secondary Current Distribution interface (its electrolyte "
+                           "potential drives the ions)")
+        mob = f"(({n.get('z', '1')})*({n.get('D')})*{F_CONST!r}/({R_CONST!r}*({n.get('Tm', '298.15[K]')})))"
+        vel = [f"({v})-{mob}*dphild{c}" for v, c in zip(vel, "xyz")]
+    return vel if any(v not in ("0", "") for v in vel) else []
+
+
+def _tds_tp(n, ctx, d):
+    out = {"Diffusion Coefficient": ctx.value(n.get("D"))}      # FluxSolver's coefficient in both formulations
+    if tds_stabilized(n.parent):
+        out["Concentration Diffusivity"] = out["Diffusion Coefficient"]
+        return out                                                 # convection: the Equation section (_tds_tp_eq)
+    out["Time Derivative Coefficient"] = 1.0
+    vel = _tds_velocity(n, ctx)
+    if vel is None:
         out["Convection Coefficient"] = 1.0
         for i in range(ctx.sdim):
             out[f"Convection Velocity {i + 1}"] = f"Equals Velocity {i + 1}"
-    else:
-        vel = [str(n.get(f"u{c}", "0")).strip() for c in "xyz"[:ctx.sdim]]
-        if any(v not in ("0", "") for v in vel):
-            out["Convection Coefficient"] = 1.0
-            for i, v in enumerate(vel):
-                out[f"Convection Velocity {i + 1}"] = ctx.value(v or "0")
+    elif vel:
+        out["Convection Coefficient"] = 1.0
+        for i, v in enumerate(vel):
+            out[f"Convection Velocity {i + 1}"] = ctx.value(v)
     return out
+
+
+def _tds_tp_eq(n, ctx, d):
+    """AdvectionDiffusion reads its convection from the Equation section, keyed by the variable name so that it
+    cannot collide with Heat Transfer's Convection keywords in the same body."""
+    if not tds_stabilized(n.parent):
+        return {}
+    out = {"Concentration Units": "Absolute Mass"}
+    vel = _tds_velocity(n, ctx)
+    if vel is None:
+        out["Concentration Convection"] = "Computed"
+        out["Concentration Convection Field Variable"] = "Flow Solution"
+    elif vel:
+        out["Concentration Convection"] = "Constant"
+        for i, v in enumerate(vel):
+            out[f"Concentration Convection Velocity {i + 1}"] = ctx.value(v)
+    else:
+        out["Concentration Convection"] = "None"
+    return out
+
+
+def _tds_key(n, galerkin, stabilized):
+    return stabilized if tds_stabilized(n.parent) else galerkin
 
 
 feature("tds.tp", "Transport Properties", "tp", "feature_domain", "domain", "material", _tds_tp, default=True,
@@ -990,13 +1076,22 @@ feature("tds.tp", "Transport Properties", "tp", "feature_domain", "domain", "mat
                *[Prop(f"u{c}", f"u {c}:", default="0", unit="m/s", section="Convection",
                       visible=(lambda cc: (lambda p: p.get("usrc", "user") == "user" and (cc != "z" or p.get("__sdim", 3) == 3)))(c))
                  for c in "xyz"],
-               Prop("D", "Diffusion coefficient:", default="1e-9", unit="m^2/s", section="Diffusion", symbol="D_c")],
-        equation=r"$\frac{\partial c}{\partial t} + \nabla\cdot\mathbf{J} + \mathbf{u}\cdot\nabla c = R,\quad \mathbf{J}=-D\nabla c$")
+               Prop("D", "Diffusion coefficient:", default="1e-9", unit="m^2/s", section="Diffusion", symbol="D_c"),
+               Prop("mig", "Migration in electric field", "bool", False, section="Migration",
+                    tip="Nernst-Planck transport in the electrolyte potential of the Secondary Current Distribution "
+                        "interface: flux -z (D/RT) F c grad(phil) (Nernst-Einstein mobility)"),
+               Prop("z", "Charge number:", default="1", unit="1", section="Migration", symbol="z",
+                    visible=lambda p: bool(p.get("mig"))),
+               Prop("Tm", "Temperature:", default="298.15[K]", unit="K", section="Migration", symbol="T",
+                    visible=lambda p: bool(p.get("mig")))],
+        equation=r"$\frac{\partial c}{\partial t} + \nabla\cdot\mathbf{J} + \mathbf{u}\cdot\nabla c = R,\quad "
+                 r"\mathbf{J}=-D\nabla c - z\frac{D}{RT}F c\nabla\phi_l$")
+FEATURES["tds.tp.eq"] = Feature("tds.tp", "equation", _tds_tp_eq)
 feature("tds.init", "Initial Values", "init", "initial_values", "domain", "ic",
         lambda n, ctx, d: {"Concentration": ctx.value(n.get("c0"))}, default=True,
         props=[Prop("c0", "Concentration:", default="0", unit="mol/m^3", section="Initial Values", symbol="c")])
 feature("tds.reac", "Reactions", "reac", "feature_domain", "domain", "bodyforce",
-        lambda n, ctx, d: {"Field Source": ctx.value(n.get("R0"))},
+        lambda n, ctx, d: {_tds_key(n, "Field Source", "Concentration Diffusion Source"): ctx.value(n.get("R0"))},
         props=[Prop("k", "First-order rate constant:", default="0", unit="1/s", section="Reaction Rates", symbol="k"),
                Prop("R0", "Reaction rate (source):", default="0", unit="mol/(m^3*s)", section="Reaction Rates", symbol="R₀")],
         equation=r"$R = -k\,c + R_0$")
@@ -1009,8 +1104,10 @@ feature("tds.conc", "Concentration", "conc", "feature_boundary", "boundary", "bc
         props=[Prop("c0", "Concentration:", default="1[mol/m^3]", unit="mol/m^3", section="Concentration", symbol="c₀")],
         equation=r"$c = c_0$")
 feature("tds.flux", "Flux", "fl", "feature_boundary", "boundary", "bc",
-        lambda n, ctx, d=None: ({"Field Flux": ctx.value(n.get("N0"))} if n.get("type", "general") == "general"
-                                else {"Robin Coefficient": ctx.value(n.get("kc")), "External Field": ctx.value(n.get("cb"))}),
+        lambda n, ctx, d=None: ({_tds_key(n, "Field Flux", "Concentration Flux"): ctx.value(n.get("N0"))}
+                                if n.get("type", "general") == "general"
+                                else {_tds_key(n, "Robin Coefficient", "Mass Transfer Coefficient"): ctx.value(n.get("kc")),
+                                      _tds_key(n, "External Field", "External Concentration"): ctx.value(n.get("cb"))}),
         props=[Prop("type", "Flux type:", "choice", "general",
                     choices=[("general", "General inward flux"), ("mt", "External convection (mass transfer)")], section="Inward Flux"),
                Prop("N0", "Inward flux:", default="0", unit="mol/(m^2*s)", section="Inward Flux", symbol="J₀",
@@ -1032,7 +1129,7 @@ def _tds_esc(n, ctx, d=None):
                        "expression so the reaction current is known on the boundary")
     i, _di = cd_kinetics(es)
     flux = f"({n.get('nu', '1')})*({sub_eta(i, cd_eta(es))})/(({n.get('nel', '1')})*{F_CONST!r})"
-    return {"Field Flux": ctx.value(flux)}
+    return {_tds_key(n, "Field Flux", "Concentration Flux"): ctx.value(flux)}
 
 
 feature("tds.esc", "Electrode Surface Coupling", "esc", "feature_boundary", "boundary", "bc", _tds_esc,
@@ -1051,9 +1148,23 @@ feature("tds.outflow", "Outflow", "out", "feature_boundary", "boundary", "bc", N
 
 
 def _tds_solvers(ph, ctx):
-    s = {"Equation": "Diluted Species", "Procedure": ("ModelPDE", "AdvDiffSolver"), "Variable": "Concentration"}
+    if tds_stabilized(ph):
+        # streamline-upwind Petrov-Galerkin: consistent stabilization of convection-dominated transport.  (Elmer's
+        # residual-free bubbles diverged on a quadrilateral strip with a near-zero migration velocity.)
+        s = {"Equation": "Diluted Species", "Procedure": ("AdvectionDiffusion", "AdvectionDiffusionSolver"),
+             "Variable": "Concentration", "Stabilization Method": "Stabilized", "Calculate Loads": True}
+    else:
+        s = {"Equation": "Diluted Species", "Procedure": ("ModelPDE", "AdvDiffSolver"), "Variable": "Concentration",
+             "Calculate Loads": True}        # reaction loads: the exactly conservative flux through fixed-c boundaries
+        if ph.get("stab", False):
+            ctx.warnings.append(f"{ph.label}: a first-order reaction rate constant; the species transport is solved "
+                                "without streamline diffusion")
     s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
-    return [s]
+    flux = {"Equation": "Species Flux", "Procedure": ("FluxSolver", "FluxSolver"), "Calculate Flux": True,
+            "Flux Variable": "Concentration", "Flux Coefficient": "Diffusion Coefficient",
+            **(linsys("iterative", "CG", "ILU0", 1e-10, 500) if ctx.n_nodes > 100_000 else linsys("direct", "UMFPack")),
+            "Exec Solver": "After Timestep", "__post__": True}
+    return [s, flux]
 
 
 define_physics(PhysicsDef(
@@ -1064,8 +1175,15 @@ define_physics(PhysicsDef(
     boundary=["tds.conc", "tds.flux", "tds.esc", "tds.nf", "tds.sym", "tds.outflow"],
     solvers=_tds_solvers,
     plots=lambda ph, sd, st: [{"label": "Concentration (tds)", "type": "surface", "expr": "c", "cmap": "RainbowLight", "dims": sd}],
-    description="Diffusion, convection and first-order reactions of a dilute species. Elmer ModelPDE.",
-    equation=r"$\frac{\partial c}{\partial t} + \nabla\cdot(-D\nabla c) + \mathbf{u}\cdot\nabla c = R$"))
+    description="Diffusion, convection and first-order reactions of a dilute species. Elmer AdvectionDiffusion "
+                "(streamline diffusion) or ModelPDE (Galerkin).",
+    equation=r"$\frac{\partial c}{\partial t} + \nabla\cdot(-D\nabla c) + \mathbf{u}\cdot\nabla c = R$"),
+    extra_props=[Prop("stab", "Streamline diffusion", "bool", True, section="Consistent Stabilization", legacy=False,
+                      tip="Consistent stabilization of convection-dominated transport (element Péclet number > 1), "
+                          "which otherwise oscillates from node to node: streamline-upwind Petrov-Galerkin (SUPG). "
+                          "Consistent: it vanishes for the exact solution. Elmer AdvectionDiffusion; without it, "
+                          "Galerkin ModelPDE. "
+                          "A first-order rate constant (Reactions) needs the Galerkin form.")])
 
 
 # =========================================================================== Coefficient Form PDE

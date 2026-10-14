@@ -144,6 +144,15 @@ class StudyRunner:
                 if self._stop.is_set():
                     raise StudyCancelled()
                 folder = os.path.join(sdir, f"sol_{vi}_{si}")
+                from .deforming import DeformingRun, deforming_setup
+                dsetup = deforming_setup(self.model, step)
+                if dsetup is not None:                     # deforming electrodes: one solve per time step
+                    os.makedirs(folder, exist_ok=True)
+                    DeformingRun(self, dsetup, step, mesh, folder, overrides, combos[vi], (pname, val)).run()
+                    self.folders.append(folder)
+                    job += 1
+                    self.emit("progress", (job / total, "Done"))
+                    continue
                 cont, prev = None, previous.get(si)
                 if reuse and step.kind == "study.stationary":
                     same = prev is not None and prev[1].shape == np.shape(mesh.nodes) and \

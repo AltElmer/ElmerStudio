@@ -232,4 +232,42 @@ def default_plots(m: Model, st: Node, step_kind: str) -> list[Node]:
                 c.props["colorleg"] = False
                 c.props["cmap"] = "GrayScale"
             made.append(pg)
+    made += _deforming_shape_plot(m, st, sd, step_kind, ds, existing)
     return made
+
+
+def _deforming_shape_plot(m, st, sd, step_kind, ds, existing):
+    """2D deforming geometry: the moving boundaries' outline at every output time."""
+    comp = m.component
+    defs = comp.child("definitions") if comp else None
+    if step_kind != "time" or sd != 2 or defs is None:
+        return []
+    if not any(f.kind == "dg.ddom" and f.enabled for f in defs.children):
+        return []
+    movers = [f for ph in comp.children if ph.kind == "physics.cd" and ph.enabled for f in ph.children
+              if f.kind == "cd.es" and f.enabled and f.get("moving") and f.selection is not None]
+    movers += [f for f in defs.children if f.kind == "dg.pnmv" and f.enabled and f.selection is not None]
+    key = f"{st.tag}:Moving Boundaries"
+    if not movers or key in existing:
+        return []
+    idx = next((i for i, c in enumerate(m.results.children) if c.kind == "results.export"), len(m.results.children))
+    label = "Electrode Shape (cd)" if all(f.kind == "cd.es" for f in movers) else "Moving Boundaries"
+    pg = m.create("pg1d", m.results, index=idx, label=label)
+    pg.props.update({"data": ds.tag, "solnum": "all", "legendpos": "best"})
+    pg.meta["default_plot"] = key
+    for c in list(pg.children):
+        pg.remove(c)
+    lg = m.create("plot.linegraph", pg)
+    geom = m.component.child("geometry")
+    lu = (geom.get("unit", "m") if geom is not None else "m") or "m"
+    lg.props.update({"data": "fromparent", "expr": "y", "xaxis": "x", "unit": lu})
+    ents, named = [], ""
+    for f in movers:
+        if f.selection.named:
+            named = named or f.selection.named
+        ents += list(f.selection.entities)
+    lg.selection.entities = sorted(set(ents))
+    lg.selection.all = False
+    if named and len(movers) == 1:
+        lg.selection.named = named
+    return [pg]

@@ -38,6 +38,7 @@ class Prop:
     n: int = 3                      # vector length
     readonly: bool = False
     columns: list = field(default_factory=list)  # table columns
+    legacy: Any = None              # value for a saved node without this key (a new default that changes results)
 
 
 @dataclass
@@ -230,7 +231,12 @@ class Node:
     @classmethod
     def from_dict(cls, d: dict) -> "Node":
         n = cls(d["kind"], d.get("tag", ""), d.get("label", ""))
-        n.props.update(copy.deepcopy(d.get("props", {})))
+        saved = d.get("props", {})
+        nt = REGISTRY.get(d["kind"])
+        for p in (nt.props if nt else ()):
+            if p.legacy is not None and p.key not in saved:
+                n.props[p.key] = copy.deepcopy(p.legacy)
+        n.props.update(copy.deepcopy(saved))
         n.enabled = d.get("enabled", True)
         if "selection" in d:
             n.selection = Selection.from_dict(d["selection"])

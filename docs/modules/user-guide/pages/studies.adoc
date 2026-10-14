@@ -9,7 +9,7 @@ A *Study* holds one study step, an optional *Parametric Sweep*, and optional *So
 |===
 |Step |Settings |Elmer
 |*Stationary* |For coupled physics: _Max coupling iterations_, _Coupling tolerance_, _Coupling damping factor_ |Steady state
-|*Time Dependent* |_Time unit_, _Output times_ (`+range(0,0.1,1)+` or a list), _Solver steps per output step_, _BDF order_ (1 or 2), _Max coupling iterations per step_ |Transient, BDF time stepping
+|*Time Dependent* |_Time unit_, _Output times_ (`+range(0,0.1,1)+`, a list, or several ranges with growing steps, `+range(0,0.01,0.1) range(0.2,0.1,1) range(2,1,100)+`), _Solver steps per output step_, _BDF order_ (1 or 2), _Max coupling iterations per step_ |Transient, BDF time stepping; the time step runs from one output time to the next (divided by the solver steps per output step)
 |*Eigenfrequency* |_Desired number of eigenfrequencies_, _Search for eigenfrequencies around_ (Hz) |Eigen analysis (ARPACK)
 |*Frequency Domain* |_Frequency unit_, _Frequencies_ (a value, a list or `+range(start,step,stop)+`) |Harmonic, scanned over the frequencies
 |===

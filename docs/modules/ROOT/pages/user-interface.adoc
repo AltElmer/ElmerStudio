@@ -27,7 +27,7 @@ The ribbon shows the commands of one stage of the workflow per tab. The *Home* t
 |===
 |Tab |Commands
 |*Home* |Add Component, Parameters, Variables, Functions, Build All (geometry), Import, Add Material, Add Physics, Multiphysics, Build Mesh, Element Size, Compute, Add Study, Add Plot Group, Reset Desktop
-|*Definitions* |Parameters, Variables, Analytic and Interpolation functions
+|*Definitions* |Parameters, Variables, Analytic and Interpolation functions, Component Couplings (Average, Integration, Maximum, Minimum), Deformed Geometry (Deforming Domain, Prescribed Normal Mesh Velocity)
 |*Geometry* |Build All, Import; primitives (Block, Cone, Cylinder, Sphere, Torus, Ellipsoid, Rectangle, Circle, Ellipse, Polygon, Parametric Curve); Work Plane, Extrude, Revolve; Union, Intersection, Difference; Array, Copy, Mirror, Move, Rotate, Scale; Fillet, Chamfer, Convert to Solid; Box Selection; Zoom Extents
 |*Materials* |Add Material (from the library), Blank Material
 |*Physics* |Domains and Boundaries menus with the features of the current physics interface, Add Physics, Multiphysics Couplings

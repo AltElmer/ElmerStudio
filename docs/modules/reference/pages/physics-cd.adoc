@@ -119,6 +119,10 @@ _Any expression of the overpotential eta (V), parameters and functions, e.g. an 
 _Used by the dissolution-rate result variable cd.es<n>.vdis = M i / (n F rho)_ |M |`+kg/mol+` |`+55.845[g/mol]+` |Expression
 |Number of participating electrons |n |`+1+` |`+2+` |Expression
 |Metal density |ρ_m |`+kg/m^3+` |`+7870[kg/m^3]+` |Expression
+|Deforming electrode surface (the boundary dissolves or grows) +
+_In a Time Dependent study with a Deforming Domain, the electrode recedes along its normal at the dissolution velocity M i_loc/(n F rho) (anodic current dissolves, cathodic deposits)_ | | |Off |Check box
+|Current efficiency of the dissolution +
+_Fraction of the current that removes metal; may depend on the local current density iloc (A/m^2), e.g. iloc > 10[A/cm^2] for a passivation threshold_ |ε | |`+1+` |Text
 |===
 
 [#cd-pot]
@@ -180,5 +184,10 @@ No settings.
 |`+cd.Ilz+` |Electrolyte current density, z component |`+A/m^2+`
 |`+cd.iloc+` |Local current density into the electrolyte (from the reaction) |`+A/m^2+`
 |`+cd.nIl+` |Normal electrolyte current density (outward) |`+A/m^2+`
+|`+cd.disp+` |Mesh displacement (deforming electrodes) |`+m+`
+|`+cd.dispMag+` |Mesh displacement magnitude |`+m+`
+|`+cd.dx+` |Mesh displacement, x component |`+m+`
+|`+cd.dy+` |Mesh displacement, y component |`+m+`
+|`+cd.dz+` |Mesh displacement, z component |`+m+`
 |===
 

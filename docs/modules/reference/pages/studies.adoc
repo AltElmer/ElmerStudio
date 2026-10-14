@@ -51,7 +51,7 @@ Study ribbon
 5+h|Study Settings
 |Time unit | | |s |s, ms, min, h, d
 |Output times +
-_range(start,step,stop) or a list of equally spaced times_ | | |`+range(0,0.1,1)+` |Text
+_range(start,step,stop), a list of times, or several ranges with growing steps, e.g. range(0,0.01,0.1) range(0.2,0.1,1) range(2,1,100); the solver steps from one output time to the next_ | | |`+range(0,0.1,1)+` |Text
 |Solver steps per output step | | |`+1+` |Integer
 |BDF order | | |2 |1 (backward Euler), 2
 |Max coupling iterations per step | | |`+10+` |Integer

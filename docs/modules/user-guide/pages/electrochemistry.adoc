@@ -309,6 +309,26 @@ When a change in one field returns amplified by a loop gain latexmath:[G > 1] af
 
 A coupled stationary run writes its result once, after the loop has converged.
 
+[#migration]
+=== Migration of charged species
+
+In an electrolyte under an applied field, ions also migrate. Check *Migration in electric field* on the species' *Transport Properties* and give its _Charge number_ z and _Temperature_ T. The flux then becomes Nernst–Planck's
+
+[latexmath]
+++++
+\mathbf{J} = -D\nabla c - z\,\frac{D}{RT}\,F\,c\,\nabla\phi_l
+++++
+
+with the Nernst–Einstein mobility D/RT and the electrolyte potential latexmath:[\phi_l] of the Secondary Current Distribution interface. Elmer Studio computes latexmath:[\nabla\phi_l] with the current distribution's FluxSolver in every coupling iteration, and adds the migration drift latexmath:[-zDF/(RT)\,\nabla\phi_l] to the convection velocity of the species equation. The species interface is always solved after the current distribution and the flow, so it sees their latest fields.
+
+NOTE: The drift enters as a convection velocity, which is exact where the potential satisfies Laplace's equation (uniform conductivity and no volumetric current source), the usual case in an electrolyte. Migration does not feed back into the conductivity: the electrolyte conductivity stays the one you give.
+
+Checked in `tests/test_migration.py`: along a strip with a linear potential, the steady profile is the exact exponential latexmath:[c_0 + (c_1-c_0)\,(e^{Py/L}-1)/(e^P-1)] with latexmath:[P = -zFV/(RT)], to 1e-4 for z = 1 and z = −2. With migration off, the profile is linear to 1e-9.
+
+=== Species fluxes
+
+Transport of Diluted Species results include `+tds.tflux+` (the diffusive flux vector −D∇c) and its magnitude `+tds.tfluxMag+`. They also include `+tds.ntflux+`, the normal total flux through boundaries with a fixed concentration (outward positive). Like `+cd.iloc+`, it comes from Elmer's reaction loads, so its integral over a boundary is exactly the species transfer through it. Use it, for example, to drive a transport-limited dissolution with a xref:#deforming[Prescribed Normal Mesh Velocity] of `+-tds.ntflux*Vm+` (Vm: the metal's molar volume).
+
 [#box-selections]
 == Electrodes on swept geometries: Box Selections
 
@@ -327,6 +347,45 @@ Blank limits are unbounded; plain numbers are in the geometry length unit.
 
 Each run of a sweep re-evaluates the box on its own geometry, so the electrode features follow the right boundaries.
 See xref:user-guide:selections.adoc[].
+
+[#deforming]
+== Deforming electrodes: dissolution and deposition
+
+An electrode that dissolves (electropolishing, electrochemical machining, corrosion) or grows (electrodeposition) changes the shape of the electrolyte, and with it the current distribution. Two settings make the shape follow the current:
+
+* On the *Electrode Surface*, in the *Dissolution* section, check *Deforming electrode surface (the boundary dissolves or grows)*. The boundary then moves along its normal at
++
+[latexmath]
+++++
+v_n = \varepsilon\,\frac{M\,i_{loc}}{n F \rho_m}
+++++
++
+with the _Molar mass_, _Number of participating electrons_ and _Metal density_ of the same section. Anodic current (positive latexmath:[i_{loc}]) dissolves the metal and the electrolyte grows; cathodic current deposits. _Current efficiency_ latexmath:[\varepsilon] is an expression and may use the local current density `+iloc+`, for example `+iloc > 10[A/cm^2]+` for a passivation threshold below which nothing dissolves.
+* Add a *Deforming Domain* (menu:Definitions[Deforming Domain], under *Component › Definitions*) on the electrolyte. Its mesh follows the moving electrodes.
+* Any other boundary can move too: a *Prescribed Normal Mesh Velocity* (menu:Definitions[Prescribed Normal Mesh Velocity]) moves it along its outward normal at an expression of the solution. Examples: a species flux times M/ρ for transport-limited dissolution, or `+aveop1(cd.es1.vdis)+` to move a flat boundary with the mean recession of an electrode.
+
+Then solve a *Time Dependent* study. At every time step the current distribution is solved, as a stationary problem, on the present shape. The deforming electrodes move by the dissolution velocity times the step, and the mesh behind them is smoothed. Each output time is stored with its own geometry, so plots, cut lines and integrals at a given time see the shape at that time. A parameter `+t+` in physics settings is the present time, so a voltage can be ramped.
+
+[cols="2,4",options="header"]
+|===
+|Deforming Domain setting |Meaning
+|_Time integration of the boundary motion_ |*Second order (Heun)*, the default: a predictor step on the advanced shape, then the average of both velocities. It removes the first-order time-step bias of *explicit Euler*, at twice the solves per step.
+|_Maximum boundary motion per time step_ |Steps are shortened automatically, so that no electrode node moves more than this fraction of its boundary element length in one step. The output times are always hit exactly.
+|_Mesh slides along straight walls and symmetry planes_ |Non-moving boundaries that are straight and parallel to a coordinate axis keep their shape, while nodes slide along them. This lets an electrode recede along a wall. Symmetry boundaries and the axis of a 2D axisymmetric model always slide; other boundaries are fixed.
+|_Remesh when the mesh gets distorted_ |2D and 2D axisymmetric: when an element's shape quality or size falls below the given fraction of its value after the last remeshing, the mesh is rebuilt on the present shape. The boundary numbers stay, so every feature keeps its selection, and the moving boundaries keep their node grading. Use it when the electrode moves by more than a few element sizes, or rounds off a sharp corner.
+|===
+
+=== Results of a deforming electrode
+
+* *Electrode Shape (cd)*, a default 1D plot group of 2D models: the moving boundaries' outline at every output time (a *Line Graph* along boundaries, _x-axis parameter_ *x*, expression `+y`, *All* solutions).
+* `+cd.dx+`, `+cd.dy+`, `+cd.dz+`, `+cd.disp+`, `+cd.dispMag+`: the mesh displacement from the initial shape (until the first remeshing).
+* Coupling operators on the electrode boundary follow the shape. With a Maximum, a Minimum and an Average operator on the anode, `+(maxop1(y)-minop1(y))/2+` is the amplitude of a rough surface, and `+-aveop1(y)+` the mean removed thickness. Evaluate them over time with a *Global Evaluation* or a *Global* plot.
+
+The xref:tutorials:deforming-electrodes.adoc[deforming electrode tutorial] levels a rough anode and checks the rate against linear theory.
+
+*Transport-limited dissolution* is the same thing without a current distribution. A saturated anode (*Concentration* c~sat~ in Transport of Diluted Species) dissolves at a *Prescribed Normal Mesh Velocity* of `+-tds.ntflux*Vm+`. The flat outer edge of the diffusion layer keeps its distance δ from the mean surface with a second Prescribed Normal Mesh Velocity, `+aveop1(tds.ntflux*Vm)+`, where `+aveop1+` is an Average coupling operator on the anode. The test suite checks the levelling rate latexmath:[-k\coth(k\delta)] of this case to 1 %, with the layer thickness held constant to 0.2 %.
+
+NOTE: Physics are solved quasi-statically: transient terms (for example of Transport of Diluted Species in a tertiary model) are not integrated in time while the electrode moves. Moving meshes work in 2D, 2D axisymmetric and 3D (triangles, quadrilaterals, tetrahedra); remeshing is available in 2D and 2D axisymmetric.
 
 [#elmer-solvers]
 == Which Elmer solver runs

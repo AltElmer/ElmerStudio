@@ -73,6 +73,15 @@ CATALOG = [
     ("cd.Ilz", "phil flux", 2, "Electrolyte current density, z component", "A/m^2", "scalar"),
     ("cd.iloc", "phil loads", "bflux", "Local current density into the electrolyte (from the reaction)", "A/m^2", "scalar"),
     ("cd.nIl", "phil loads", "-bflux", "Normal electrolyte current density (outward)", "A/m^2", "scalar"),
+    ("tds.tflux", "concentration flux", "vec", "Diffusive flux", "mol/(m^2*s)", "vector"),
+    ("tds.tfluxMag", "concentration flux", "mag", "Diffusive flux magnitude", "mol/(m^2*s)", "scalar"),
+    ("tds.ntflux", "concentration loads", "-bflux", "Normal total flux at fixed-concentration boundaries (outward, "
+                   "from the reaction)", "mol/(m^2*s)", "scalar"),
+    ("cd.disp", "mesh displacement", "vec", "Mesh displacement (deforming electrodes)", "m", "vector"),
+    ("cd.dispMag", "mesh displacement", "mag", "Mesh displacement magnitude", "m", "scalar"),
+    ("cd.dx", "mesh displacement", 0, "Mesh displacement, x component", "m", "scalar"),
+    ("cd.dy", "mesh displacement", 1, "Mesh displacement, y component", "m", "scalar"),
+    ("cd.dz", "mesh displacement", 2, "Mesh displacement, z component", "m", "scalar"),
 ]
 # result quantities reconstructed from nodal reaction loads (integrated with the lumped weights)
 _BFLUX = re.compile(r"\b(?:" + "|".join(re.escape(a).replace(r"\.", r"[._]") for a, _s, c, *_r in CATALOG
@@ -234,6 +243,75 @@ class Solution:
         self._bulk = None
         self._bnd = None
         self._cache: dict = {}
+        self.moving = bool(self.meta.get("moving_mesh"))   # deforming electrodes: node coordinates per frame
+        self._geom_frame = 0
+        self._frame_nodes = None
+
+    def _set_geometry(self, i: int):
+        """Moving meshes: put frame *i*'s node coordinates into the topology (grids and weights follow)."""
+        if not self.moving or i < 0 or i == self._geom_frame:
+            return
+        if self._frame_nodes is None:
+            with np.load(os.path.join(self.folder, "frames.npz")) as z:
+                self._frame_nodes = {k: z[k] for k in z.files}
+        nodes = self._frame_nodes.get(f"f{i}")
+        if nodes is None:
+            return
+        fm = self.meta.get("frame_mesh") or []
+        r = int(fm[i]) if i < len(fm) else 0
+        if r != getattr(self, "_mesh_index", 0):            # remeshed: this frame has its own connectivity
+            self.topo = Topology(os.path.join(self.folder, "mesh.npz" if r == 0 else f"mesh_{r}.npz"))
+            self._mesh_index = r
+        self.topo.nodes = nodes
+        self._geom_frame = i
+        self._bulk = self._bnd = None
+        self._blump = None
+        self._lscale = {}
+
+    def boundary_paths(self, entities) -> list[np.ndarray]:
+        """2D: node indices along the selected boundaries, one ordered chain per connected piece (mid-side nodes
+        of quadratic edges included, in order)."""
+        edges = []
+        for b in entities:
+            for gt, conn in self.topo.bnd.get(int(b), []):
+                for row in np.asarray(conn):
+                    edges.append((int(row[0]), int(row[1]), int(row[2]) if int(gt) == 8 and len(row) > 2 else None))
+        adj: dict = {}
+        for a, b, m in edges:
+            adj.setdefault(a, []).append((b, m))
+            adj.setdefault(b, []).append((a, m))
+        used, paths = set(), []
+        starts = [n for n, nb in adj.items() if len(nb) != 2] + list(adj)
+        for s in starts:
+            for nxt, mid in adj[s]:
+                if frozenset((s, nxt)) in used:
+                    continue
+                path, prev, cur = [s], s, nxt
+                used.add(frozenset((s, nxt)))
+                if mid is not None:
+                    path.append(mid)
+                while True:
+                    path.append(cur)
+                    if cur == s or len(adj[cur]) != 2:
+                        break
+                    (n1, m1), (n2, m2) = adj[cur]
+                    nn, mm = (n2, m2) if n1 == prev else (n1, m1)
+                    if frozenset((cur, nn)) in used:
+                        break
+                    used.add(frozenset((cur, nn)))
+                    if mm is not None:
+                        path.append(mm)
+                    prev, cur = cur, nn
+                paths.append(np.array(path, np.int64))
+        return paths
+
+    def initial_nodes(self):
+        if not self.moving:
+            return self.topo.nodes
+        if self._frame_nodes is None:
+            with np.load(os.path.join(self.folder, "frames.npz")) as z:
+                self._frame_nodes = {k: z[k] for k in z.files}
+        return self._frame_nodes["f0"]
 
     def _frames(self) -> list[Frame]:
         files = sorted(glob.glob(os.path.join(self.folder, "results", "case_t*.vtu")))
@@ -269,15 +347,18 @@ class Solution:
         if not self.frames:
             return -1
         if sel in (None, "", "last"):
-            return len(self.frames) - 1
-        try:
-            i = int(sel)
-            return max(0, min(i, len(self.frames) - 1))
-        except (TypeError, ValueError):
-            return len(self.frames) - 1
+            i = len(self.frames) - 1
+        else:
+            try:
+                i = max(0, min(int(sel), len(self.frames) - 1))
+            except (TypeError, ValueError):
+                i = len(self.frames) - 1
+        self._set_geometry(i)
+        return i
 
     # -- raw arrays mapped onto our topology
     def arrays(self, i: int) -> dict:
+        self._set_geometry(i)
         if i in self._cache:
             return self._cache[i]
         import pyvista as pv
@@ -309,6 +390,8 @@ class Solution:
         comps = ("xx", "yy", "zz", "xy", "yz", "xz")
         if "stress" not in out and "stress_xx" in out:       # ResultOutputSolve writes tensor components apart
             out["stress"] = np.column_stack([out.get(f"stress_{c}", np.zeros(n)) for c in comps])
+        if self.moving and getattr(self, "_mesh_index", 0) == 0:   # deforming electrodes: displacement from the start
+            out["mesh displacement"] = (np.asarray(self.topo.nodes, float) - self.initial_nodes()) * self.scale
         self._cache = {i: out}
         return out
 
@@ -657,6 +740,8 @@ class Solution:
     def describe(self, expr: str):
         """(label, SI unit) for an expression if it is a catalog variable."""
         e = SHORT.get(expr.strip(), expr.strip())
+        if e in ("x", "y", "z", "r"):
+            return f"{e}-coordinate", "m"
         for alias, src, comp, label, unit, kind in CATALOG:
             if alias == e or alias.replace(".", "_") == e:
                 return label, unit

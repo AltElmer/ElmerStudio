@@ -526,6 +526,8 @@ class SettingsWindow(QWidget):
             cb = QComboBox()
             labels = self.ctx.frame_labels(node)
             cb.addItem("Last", "last")
+            if node.kind == "pg1d":                      # one curve per time step / parameter value
+                cb.addItem("All", "all")
             for i, lbl in enumerate(labels):
                 cb.addItem(lbl or f"Solution {i + 1}", str(i))
             cb.setCurrentIndex(max(0, cb.findData(str(val))))

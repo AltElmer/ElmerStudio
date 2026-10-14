@@ -275,6 +275,18 @@ class MainWindow(QMainWindow):
         g = t.add_group("Functions")
         g.add_large(self._a("an", "Analytic", "functions", lambda: self.add_child_kind("global", "func.analytic")))
         g.add_large(self._a("interp", "Interpolation", "functions", lambda: self.add_child_kind("global", "func.interp")))
+        g = t.add_group("Component Couplings")
+        g.add_small([self._a(f"cpl_{k}", REGISTRY[f"cpl.{k}"].title, REGISTRY[f"cpl.{k}"].icon,
+                             (lambda kk=k: self.add_child_kind("definitions", f"cpl.{kk}")))
+                     for k in ("average", "integration")])
+        g.add_small([self._a(f"cpl_{k}", REGISTRY[f"cpl.{k}"].title, REGISTRY[f"cpl.{k}"].icon,
+                             (lambda kk=k: self.add_child_kind("definitions", f"cpl.{kk}")))
+                     for k in ("maximum", "minimum")])
+        g = t.add_group("Deformed Geometry")
+        g.add_large(self._a("dg_ddom", "Deforming\nDomain", "feature_domain",
+                            lambda: self.add_child_kind("definitions", "dg.ddom")))
+        g.add_large(self._a("dg_pnmv", "Prescribed Normal\nMesh Velocity", "feature_boundary",
+                            lambda: self.add_child_kind("definitions", "dg.pnmv")))
 
         # --- Geometry
         t = r.add_tab("Geometry")

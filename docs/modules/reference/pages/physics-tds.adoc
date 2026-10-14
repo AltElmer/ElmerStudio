@@ -4,7 +4,7 @@
 :description: Diffusion, convection and first-order reactions of a dilute species
 :page-math: true
 
-Diffusion, convection and first-order reactions of a dilute species. Elmer ModelPDE.
+Diffusion, convection and first-order reactions of a dilute species. Elmer AdvectionDiffusion (streamline diffusion) or ModelPDE (Galerkin).
 
 [cols="1,3"]
 |===
@@ -25,6 +25,9 @@ latexmath:[\frac{\partial c}{\partial t} + \nabla\cdot(-D\nabla c) + \mathbf{u}\
 |Setting |Symbol |Unit |Default |Choices / type
 5+h|Discretization
 |Element order | | |Quadratic |Linear, Quadratic
+5+h|Consistent Stabilization
+|Streamline diffusion +
+_Consistent stabilization of convection-dominated transport (element Péclet number > 1), which otherwise oscillates from node to node: streamline-upwind Petrov-Galerkin (SUPG). Consistent: it vanishes for the exact solution. Elmer AdvectionDiffusion; without it, Galerkin ModelPDE. A first-order rate constant (Reactions) needs the Galerkin form._ | | |On |Check box
 5+h|Elmer Solver
 |Additional Elmer solver keywords +
 _Lines appended verbatim to this interface's Solver section in the .sif file_ | | | |Text (multi-line)
@@ -37,7 +40,7 @@ _Lines appended verbatim to this interface's Solver section in the .sif file_ | 
 
 Selection: Domains (all by default) · Physics ribbon › Domains, or right-click the interface in the Model Builder
 
-latexmath:[\frac{\partial c}{\partial t} + \nabla\cdot\mathbf{J} + \mathbf{u}\cdot\nabla c = R,\quad \mathbf{J}=-D\nabla c]
+latexmath:[\frac{\partial c}{\partial t} + \nabla\cdot\mathbf{J} + \mathbf{u}\cdot\nabla c = R,\quad \mathbf{J}=-D\nabla c - z\frac{D}{RT}F c\nabla\phi_l]
 
 [cols="3,1,1,2,3",options="header",stripes=even]
 |===
@@ -49,6 +52,11 @@ latexmath:[\frac{\partial c}{\partial t} + \nabla\cdot\mathbf{J} + \mathbf{u}\cd
 |u z | |`+m/s+` |`+0+` |Expression
 5+h|Diffusion
 |Diffusion coefficient |D_c |`+m^2/s+` |`+1e-9+` |Expression
+5+h|Migration
+|Migration in electric field +
+_Nernst-Planck transport in the electrolyte potential of the Secondary Current Distribution interface: flux -z (D/RT) F c grad(phil) (Nernst-Einstein mobility)_ | | |Off |Check box
+|Charge number |z |`+1+` |`+1+` |Expression
+|Temperature |T |`+K+` |`+298.15[K]+` |Expression
 |===
 
 [#tds-reac]
@@ -165,5 +173,8 @@ No settings.
 |===
 |Name |Description |Unit
 |`+c+` |Concentration |`+mol/m^3+`
+|`+tds.tflux+` |Diffusive flux |`+mol/(m^2*s)+`
+|`+tds.tfluxMag+` |Diffusive flux magnitude |`+mol/(m^2*s)+`
+|`+tds.ntflux+` |Normal total flux at fixed-concentration boundaries (outward, from the reaction) |`+mol/(m^2*s)+`
 |===
 

@@ -45,8 +45,8 @@ def _values(sol, expr, fi, unit):
     v = sol.evaluate(expr, fi)
     label, si = sol.describe(expr)
     if unit and unit != si:
-        try:
-            v = units.from_si(v, unit) if si else v
+        try:                                         # expressions evaluate in SI: a typed unit converts from SI
+            v = units.from_si(v, unit)
         except Exception:
             unit = si
     return v, label, (unit or si)
@@ -798,30 +798,51 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
             continue
         if f.kind == "plot.linegraph":
             ds = _dataset_of(model, f, pg)
-            if ds is None or ds.kind != "dset.cutline":
-                ax.text(0.5, 0.5, "Select a Cut Line dataset for the Line Graph", ha="center", transform=ax.transAxes)
+            ents = list(f.selection.entities) if f.selection is not None else []
+            along_bnd = ds is not None and ds.kind != "dset.cutline" and bool(ents)
+            if ds is None or not (ds.kind == "dset.cutline" or along_bnd):
+                ax.text(0.5, 0.5, "Select a Cut Line dataset, or boundaries of a solution (2D), for the Line Graph",
+                        ha="center", transform=ax.transAxes)
                 continue
-            sol, fi, scale = get_solution(ds, frame_sel)
+            sol, fi, scale = get_solution(ds, "last" if frame_sel == "all" else frame_sel)
             if sol is None:
                 continue
-            ev = lambda key: _geom(model, ds.get(key, "0"), sol.scale)  # noqa: E731
-            sdim = sol.sdim
-            p0 = [ev("x0"), ev("y0")] + ([ev("z0")] if sdim == 3 else [0.0])
-            p1 = [ev("x1"), ev("y1")] + ([ev("z1")] if sdim == 3 else [0.0])
-            p0 = np.array(p0) * sol.scale
-            p1 = np.array(p1) * sol.scale
+            if along_bnd and sol.sdim != 2:
+                ax.text(0.5, 0.5, "Line Graphs along boundaries are available in 2D", ha="center", transform=ax.transAxes)
+                continue
             expr = (f.get("expr") or "").strip() or default_expr(sol)
-            s, pts, val = sol.line_eval(expr, fi, p0, p1, int(ds.get("res", 200)))
             label, si = sol.describe(expr)
             unit = f.get("unit") or si
-            if unit and unit != si and si:
-                val = units.from_si(val, unit)
             xax = f.get("xaxis", "arc")
-            x = s if xax == "arc" else pts[:, "xyz".index(xax)]
             lu = sol.unit
-            x = x / sol.scale
-            _plot(ax, f, x, val, lines, label)
-            xlabel = xlabel or (f"Arc length ({lu})" if xax == "arc" else f"{xax} ({lu})")
+            frames = range(len(sol.frames)) if frame_sel == "all" else [fi]
+            for k, fr_i in enumerate(frames):
+                sol.frame_index(fr_i)
+                tag = sol.frames[fr_i].label if frame_sel == "all" and len(frames) > 1 else ""
+                if along_bnd:
+                    vals = np.asarray(sol.evaluate(expr, fr_i), float)
+                    P = np.asarray(sol.topo.nodes, float) * sol.scale
+                    curves = []
+                    for path in sol.boundary_paths(ents):
+                        pp = P[path]
+                        s = np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(pp, axis=0), axis=1))]
+                        curves.append((s, pp, vals[path]))
+                else:
+                    ev = lambda key: _geom(model, ds.get(key, "0"), sol.scale)  # noqa: E731
+                    p0 = [ev("x0"), ev("y0")] + ([ev("z0")] if sol.sdim == 3 else [0.0])
+                    p1 = [ev("x1"), ev("y1")] + ([ev("z1")] if sol.sdim == 3 else [0.0])
+                    curves = [sol.line_eval(expr, fr_i, np.array(p0) * sol.scale, np.array(p1) * sol.scale,
+                                            int(ds.get("res", 200)))]
+                for ci, (s, pts, val) in enumerate(curves):
+                    if unit and unit != si:                  # expressions evaluate in SI
+                        try:
+                            val = units.from_si(val, unit)
+                        except Exception:
+                            unit = si
+                    x = s if xax == "arc" else pts[:, "xyz".index(xax)]
+                    _plot(ax, f, x / sol.scale, val, lines, (tag or label) if ci == 0 else None)
+                lines += 1 if k < len(frames) - 1 else 0
+            xlabel = xlabel or (f"Arc length ({pretty_unit(lu)})" if xax == "arc" else f"{xax} ({pretty_unit(lu)})")
             ylabels.append(f"{label} ({pretty_unit(unit)})" if unit else label)
             lines += 1
         elif f.kind == "plot.globalgraph":
@@ -1087,7 +1108,8 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities,
                     vals = [float("nan")]
                 u = r.get("unit")
                 _l, si = s.describe(e)
-                if u and si and u != si and kind not in ("eval.volint", "eval.surfint"):
+                # a typed unit converts from SI also when the expression's own unit is not known (operators, sums)
+                if u and u != si and kind not in ("eval.volint", "eval.surfint"):
                     vals = [float(units.from_si(x, u)) for x in vals]
             except Exception:
                 vals = [float("nan")] * npt

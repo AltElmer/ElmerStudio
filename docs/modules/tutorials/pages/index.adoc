@@ -69,6 +69,15 @@ Butler–Volmer kinetics, polarization curves, Newman's disc electrode, a tertia
 xref:electrochemistry.adoc[Open →]
 ****
 
+.Deforming electrodes
+****
+image::ROOT:screenshots/tutorial_deform_5_electrode_shape.png[Anode outlines over time]
+
+A rough anode dissolves and levels out: a moving boundary, its mesh, and the analytic levelling law.
+
+xref:deforming-electrodes.adoc[Open →]
+****
+
 .Scripting
 ****
 Build and solve the same models from Python, headless or inside the GUI.

@@ -53,6 +53,29 @@ def parse_list(text: str, params=None) -> list[float]:
     return out
 
 
+def time_groups(times) -> list[tuple[float, int]]:
+    """Output times as runs of equal steps [(dt, n), ...] (Elmer's Timestep Sizes / Intervals arrays), so that
+    'range(0,0.01,0.1) range(0.2,0.1,1) range(2,1,100)' marches with growing steps.  A time repeated where two
+    ranges meet counts once."""
+    ts = sorted(times)
+    if len(ts) < 2:
+        raise SifError("Time Dependent: specify at least two output times, e.g. range(0,0.1,1)")
+    scale = max(abs(ts[-1] - ts[0]), 1e-30)
+    keep = [ts[0]]
+    for t in ts[1:]:
+        if t - keep[-1] > 1e-9 * scale:
+            keep.append(t)
+    if len(keep) < 2 or list(times) != sorted(times):
+        raise SifError("Time Dependent: output times must be increasing")
+    groups: list[list] = []
+    for dt in np.diff(keep):
+        if groups and abs(dt - groups[-1][0]) <= 1e-6 * max(dt, groups[-1][0]):
+            groups[-1][1] += 1
+        else:
+            groups.append([float(dt), 1])
+    return [(dt, n) for dt, n in groups]
+
+
 def _split_args(s):
     depth, cur, args = 0, "", []
     for ch in s:
@@ -186,7 +209,10 @@ class SifContext:
         return out
 
     def _fields(self):
-        f = {"x": "Coordinate 1", "y": "Coordinate 2", "z": "Coordinate 3", "t": "Time"}
+        f = {"x": "Coordinate 1", "y": "Coordinate 2", "z": "Coordinate 3", "t": "Time",
+             # derived fields other solvers provide (only written into the .sif where an expression uses them)
+             "dphildx": "phil Grad 1", "dphildy": "phil Grad 2", "dphildz": "phil Grad 3",
+             "u_spf_x": "Velocity 1", "u_spf_y": "Velocity 2", "u_spf_z": "Velocity 3"}
         if self.axi:
             f.update({"r": "Coordinate 1", "z": "Coordinate 2"})
         for ph in physics_nodes(self.model):
@@ -466,10 +492,17 @@ class SifResult:
 
 
 def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, overrides=None,
-              output_name="case", continuation: str | None = None) -> SifResult:
+              output_name="case", continuation: str | None = None, quasi_static_time: float | None = None,
+              skip_post: bool = False) -> SifResult:
     """*continuation*: for a stationary step, "save" writes the solution as an Elmer restart file
-    (mesh/restart.result); "reuse" also starts from mesh/previous.result (the previous sweep step's)."""
+    (mesh/restart.result); "reuse" also starts from mesh/previous.result (the previous sweep step's).
+
+    *quasi_static_time*: one time step of a Time Dependent study whose geometry moves (deforming electrodes): the
+    physics are solved as stationary on the present shape, with the time `t` in expressions fixed to this value (s)."""
     ctx = SifContext(model, study, step, geo, n_nodes, overrides)
+    if quasi_static_time is not None:
+        ctx.fields.pop("t", None)
+        ctx.params["t"] = float(quasi_static_time)
     sd, axi = ctx.sdim, ctx.axi
     domains = list(geo.numbers["domain"])
     boundaries = [b for b in geo.numbers["boundary"] if geo.adj_up["boundary"].get(b)]
@@ -529,17 +562,21 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                 bc[b].update(kws)
     ctx._current_physics = None
 
-    # ---- solvers
+    # ---- solvers (species transport last: it reads the flow velocity and the electrolyte potential's gradient)
     solvers: list[SolverEntry] = []
-    for ph in ctx.active:
+    for ph in sorted(ctx.active, key=lambda p: physics_def(p.kind).id == "tds"):
         ctx._current_physics = ph
         pd = physics_def(ph.kind)
         for s in pd.solvers(ph, ctx):
             post = bool(s.pop("__post__", False))
             solvers.append(SolverEntry(ph, s, post))
     ctx._current_physics = None
+    if skip_post:                  # an intermediate solve (e.g. a deforming-electrode predictor): no derived fields
+        for s in solvers:
+            if s.post and s.keywords.get("Procedure") == ("FluxSolver", "FluxSolver"):
+                s.keywords["Exec Solver"] = "Never"
     skind = step.kind
-    transient = skind == "study.time"
+    transient = skind == "study.time" and quasi_static_time is None
     eigen = skind == "study.eigen"
     freq = skind == "study.freq"
     meta = {"kind": skind, "times": [], "freqs": [], "neig": 0, "warnings": ctx.warnings, "physics": [p.tag for p in ctx.active],
@@ -616,16 +653,16 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
         times = [t * tfac for t in parse_list(step.get("times", "range(0,0.1,1)"), ctx.params)]
         if len(times) < 2:
             raise SifError("Time Dependent: specify at least two output times, e.g. range(0,0.1,1)")
-        dts = np.diff(times)
-        if np.any(dts <= 0) or np.ptp(dts) > 1e-6 * max(abs(dts.max()), 1e-30):
-            raise SifError("Time Dependent: output times must be equally spaced and increasing")
         sub = max(int(step.get("substeps", 1) or 1), 1)
-        dt = float(dts[0]) / sub
-        nsteps = (len(times) - 1) * sub
+        groups = time_groups(times)
         sim.update({"Simulation Type": "Transient", "Timestepping Method": "BDF", "BDF Order": int(step.get("bdf", "2")),
-                    "Timestep Sizes": [fmt_num(dt)], "Timestep Intervals": [nsteps], "Output Intervals": [sub],
+                    "Timestep Sizes": [fmt_num(dt / sub) for dt, _n in groups],
+                    "Timestep Intervals": [n * sub for _dt, n in groups], "Output Intervals": [sub] * len(groups),
                     "Steady State Max Iterations": coupling if n_primary > 1 else 1})
-        meta["times"] = [times[0] + (i + 1) * dt * sub for i in range(len(times) - 1)]
+        meta["times"], t = [], times[0]
+        for dt, n in groups:
+            meta["times"] += [t + (i + 1) * dt for i in range(n)]
+            t += n * dt
         meta["t0"] = times[0]
     elif freq:
         ffac = units.unit_info(step.get("funit", "Hz"))[0]

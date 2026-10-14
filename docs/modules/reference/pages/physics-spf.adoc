@@ -153,6 +153,8 @@ latexmath:[[-p\mathbf{I}+\mathbf{K}\]\mathbf{n} = -p_0\mathbf{n}]
 |Setting |Symbol |Unit |Default |Choices / type
 5+h|Pressure Conditions
 |Pressure |p₀ |`+Pa+` |`+0+` |Expression
+|Normal flow +
+_The tangential velocity is zero at the outlet: a parallel outflow, which keeps a fully developed profile undisturbed up to the outlet_ | | |Off |Check box
 |===
 
 [#spf-symmetry]
