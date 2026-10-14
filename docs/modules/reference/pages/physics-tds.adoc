@@ -175,6 +175,6 @@ No settings.
 |`+c+` |Concentration |`+mol/m^3+`
 |`+tds.tflux+` |Diffusive flux |`+mol/(m^2*s)+`
 |`+tds.tfluxMag+` |Diffusive flux magnitude |`+mol/(m^2*s)+`
-|`+tds.ntflux+` |Normal total flux at fixed-concentration boundaries (outward, from the reaction) |`+mol/(m^2*s)+`
+|`+tds.ntflux+` |Normal total flux (outward) |`+mol/(m^2*s)+`
 |===
 

@@ -581,6 +581,16 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     freq = skind == "study.freq"
     meta = {"kind": skind, "times": [], "freqs": [], "neig": 0, "warnings": ctx.warnings, "physics": [p.tag for p in ctx.active],
             "axi": bool(ctx.axi)}
+    # variables of a physics active on some domains only: results leave them undefined elsewhere (Elmer writes 0)
+    var_domains = {}
+    for s in solvers:
+        if s.physics is None or set(phys_domains.get(s.physics.tag, domains)) >= set(domains):
+            continue
+        var = str(s.keywords.get("Variable", "") or s.keywords.get("Flux Variable", ""))
+        names = [var.split("[")[0]] + re.findall(r"([A-Za-z][\w ]*?):\d+", var)
+        for nm in (n.strip().lower() for n in names if n.strip()):
+            var_domains[nm] = sorted(int(d) for d in phys_domains[s.physics.tag])
+    meta["var_domains"] = var_domains
     if eigen:
         neig = int(step.get("neig", 6))
         meta["neig"] = neig
@@ -655,9 +665,20 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             raise SifError("Time Dependent: specify at least two output times, e.g. range(0,0.1,1)")
         sub = max(int(step.get("substeps", 1) or 1), 1)
         groups = time_groups(times)
+        # Elmer saves at the FIRST step of each output block (MOD(step-1, interval) == 0, counted within each
+        # timestep interval) and always at the last step.  To save at the end of every block of `sub` steps, each
+        # group runs sub-1 unsaved steps first, then (n-1)*sub+1 steps saved every sub steps.
+        sizes, counts, outs = [], [], []
+        for dt, n in groups:
+            if sub > 1:
+                sizes.append(fmt_num(dt / sub))
+                counts.append(sub - 1)
+                outs.append(0)
+            sizes.append(fmt_num(dt / sub))
+            counts.append((n - 1) * sub + 1)
+            outs.append(sub)
         sim.update({"Simulation Type": "Transient", "Timestepping Method": "BDF", "BDF Order": int(step.get("bdf", "2")),
-                    "Timestep Sizes": [fmt_num(dt / sub) for dt, _n in groups],
-                    "Timestep Intervals": [n * sub for _dt, n in groups], "Output Intervals": [sub] * len(groups),
+                    "Timestep Sizes": sizes, "Timestep Intervals": counts, "Output Intervals": outs,
                     "Steady State Max Iterations": coupling if n_primary > 1 else 1})
         meta["times"], t = [], times[0]
         for dt, n in groups:

@@ -173,6 +173,10 @@ class StudyRunner:
                 meta = dict(sif.meta)
                 meta["selections"] = {n.tag: list(n.selection.entities) for n in self.model.root.walk()
                                       if n.selection is not None and n.selection.named}
+                # the geometry selections themselves, so that results made later (a Line Graph on a Box Selection)
+                # resolve them as this run's geometry did
+                for tag, (_lvl, ents) in getattr(mesh.geometry, "named", {}).items():
+                    meta["selections"].setdefault(tag, [int(e) for e in ents])
                 meta.update({"eigen": rs.eigen, "sweep_param": pname, "sweep_value": val,
                              "sweep_params": dict(combos[vi]) if combos[vi] else {},
                              "step_index": si, "sweep_index": vi, "tunit": step.get("tunit", "s"),

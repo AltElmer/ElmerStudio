@@ -75,8 +75,8 @@ CATALOG = [
     ("cd.nIl", "phil loads", "-bflux", "Normal electrolyte current density (outward)", "A/m^2", "scalar"),
     ("tds.tflux", "concentration flux", "vec", "Diffusive flux", "mol/(m^2*s)", "vector"),
     ("tds.tfluxMag", "concentration flux", "mag", "Diffusive flux magnitude", "mol/(m^2*s)", "scalar"),
-    ("tds.ntflux", "concentration loads", "-bflux", "Normal total flux at fixed-concentration boundaries (outward, "
-                   "from the reaction)", "mol/(m^2*s)", "scalar"),
+    # at fixed-concentration boundaries, from the reaction loads
+    ("tds.ntflux", "concentration loads", "-bflux", "Normal total flux (outward)", "mol/(m^2*s)", "scalar"),
     ("cd.disp", "mesh displacement", "vec", "Mesh displacement (deforming electrodes)", "m", "vector"),
     ("cd.dispMag", "mesh displacement", "mag", "Mesh displacement magnitude", "m", "scalar"),
     ("cd.dx", "mesh displacement", 0, "Mesh displacement, x component", "m", "scalar"),
@@ -390,6 +390,16 @@ class Solution:
         comps = ("xx", "yy", "zz", "xy", "yz", "xz")
         if "stress" not in out and "stress_xx" in out:       # ResultOutputSolve writes tensor components apart
             out["stress"] = np.column_stack([out.get(f"stress_{c}", np.zeros(n)) for c in comps])
+        for var, doms in (self.meta.get("var_domains") or {}).items():
+            # a physics on some domains only: its fields (and their loads, fluxes, gradients) are undefined outside,
+            # where Elmer writes zeros; leave them blank there, as COMSOL does
+            mask = self._node_mask("domain", doms)
+            if mask is None:
+                continue
+            for k in [k for k in out if k == var or k.startswith(var + " ")]:
+                a = np.array(out[k], dtype=float)
+                a[~mask] = np.nan
+                out[k] = a
         if self.moving and getattr(self, "_mesh_index", 0) == 0:   # deforming electrodes: displacement from the start
             out["mesh displacement"] = (np.asarray(self.topo.nodes, float) - self.initial_nodes()) * self.scale
         self._cache = {i: out}

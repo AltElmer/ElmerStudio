@@ -19,7 +19,7 @@ Add one with menu:Results[3D Plot Group], *2D Plot Group*, *1D Plot Group* or *P
 
 * a _Dataset_ and a _Solution selection_: the last solution, a time, a parameter value or an eigenmode;
 * a _Title_ (automatic or your own), and a color legend with optional max/min;
-* for 1D groups, axis labels, log scales, grid and legend position.
+* for 1D groups, axis labels, log scales, *Manual axis limits* (x and y minimum and maximum, in the plotted units), grid and legend position.
 
 Plots inside the group inherit its dataset (_Dataset: From parent_) unless they set their own. Click *Plot* (or press kbd:[F8]) to redraw. A study creates default plot groups when it finishes, for example *Temperature (ht)* and *Isothermal Contours (ht)*.
 
@@ -52,7 +52,7 @@ Attributes you can add under a plot:
 [cols="1,3",options="header"]
 |===
 |Plot |Shows
-|*Line Graph* |An expression along a Cut Line (or along boundaries in 2D), against arc length or a coordinate.
+|*Line Graph* |An expression along a Cut Line (or along boundaries in 2D, including a Box Selection), against arc length or a coordinate. With *All* in the plot group's selection, one curve per output time, and per parameter value of a Parametric Sweep.
 |*Point Graph* |An expression at a Cut Point against time or the sweep parameter.
 |*Global* |Global quantities (coupling operators such as `+aveop1(T)+`, eigenfrequencies, electrode currents) against time, frequency or the sweep parameter.
 |*Table Graph* |Columns of a Table.

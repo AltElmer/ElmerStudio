@@ -70,6 +70,15 @@ Results ribbon
 |y-axis label | | | |Text
 |x-axis log scale | | |Off |Check box
 |y-axis log scale | | |Off |Check box
+|Manual axis limits | | |Off |Check box
+|x minimum +
+_In the plotted units; leave empty for automatic_ | | | |Text
+|x maximum +
+_In the plotted units; leave empty for automatic_ | | | |Text
+|y minimum +
+_In the plotted units; leave empty for automatic_ | | | |Text
+|y maximum +
+_In the plotted units; leave empty for automatic_ | | | |Text
 5+h|Grid
 |Show grid | | |On |Check box
 5+h|Legend

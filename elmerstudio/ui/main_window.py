@@ -817,8 +817,10 @@ class MainWindow(QMainWindow):
                 after = True
                 continue
             if after and sib.enabled and sib.selection is not None and sib.selection.level == level:
-                if level == "boundary" and node.kind.endswith((".insulation", ".zc", ".ins", ".free", ".wall", ".mi", ".hard", ".nf", ".zf")):
-                    pass
+                # a later boundary feature replaces the condition (build_sif); domain features merge key by key, so
+                # only a later feature of the same type overrides (Reactions adds to Transport Properties)
+                if level != "boundary" and sib.kind != node.kind:
+                    continue
                 out |= mine & set(sib.selection.resolve(self.geo.numbers.get(level, [])))
         return out
 

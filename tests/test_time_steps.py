@@ -54,6 +54,25 @@ def test_growing_steps_in_the_sif():
     assert res.meta["times"] == pytest.approx([0.01 * i for i in range(1, 11)] + [0.1 * i for i in range(2, 11)])
 
 
+def test_solver_steps_per_output_step_save_at_the_output_times(elmer):
+    """Elmer saves at the first step of an output block; with 4 solver steps per output step the saved frames must
+    still be the requested output times (and as many), across a step change."""
+    m, geo, st, L = model("range(0,0.01,0.05) range(0.1,0.05,0.3)")
+    B.study_steps(st)[0].props["substeps"] = 4
+    text = build_sif(m, st, B.study_steps(st)[0], geo, 100).text
+    assert "Timestep Intervals(4) = 3 17 3 17" in text and "Output Intervals(4) = 0 4 0 4" in text
+    folders = StudyRunner(m, st, tempfile.mkdtemp(prefix="es_dts_"), elmer).run()
+    sol = Solution(folders[-1])
+    bind_results(m, sol, geo)
+    times = [fr.value for fr in sol.frames]
+    assert times == pytest.approx([0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3])
+    x = sol.topo.nodes[:, 0] * sol.scale
+    mid = np.argmin(np.abs(x - L / 2) + np.abs(sol.topo.nodes[:, 1]))
+    for i in (0, 4, 5, 9):
+        c = sol.evaluate("c", i)
+        assert c[mid] == pytest.approx(math.exp(-times[i]), rel=3e-4), (times[i], c[mid])
+
+
 def test_growing_steps_decay_at_the_exact_rate(elmer):
     # BDF2's own error is ~(2/9)(dt/tau)^2 per tau: 0.2 % at 0.1 s steps, 2e-5 at 0.01 s
     m, geo, st, L = model("range(0,0.001,0.01) range(0.02,0.01,1)")

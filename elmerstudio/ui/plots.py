@@ -799,7 +799,8 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
         if f.kind == "plot.linegraph":
             ds = _dataset_of(model, f, pg)
             ents = list(f.selection.entities) if f.selection is not None else []
-            along_bnd = ds is not None and ds.kind != "dset.cutline" and bool(ents)
+            named = f.selection.named if f.selection is not None else ""
+            along_bnd = ds is not None and ds.kind != "dset.cutline" and bool(ents or named)
             if ds is None or not (ds.kind == "dset.cutline" or along_bnd):
                 ax.text(0.5, 0.5, "Select a Cut Line dataset, or boundaries of a solution (2D), for the Line Graph",
                         ha="center", transform=ax.transAxes)
@@ -815,15 +816,25 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
             unit = f.get("unit") or si
             xax = f.get("xaxis", "arc")
             lu = sol.unit
-            frames = range(len(sol.frames)) if frame_sel == "all" else [fi]
-            for k, fr_i in enumerate(frames):
+            # (solution, frame, legend) to draw: every output time, and with "All" on a parametric sweep every
+            # parameter value too (one curve each, as COMSOL)
+            sweep = (get_sweep(ds)[0] if get_sweep else []) if frame_sel == "all" else []
+            runs = []
+            for _val, s in (sweep if len(sweep) > 1 else [(None, sol)]):
+                params = ", ".join(f"{k}={v:.4g}" for k, v in (s.meta.get("sweep_params") or {}).items()) \
+                    if len(sweep) > 1 else ""
+                frs = range(len(s.frames)) if frame_sel == "all" else [fi]
+                for fr_i in frs:
+                    tag = ", ".join(t for t in (params, s.frames[fr_i].label if len(frs) > 1 else "") if t)
+                    runs.append((s, fr_i, tag))
+            for k, (sol, fr_i, tag) in enumerate(runs):
                 sol.frame_index(fr_i)
-                tag = sol.frames[fr_i].label if frame_sel == "all" and len(frames) > 1 else ""
                 if along_bnd:
+                    bents = [int(e) for e in sol.meta.get("selections", {}).get(named, ents)] if named else ents
                     vals = np.asarray(sol.evaluate(expr, fr_i), float)
                     P = np.asarray(sol.topo.nodes, float) * sol.scale
                     curves = []
-                    for path in sol.boundary_paths(ents):
+                    for path in sol.boundary_paths(bents):
                         pp = P[path]
                         s = np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(pp, axis=0), axis=1))]
                         curves.append((s, pp, vals[path]))
@@ -841,7 +852,7 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
                             unit = si
                     x = s if xax == "arc" else pts[:, "xyz".index(xax)]
                     _plot(ax, f, x / sol.scale, val, lines, (tag or label) if ci == 0 else None)
-                lines += 1 if k < len(frames) - 1 else 0
+                lines += 1 if k < len(runs) - 1 else 0
             xlabel = xlabel or (f"Arc length ({pretty_unit(lu)})" if xax == "arc" else f"{xax} ({pretty_unit(lu)})")
             ylabels.append(f"{label} ({pretty_unit(unit)})" if unit else label)
             lines += 1
@@ -941,6 +952,14 @@ def draw_1d(fig, pg: Node, model, get_solution, frame_sel, get_sweep=None, get_t
         ax.set_xscale("log")
     if pg.get("ylog", False):
         ax.set_yscale("log")
+    if pg.get("manual_axes", False):                  # COMSOL: Axis > Manual axis limits (plotted units)
+        def lim(key):
+            try:
+                return float(units.evaluate(str(pg.get(key, "")))) if str(pg.get(key, "")).strip() else None
+            except Exception:
+                return None
+        ax.set_xlim(lim("xmin"), lim("xmax"))
+        ax.set_ylim(lim("ymin"), lim("ymax"))
     if pg.get("grid", True):
         ax.grid(True, color="#d0d4d9", lw=0.8)
     for sp in ax.spines.values():

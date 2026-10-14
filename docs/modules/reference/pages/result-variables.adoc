@@ -62,7 +62,7 @@ Variables available in result expressions (plots, datasets, derived values). A v
 |`+cd.nIl+` |Normal electrolyte current density (outward) |`+A/m^2+` |scalar
 |`+tds.tflux+` |Diffusive flux |`+mol/(m^2*s)+` |vector
 |`+tds.tfluxMag+` |Diffusive flux magnitude |`+mol/(m^2*s)+` |scalar
-|`+tds.ntflux+` |Normal total flux at fixed-concentration boundaries (outward, from the reaction) |`+mol/(m^2*s)+` |scalar
+|`+tds.ntflux+` |Normal total flux (outward) |`+mol/(m^2*s)+` |scalar
 |`+cd.disp+` |Mesh displacement (deforming electrodes) |`+m+` |vector
 |`+cd.dispMag+` |Mesh displacement magnitude |`+m+` |scalar
 |`+cd.dx+` |Mesh displacement, x component |`+m+` |scalar

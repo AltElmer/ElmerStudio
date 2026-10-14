@@ -85,8 +85,11 @@ class DeformingRun:
 
     # ------------------------------------------------------------------ helpers
     def _selections(self):
-        return {n.tag: list(n.selection.entities) for n in self.model.root.walk()
-                if n.selection is not None and n.selection.named}
+        out = {n.tag: list(n.selection.entities) for n in self.model.root.walk()
+               if n.selection is not None and n.selection.named}
+        for tag, (_lvl, ents) in getattr(self.geo, "named", {}).items():     # the Box Selections themselves
+            out.setdefault(tag, [int(e) for e in ents])
+        return out
 
     def _entities(self, nodes, level):
         meta = {"selections": self._selections()}
