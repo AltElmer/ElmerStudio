@@ -6,11 +6,12 @@ import re
 from functools import lru_cache
 
 from PySide6.QtCore import QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QIcon, QPixmap
-from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QColorDialog, QComboBox, QFileDialog, QFrame, QGridLayout,
-                               QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMenu,
-                               QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QSpinBox, QTableWidget,
-                               QTableWidgetItem, QToolButton, QVBoxLayout, QWidget)
+from PySide6.QtGui import QColor, QKeySequence, QPixmap, QStandardItem, QStandardItemModel
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QColorDialog, QComboBox, QCompleter,
+                               QFileDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel,
+                               QLineEdit, QListWidget, QListWidgetItem, QMenu, QPlainTextEdit, QPushButton, QScrollArea,
+                               QSizePolicy, QSpinBox, QTableWidget, QTableWidgetItem, QToolButton, QTreeView,
+                               QVBoxLayout, QWidget)
 
 from ..core import units
 from ..core.geometry import named_selections
@@ -120,22 +121,212 @@ class Section(QWidget):
 
 
 # --------------------------------------------------------------------------- editors
-class ExprEdit(QLineEdit):
-    def __init__(self, text, validate, parent=None):
+def _repolish(w):
+    w.style().unpolish(w)
+    w.style().polish(w)
+
+
+class FieldEdit(QLineEdit):
+    """A text field with a draft: typing edits the draft (dashed border), Enter or leaving the field applies it,
+    Escape restores the applied value."""
+
+    def __init__(self, text, parent=None):
         super().__init__(str(text), parent)
+        self.committed = str(text)
+        self.textChanged.connect(self._draft)
+
+    def _draft(self, t):
+        d = t != self.committed
+        if bool(self.property("draft")) != d:
+            self.setProperty("draft", d)
+            _repolish(self)
+
+    def mark_committed(self):
+        self.committed = self.text()
+        self._draft(self.text())
+
+    def keyPressEvent(self, ev):
+        if ev.key() == Qt.Key_Escape and self.text() != self.committed:
+            self.setText(self.committed)
+            self.selectAll()
+            ev.accept()
+            return
+        super().keyPressEvent(ev)
+
+
+class ExprEdit(FieldEdit):
+    """An expression field: the draft is checked as you type; a syntax or unit error keeps it from being applied
+    and says why under the field; Ctrl+Space (or typing a name) lists the parameters, variables, functions and
+    constants that can be used, with their values and descriptions."""
+
+    def __init__(self, text, validate, parent=None, names=None):
+        self.note = QLabel()
+        self.note.setWordWrap(True)
+        self.note.hide()
+        super().__init__(text, parent)
         self.validate = validate
         self.textChanged.connect(self._check)
         self._check(self.text())
+        self.completer = None
+        if names:
+            self._setup_completer(names)
 
     def _check(self, t):
         ok, tip = self.validate(t)
         # a syntax or unit error is not applied (the draft stays, marked); an unknown name is, as in COMSOL (it may
         # be defined later), only marked
-        self.blocking = not ok and not str(tip).startswith(("Unknown symbol", "Unknown function"))
+        unknown = str(tip).startswith(("Unknown symbol", "Unknown function"))
+        self.blocking = not ok and not unknown
         self.setProperty("error", not ok)
         self.setToolTip(tip)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        _repolish(self)
+        if ok:
+            self.note.hide()
+        else:
+            first = str(tip).splitlines()[0] if tip else "Invalid expression"
+            self.note.setObjectName("FieldNote" if unknown else "FieldError")
+            self.note.setText(f"{first}: used as written (define it before solving)." if unknown else
+                              f"Not applied: {first}. Esc restores the applied value.")
+            _repolish(self.note)
+            self.note.show()
+
+    # -- completion
+    def _setup_completer(self, names):
+        m = QStandardItemModel(0, 2, self)
+        for name, value, descr in names:
+            a, b = QStandardItem(name), QStandardItem(" ".join(x for x in (value, descr) if x))
+            a.setToolTip(descr or value)
+            m.appendRow([a, b])
+        c = QCompleter(m, self)
+        c.setWidget(self)
+        c.setCaseSensitivity(Qt.CaseInsensitive)
+        c.setCompletionMode(QCompleter.PopupCompletion)
+        pop = QTreeView()
+        pop.setHeaderHidden(True)
+        pop.setRootIsDecorated(False)
+        pop.setAccessibleName("Completions")
+        c.setPopup(pop)
+        pop.setColumnWidth(0, 140)
+        pop.setMinimumWidth(360)
+        c.activated[str].connect(self._insert)
+        self.completer = c
+
+    def _word(self):
+        t, i = self.text(), self.cursorPosition()
+        j = i
+        while j > 0 and (t[j - 1].isalnum() or t[j - 1] == "_"):
+            j -= 1
+        return j, t[j:i]
+
+    def _insert(self, name):
+        j, w = self._word()
+        t, i = self.text(), self.cursorPosition()
+        self.setText(t[:j] + name + t[i:])
+        self.setCursorPosition(j + len(name))
+
+    def show_completions(self, force=False):
+        if self.completer is None:
+            return
+        _j, w = self._word()
+        if not w and not force:
+            self.completer.popup().hide()
+            return
+        self.completer.setCompletionPrefix(w)
+        if self.completer.completionCount() == 0:
+            self.completer.popup().hide()
+            return
+        r = self.cursorRect()
+        r.setWidth(380)
+        self.completer.complete(r)
+
+    def keyPressEvent(self, ev):
+        c = self.completer
+        if c is not None and c.popup().isVisible() and ev.key() in (Qt.Key_Enter, Qt.Key_Return, Qt.Key_Escape,
+                                                                   Qt.Key_Tab, Qt.Key_Backtab):
+            ev.ignore()                     # the completer's popup takes them
+            return
+        if ev.key() == Qt.Key_Space and ev.modifiers() & Qt.ControlModifier:
+            self.show_completions(force=True)
+            return
+        super().keyPressEvent(ev)
+        if c is not None and ev.text() and (ev.text()[-1].isalnum() or ev.text()[-1] == "_"):
+            self.show_completions()
+        elif c is not None and c.popup().isVisible():
+            self.show_completions()
+
+
+def parse_entities(text: str, available=None) -> list[int]:
+    """Entity numbers typed in Paste Selection: separated by commas, semicolons, colons, spaces, tabs or "and";
+    ranges as "3-7" (COMSOL's syntax). Raises ValueError naming what is not a number or not available."""
+    out: list[int] = []
+    for tok in re.split(r"[,;:\s]+|\band\b", str(text).strip()):
+        if not tok:
+            continue
+        m = re.fullmatch(r"(\d+)\s*[-–]\s*(\d+)", tok) or re.fullmatch(r"(\d+)", tok)
+        if not m:
+            raise ValueError(f"'{tok}' is not an entity number or range")
+        a = int(m.group(1))
+        b = int(m.group(2)) if m.lastindex == 2 else a
+        for e in range(min(a, b), max(a, b) + 1):
+            if e not in out:
+                out.append(e)
+    if available is not None:
+        bad = [e for e in out if e not in set(available)]
+        if bad:
+            raise ValueError("not in the geometry: " + ", ".join(map(str, bad)))
+    return sorted(out)
+
+
+class PasteTable(QTableWidget):
+    """A table whose paste (Ctrl+V of several cells, e.g. from a spreadsheet) and Delete of several cells are one
+    edit: *on_bulk* is called once after the cells were written."""
+
+    def __init__(self, rows, cols, on_bulk, readonly_cols=(), parent=None):
+        super().__init__(rows, cols, parent)
+        self.on_bulk = on_bulk
+        self.readonly_cols = set(readonly_cols)
+
+    def keyPressEvent(self, ev):
+        if ev.matches(QKeySequence.Paste) and self.state() != QAbstractItemView.EditingState:
+            self.paste(QApplication.clipboard().text())
+            return
+        if ev.key() in (Qt.Key_Delete, Qt.Key_Backspace) and self.state() != QAbstractItemView.EditingState \
+                and len(self.selectedIndexes()) > 1:
+            self.blockSignals(True)
+            for ix in self.selectedIndexes():
+                if ix.column() not in self.readonly_cols:
+                    it = self.item(ix.row(), ix.column())
+                    if it is not None:
+                        it.setText("")
+            self.blockSignals(False)
+            self.on_bulk()
+            return
+        super().keyPressEvent(ev)
+
+    def paste(self, text: str):
+        lines = [ln for ln in str(text).replace("\r\n", "\n").split("\n") if ln.strip()]
+        if not lines:
+            return
+        r0 = max(0, self.currentRow())
+        c0 = max(0, self.currentColumn())
+        self.blockSignals(True)
+        for i, ln in enumerate(lines):
+            cells = ln.split("\t") if "\t" in ln else [ln]
+            r = r0 + i
+            if r >= self.rowCount():
+                self.insertRow(self.rowCount())
+            c = c0
+            for txt in cells:
+                while c in self.readonly_cols and c < self.columnCount():
+                    c += 1
+                if c >= self.columnCount():
+                    break
+                it = self.item(r, c) or QTableWidgetItem()
+                it.setText(txt.strip())
+                self.setItem(r, c, it)
+                c += 1
+        self.blockSignals(False)
+        self.on_bulk()
 
 
 class SettingsWindow(QWidget):
@@ -180,7 +371,16 @@ class SettingsWindow(QWidget):
     # ------------------------------------------------------------------ public
     def show_node(self, node: Node | None, keep_scroll=False):
         pos = self.scroll.verticalScrollBar().value() if keep_scroll else 0
+        fw = self.window().focusWidget()           # the window's own, also while another window is active
+        focus_key = None
+        if keep_scroll and fw is not None and self.isAncestorOf(fw):     # a refresh keeps the field you are in
+            w = fw
+            while w is not None and w is not self and w.property("prop_key") is None:
+                w = w.parentWidget()
+            focus_key = w.property("prop_key") if w is not None and w is not self else None
         self.node = node
+        self.sections: list[Section] = []
+        self._names_cache = None
         self._sel_widgets = []
         while self.h_buttons.count():
             it = self.h_buttons.takeAt(0)
@@ -211,16 +411,53 @@ class SettingsWindow(QWidget):
         self.scroll.setWidget(body)
         if keep_scroll:
             QTimer.singleShot(0, lambda: self.scroll.verticalScrollBar().setValue(pos))
+        if focus_key is not None:
+            w = self.editor(focus_key)
+            if w is not None:
+                w.setFocus(Qt.OtherFocusReason)
 
     def refresh(self):
         self.show_node(self.node, keep_scroll=True)
+
+    def editor(self, key: str) -> QWidget | None:
+        """The editor of a setting (by its property key) in the form now shown."""
+        body = self.scroll.widget()
+        for w in (body.findChildren(QWidget) if body is not None else []):
+            if w.property("prop_key") == key:
+                return w
+        return None
+
+    # -- keyboard: Ctrl+Alt+Right puts the focus here, Ctrl+Alt+Up/Down move between sections
+    def focus_first(self):
+        body = self.scroll.widget()
+        if body is None:
+            self.setFocus()
+            return
+        for w in body.findChildren(QWidget):
+            if w.isVisible() and w.isEnabled() and w.focusPolicy() & Qt.TabFocus and not isinstance(w, QToolButton):
+                w.setFocus(Qt.ShortcutFocusReason)
+                return
+        self.setFocus()
+
+    def focus_section(self, d: int):
+        secs = [s for s in getattr(self, "sections", []) if s.isVisible()]
+        if not secs:
+            return
+        fw = QApplication.focusWidget()
+        cur = next((i for i, s in enumerate(secs) if fw is not None and (fw is s.btn or s.isAncestorOf(fw))), -1)
+        nxt = secs[(cur + d) % len(secs)] if cur >= 0 else secs[0 if d > 0 else -1]
+        nxt.btn.setFocus(Qt.ShortcutFocusReason)
+        self.scroll.ensureWidgetVisible(nxt.btn)
 
     # ------------------------------------------------------------------ build
     def _section(self, title, default_collapsed=False):
         key = (self.node.kind, title)
         s = Section(title, self.collapsed.get(key, default_collapsed),
                     on_toggle=lambda t, c, k=self.node.kind: self.collapsed.__setitem__((k, t), c))
+        s.btn.setFocusPolicy(Qt.StrongFocus)
+        s.btn.setAccessibleName(f"{title} section")
         self.form.addWidget(s)
+        self.sections.append(s)
         return s
 
     def _vis_props(self, node):
@@ -232,9 +469,11 @@ class SettingsWindow(QWidget):
     def _build(self, node: Node, nt):
         # label / name
         s = self._section("Label")
-        le = QLineEdit(node.label)
+        le = FieldEdit(node.label)
+        le.setProperty("prop_key", "__label")
+        le.setAccessibleName("Label")
         le.setReadOnly(node.kind == "root" or (nt is not None and not nt.renamable))
-        le.editingFinished.connect(lambda: self.ctx.rename(node, le.text()))
+        le.editingFinished.connect(lambda: (self.ctx.rename(node, le.text()), le.mark_committed()))
         s.add_inline("Label:", le)
         if node.kind != "root":
             nm = QLineEdit(node.tag)
@@ -324,6 +563,7 @@ class SettingsWindow(QWidget):
             lst.addItem(it)
         if geo is None:
             lst.addItem(QListWidgetItem("(build the geometry to select entities)"))
+        lst.setAccessibleName(f"Selected {level_plural(level)}")
         body.addWidget(lst, 1)
         btns = QVBoxLayout()
         btns.setSpacing(2)
@@ -339,10 +579,14 @@ class SettingsWindow(QWidget):
         clr = QToolButton()
         clr.setIcon(icons.icon("clear"))
         clr.setToolTip("Clear selection")
-        for b in (active, rem, clr):
+        paste = QToolButton()
+        paste.setIcon(icons.icon("paste"))
+        paste.setToolTip("Paste Selection: type entity numbers, e.g. 1, 3-5 and 8")
+        for b in (active, rem, clr, paste):
             b.setAutoRaise(True)
             b.setIconSize(QSize(16, 16))
-            b.setEnabled(b.isEnabled() and not locked and not sel.all)
+            b.setAccessibleName(b.toolTip().split(":")[0])
+            b.setEnabled(b.isEnabled() and not locked and not sel.all and geo is not None)
             btns.addWidget(b)
         btns.addStretch(1)
         body.addLayout(btns)
@@ -350,6 +594,9 @@ class SettingsWindow(QWidget):
         w2.setLayout(body)
         body.setContentsMargins(0, 0, 0, 0)
         sec.add_full(w2)
+        count = QLabel(f"{len(ents)} of {len(avail)} {level_plural(level)} selected" if geo is not None else "")
+        count.setObjectName("SelectionCount")
+        sec.add_full(count)
         if locked:
             note = QLabel("<i>Default feature: applies to all entities not overridden by other features.</i>")
             note.setWordWrap(True)
@@ -366,6 +613,7 @@ class SettingsWindow(QWidget):
         rem.clicked.connect(lambda: self.ctx.remove_entities(node, [i.data(Qt.UserRole) for i in lst.selectedItems()
                                                                      if i.data(Qt.UserRole) is not None]))
         clr.clicked.connect(lambda: self.ctx.set_selection(node, entities=[]))
+        paste.clicked.connect(lambda: self.paste_selection(node, avail))
         lst.itemSelectionChanged.connect(lambda: self.ctx.highlight_entities(
             level, [i.data(Qt.UserRole) for i in lst.selectedItems() if i.data(Qt.UserRole) is not None]))
         self._sel_widgets.append((node, lst, active))
@@ -374,7 +622,54 @@ class SettingsWindow(QWidget):
         else:
             QTimer.singleShot(0, lambda: self.ctx.activate_selection(None, show=node))
 
+    def paste_selection(self, node: Node, avail, text: str | None = None) -> bool:
+        """Set the selection to typed entity numbers (one edit); *text* None asks for them."""
+        if text is None:
+            text, ok = QInputDialog.getText(self, "Paste Selection",
+                                            f"{level_plural(node.selection.level).capitalize()} (e.g. 1, 3-5 and 8):")
+            if not ok:
+                return False
+        try:
+            ents = parse_entities(text, avail)
+        except ValueError as exc:
+            msgs = getattr(self.ctx, "messages", None)
+            if msgs is not None:
+                msgs.add(f"Paste Selection: {exc}", "warning", node=node)
+            return False
+        self.ctx.set_selection(node, entities=ents)
+        return True
+
     # ------------------------------------------------------------------ editors
+    def _names(self):
+        """Completion list for expression fields: (name, value, description)."""
+        if getattr(self, "_names_cache", None) is not None:
+            return self._names_cache
+        out = []
+        try:
+            rows = {r[0]: r for r in self.ctx.model.parameter_rows()}
+        except Exception:  # noqa: BLE001
+            rows = {}
+        descr = {}
+        g = getattr(self.ctx.model, "global_defs", None)
+        for n in (g.children if g is not None else []):
+            for r in (n.props.get("table") or []) if n.kind == "params" else []:
+                descr[r.get("name", "")] = r.get("descr", "")
+        for name, val in self.ctx.parameters().items():
+            v = f"= {complex(val).real:.6g}" if isinstance(val, (int, float, complex)) else ""
+            out.append((name, f"{rows.get(name, (name, ''))[1]} {v}".strip(), descr.get(name) or "parameter"))
+        for name in self.ctx.variable_names():
+            out.append((name, "", "variable"))
+        for name in self.ctx.function_names():
+            out.append((name + "(", "", "function"))
+        for name in sorted(FIELD_SYMBOLS):
+            out.append((name, "", "coordinate or dependent variable"))
+        for name, v in units.CONSTANTS.items():
+            out.append((name, "" if isinstance(v, complex) else f"= {v:.6g}", "constant"))
+        for name in units.MATH_FUNCS:
+            out.append((name + "(", "", "function"))
+        self._names_cache = out
+        return out
+
     def _validator(self, node, p):
         def check(text):
             t = str(text).strip()
@@ -405,10 +700,13 @@ class SettingsWindow(QWidget):
     def _commit_expr(self, e: ExprEdit, p: Prop, commit):
         if not e.blocking:
             commit(e.text())
+            if hasattr(e, "mark_committed"):
+                e.mark_committed()
             return
         msgs = getattr(self.ctx, "messages", None)
-        if msgs is not None:
-            msgs.add(f"{p.label.rstrip(':')} not applied: {e.toolTip()}", "warning")
+        if msgs is not None and e.text() != getattr(e, "_reported", None):
+            e._reported = e.text()
+            msgs.add(f"{p.label.rstrip(':')} not applied: {e.toolTip()}", "warning", node=self.node)
 
     def _editor(self, sec: Section, node: Node, p: Prop):
         k = p.kind
@@ -417,15 +715,25 @@ class SettingsWindow(QWidget):
         unit = pretty_unit(p.unit, lu)
         commit = lambda v, key=p.key, rebuild=False: self.ctx.set_prop(node, key, v, rebuild)  # noqa: E731
         if k == "expr":
-            e = ExprEdit(val, self._validator(node, p))
+            e = ExprEdit(val, self._validator(node, p), names=self._names())
+            e.setProperty("prop_key", p.key)
+            e.setAccessibleName(p.label.rstrip(": ") or p.key)
             e.editingFinished.connect(lambda: self._commit_expr(e, p, commit))
-            sec.add_row(p.label, e, unit, p.symbol)
+            box = QWidget()
+            bv = QVBoxLayout(box)
+            bv.setContentsMargins(0, 0, 0, 0)
+            bv.setSpacing(1)
+            bv.addWidget(e)
+            bv.addWidget(e.note)
+            sec.add_row(p.label, box, unit, p.symbol)
         elif k in ("string",):
-            e = QLineEdit(str(val))
+            e = FieldEdit(str(val))
+            e.setProperty("prop_key", p.key)
+            e.setAccessibleName(p.label.rstrip(": ") or p.key)
             e.setReadOnly(p.readonly)
             if p.tip:
                 e.setToolTip(p.tip)
-            e.editingFinished.connect(lambda: commit(e.text()))
+            e.editingFinished.connect(lambda: (commit(e.text()), e.mark_committed()))
             sec.add_row(p.label, e, unit, p.symbol)
         elif k == "int":
             sb = QSpinBox()
@@ -437,10 +745,13 @@ class SettingsWindow(QWidget):
             if p.tip:
                 sb.setToolTip(p.tip)
             sb.editingFinished.connect(lambda: commit(sb.value()))
+            sb.setProperty("prop_key", p.key)
+            sb.setAccessibleName(p.label.rstrip(": ") or p.key)
             sec.add_row(p.label, sb, unit)
         elif k == "bool":
             cb = QCheckBox(p.label)
             cb.setChecked(bool(val))
+            cb.setProperty("prop_key", p.key)
             cb.toggled.connect(lambda on: commit(on, rebuild=True))
             sec.add_full(cb)
         elif k == "choice":
@@ -449,6 +760,8 @@ class SettingsWindow(QWidget):
                 cb.addItem(text, value)
             idx = max(0, cb.findData(val))
             cb.setCurrentIndex(idx)
+            cb.setProperty("prop_key", p.key)
+            cb.setAccessibleName(p.label.rstrip(": ") or p.key)
             cb.currentIndexChanged.connect(lambda i: commit(cb.itemData(i), rebuild=True))
             sec.add_row(p.label, cb, unit, p.symbol)
         elif k == "text":
@@ -595,14 +908,17 @@ class SettingsWindow(QWidget):
         w = QWidget()
         v = QVBoxLayout(w)
         v.setContentsMargins(0, 0, 0, 0)
-        t = QTableWidget(len(rows) + 1, len(cols))
+        is_params = node.kind == "params"
+        value_col = [c[0] for c in cols].index("value") if is_params and "value" in [c[0] for c in cols] else -1
+        t = PasteTable(len(rows) + 1, len(cols), lambda: commit_table(), readonly_cols=(value_col,))
+        t.setAccessibleName(p.label.rstrip(": ") or p.section)
+        t.setProperty("prop_key", p.key)
         t.setHorizontalHeaderLabels([c[1] for c in cols])
         t.verticalHeader().setVisible(False)
         t.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         t.horizontalHeader().setStretchLastSection(True)
         t.setMinimumHeight(140)
-        t.setSelectionBehavior(QAbstractItemView.SelectRows)
-        is_params = node.kind == "params"
+        t.setSelectionBehavior(QAbstractItemView.SelectItems)
         values = {}
         if is_params:
             values, errs = units.evaluate_parameters([(r.get("name", ""), r.get("expr", "")) for r in rows if r.get("name")])
@@ -646,8 +962,7 @@ class SettingsWindow(QWidget):
                     out.append(rec)
             if out != rows:
                 self.ctx.set_prop(node, p.key, out, rebuild=True)
-        t.itemChanged.connect(lambda it: QTimer.singleShot(0, commit_table) if it.column() != (
-            [c[0] for c in cols].index("value") if is_params and "value" in [c[0] for c in cols] else -1) else None)
+        t.itemChanged.connect(lambda it: QTimer.singleShot(0, commit_table) if it.column() != value_col else None)
         v.addWidget(t)
         bar = QHBoxLayout()
         for icon_name, tip, fn in (("up", "Move Up", lambda: _move(-1)), ("down", "Move Down", lambda: _move(1)),

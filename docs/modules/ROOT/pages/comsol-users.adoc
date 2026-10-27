@@ -10,8 +10,10 @@ NOTE: Elmer Studio is independent of COMSOL AB. It does not read or write `.mph`
 [cols="2,2,2",options="header"]
 |===
 |COMSOL |Elmer Studio |Elmer behind it
-|Model Builder, Settings, Graphics, Messages/Progress/Log/Table |The same windows, dockable; menu:Home[Reset Desktop] |—
-|Ribbon tabs, Quick Access Toolbar, File menu |The same tabs and groups |—
+|Model Builder, Settings, Graphics, Messages/Progress/Log/Table |The same windows, dockable; Widescreen and Regular Screen layouts, menu:Home[Reset Desktop] |—
+|Ribbon tabs, Quick Access Toolbar, File menu |The same tabs and groups; groups collapse into menus in a narrow window; Minimize the Ribbon; a contextual plot group tab |—
+|Recovery Files window after a crash |The same, for unsaved models (not mid-solve continuation) |—
+|Paste Selection, Up/Down through hidden entities, red/green hover |The same |—
 |Model Wizard, Blank Model, Application Libraries |The same; 9 example models |—
 |`.mph` file |`.esm` file (zip of the model and its solutions) |—
 |Parameters, Variables, Analytic/Interpolation functions |The same, with units in brackets |MATC expressions, tables
@@ -58,6 +60,8 @@ The complete list is on xref:known-limitations.adoc[Known limitations].
 == Habits that carry over
 
 * Later features override earlier ones on shared boundaries.
-* kbd:[F7] / kbd:[F8] build, kbd:[Ctrl+=] computes, kbd:[F2] renames, kbd:[F3]/kbd:[F4] disable and enable.
+* kbd:[F7] / kbd:[F8] build, kbd:[Ctrl+=] computes, kbd:[F2] renames, kbd:[F3]/kbd:[F4] disable and enable, kbd:[F1] opens the help of the selected node.
+* kbd:[Ctrl+Tab] and kbd:[Ctrl+Alt+Left]/kbd:[Right]/kbd:[Up]/kbd:[Down] move between windows and Settings sections; kbd:[Ctrl+Space] completes expressions; kbd:[Ctrl+A]/kbd:[Ctrl+D] select all and clear in the Graphics window.
+* kbd:[Esc] in a Settings field puts back the applied value. COMSOL's manual doesn't describe this key, so this is Elmer Studio's own choice.
 * Entity numbers follow position, so numbers in COMSOL instructions usually match.
 * Parameters with units, sweeps, couplings and Global Evaluations work as you expect.

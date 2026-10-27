@@ -196,10 +196,22 @@ def _clim(node, v):
     lo, hi = float(finite.min()), float(finite.max())
     if node.get("__symmetric") or node.get("symmetric", False):
         m = max(abs(lo), abs(hi))
-        return -m, m
+        return Clim((-m, m), (lo, hi))
     if hi - lo < 1e-14 * max(abs(hi), 1e-300):
-        hi = lo + max(abs(lo) * 1e-6, 1e-12)
-    return lo, hi
+        # a constant field: a band around the value; the legend's max/min markers show the value itself
+        d = abs(lo) * 0.01 if lo else 1.0
+        return Clim((lo - d, hi + d), (lo, hi))
+    return Clim((lo, hi), (lo, hi))
+
+
+class Clim(tuple):
+    """A color range (lo, hi) that also carries the data's own minimum and maximum (.data), which the legend's
+    max/min markers show (they differ for a constant field, a symmetric range or a manual range)."""
+
+    def __new__(cls, rng, data=None):
+        t = super().__new__(cls, (float(rng[0]), float(rng[1])))
+        t.data = tuple(float(x) for x in data) if data is not None else tuple(t)
+        return t
 
 
 def _deform(sol, feat, fi):

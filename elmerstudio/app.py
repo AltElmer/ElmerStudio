@@ -30,6 +30,7 @@ def main(argv=None):
     ap.add_argument("--quit-after", type=float, default=0, help=argparse.SUPPRESS)   # smoke-testing the entry point
     ap.add_argument("--selftest-out", help=argparse.SUPPRESS)                       # write the smoke result to a file
     ap.add_argument("--selftest-compute", action="store_true", help=argparse.SUPPRESS)  # also solve + plot
+    ap.add_argument("--selftest-ui", action="store_true", help=argparse.SUPPRESS)   # desktop acceptance checks
     args = ap.parse_args(argv)
     if args.elmer_home:
         os.environ["ELMER_HOME"] = args.elmer_home
@@ -54,7 +55,7 @@ def main(argv=None):
     if args.quit_after:
         from PySide6.QtCore import QTimer
         w.no_modal = True
-        state = {"computed": None}
+        state = {"computed": None, "ui": None}
 
         def _after_idle(fn):
             if w.busy():
@@ -63,6 +64,12 @@ def main(argv=None):
                 fn()
 
         def _compute():
+            if args.selftest_ui:
+                from .ui.acceptance import run_ui_selftest
+                problems = run_ui_selftest(w)
+                state["ui"] = "ok" if not problems else f"{len(problems)}-problems"
+                for p in problems[:40]:
+                    print("UI:", p, flush=True)
             if args.selftest_compute and w.inst and w.model.studies():
                 state["computed"] = "running"
                 w.compute(w.model.studies()[0])
@@ -81,7 +88,8 @@ def main(argv=None):
         def _quit():
             line = (f"OK title={w.windowTitle()!r} nodes={sum(1 for _ in w.model.root.walk())} "
                     f"geometry={'built' if w.geo is not None else 'none'} elmer={w.inst.solver if w.inst else None}"
-                    + (f" compute={state['computed']}" if state["computed"] else ""))
+                    + (f" compute={state['computed']}" if state["computed"] else "")
+                    + (f" ui={state['ui']}" if state["ui"] else ""))
             print(line, flush=True)
             if args.selftest_out:
                 with open(args.selftest_out, "w") as f:

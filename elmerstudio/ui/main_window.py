@@ -6,29 +6,32 @@ import glob
 import json
 import os
 import re
+import time
 import traceback
 
 from PySide6.QtCore import QByteArray, QSettings, QSize, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QAction, QIcon, QKeySequence
-from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QDialogButtonBox, QDockWidget, QFileDialog, QFormLayout,
-                               QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMenu, QMessageBox, QPlainTextEdit,
-                               QProgressBar, QPushButton, QStackedWidget, QTabWidget, QVBoxLayout, QWidget)
+from PySide6.QtGui import QAction, QActionGroup, QIcon, QKeySequence
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QDoubleSpinBox,
+                               QFileDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+                               QMainWindow, QMenu, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QSpinBox,
+                               QStackedWidget, QTabWidget, QToolButton, QVBoxLayout, QWidget)
 
 from .. import APP_NAME, DOCS_URL, FILE_EXT, __version__
 from ..core import builder as B
-from ..core import project, units
+from ..core import project, recovery, units
+from ..core.helpmap import help_url
 from ..core.elmer import elmer_version, find_elmer, write_case
 from ..core.examples import EXAMPLES
 from ..core.geometry import (WP_KINDS, GeometryError, GeometryResult, apply_named_selections, build_geometry,
                              object_names_before)
 from ..core.materials import MATPROPS
 from ..core.meshing import SIZE_CHOICES, build_mesh
-from ..core.model import REGISTRY, Model, Node, is_axisymmetric, space_dim, type_title
+from ..core.model import REGISTRY, Model, Node, is_axisymmetric, level_plural, space_dim, type_title
 from ..core.physics import COUPLINGS, PHYSICS, STUDY_TYPES, physics_def
 from ..core.results import Solution, compatible_units
 from ..core.sif import SifError, build_sif
 from ..core.study_runner import StudyCancelled, StudyRunner
-from . import icons
+from . import icons, theme
 from .graphics import GraphicsView
 from .material_browser import MaterialBrowser
 from .model_builder import ModelBuilder
@@ -74,6 +77,20 @@ def _caps_text(inst) -> str:
         "  [from-source build tree]" if getattr(inst, "build_tree", False) else "")
 
 
+def _inputs(model: Model, solvers=True) -> str:
+    """What a solution depends on: the model without Results, labels and bookkeeping (to tell an out-of-date
+    solution from a current one). *solvers* False leaves out Solver Configurations: the run adds the default ones to
+    its copy when the study has none, which is not an edit."""
+    def strip(d):
+        out = {k: v for k, v in d.items() if k not in ("label", "meta", "children")}
+        kids = [strip(c) for c in d.get("children", []) if c.get("kind") != "results"
+                and (solvers or c.get("kind") != "study.solvers")]
+        if kids:
+            out["children"] = kids
+        return out
+    return json.dumps(strip(model.root.to_dict()), sort_keys=True, default=str)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, open_path: str | None = None, show_new=True):
         super().__init__()
@@ -99,25 +116,38 @@ class MainWindow(QMainWindow):
         self.current_plot: Node | None = None
         self._pending_after_geo = None
         self.no_modal = False          # tests: never block on modal dialogs/menus
+        self._job_started = 0.0
+        self._job_stage = ""
+        self._stopping = False
+        self._actions_pending = False
+        self._maximized_state = None
+        self.recovery = recovery.Session()
+        self._checkpoint_rev = None
         self.setWindowIcon(icons.icon("app"))
         self.resize(1500, 920)
         self._build_actions()
         self._build_ribbon()
         self._build_panes()
         self._build_statusbar()
-        self._default_state = self.saveState()
-        st = self.qs.value("window_state")
-        if isinstance(st, QByteArray):
-            self.restoreState(st)
         geom = self.qs.value("window_geometry")
         if isinstance(geom, QByteArray):
             self.restoreGeometry(geom)
+        mode = self.qs.value("layout_mode") or self._auto_layout()
+        self.apply_layout(mode if mode in ("widescreen", "regular") else "widescreen", restore=True)
         self.log_timer = QTimer(self)
         self.log_timer.timeout.connect(self._flush_log)
         self.log_timer.start(250)
         self.mem_timer = QTimer(self)
         self.mem_timer.timeout.connect(self._update_mem)
         self.mem_timer.start(2000)
+        self.job_timer = QTimer(self)                  # elapsed time of the running job
+        self.job_timer.timeout.connect(self._update_job_status)
+        self.autosave_timer = QTimer(self)
+        self.autosave_timer.timeout.connect(self.checkpoint)
+        if int(self.qs.value("autosave_s", 60)) > 0:
+            self.autosave_timer.start(int(self.qs.value("autosave_s", 60)) * 1000)
+        self.graphics.export_theme = self.qs.value("export_theme", "white")
+        self.graphics.set_theme(self.qs.value("graphics_theme", "light"), redraw=False)
         self._set_model(self.model, None)
         self.messages.add(f"{APP_NAME} {__version__}")
         if self.inst:
@@ -125,19 +155,28 @@ class MainWindow(QMainWindow):
             self.messages.add(f"Elmer found: {self.inst.solver}" + (f"  [{v}]" if v else ""))
         else:
             self.messages.add("Elmer was not found. Set the installation folder in File > Preferences.", "warning")
+        self._startup = (open_path, show_new)
+        QTimer.singleShot(0, self._after_start)
+
+    def _after_start(self):
+        """Offer the recovery of an interrupted session first, then open the file or the New window."""
+        open_path, show_new = self._startup
+        if self.offer_recovery():
+            return
         if open_path:
-            QTimer.singleShot(0, lambda: self.open_file(open_path))
+            self.open_file(open_path)
         elif show_new:
             QTimer.singleShot(150, self.file_new)
 
     # ================================================================== construction
     def _a(self, name, text, icon_name=None, cb=None, shortcut=None, tip=None, checkable=False, menu=None):
         a = QAction(icons.icon(icon_name) if icon_name else QIcon(), text, self)
-        if shortcut:
-            a.setShortcut(QKeySequence(shortcut))
+        keys = [shortcut] if isinstance(shortcut, str) else list(shortcut or [])
+        if keys:
+            a.setShortcuts([QKeySequence(k) for k in keys])
             a.setShortcutContext(Qt.WindowShortcut)
-        if tip or shortcut:
-            a.setToolTip(f"{tip or text.replace(chr(10), ' ')}" + (f" ({shortcut})" if shortcut else ""))
+        a.setToolTip(f"{tip or text.replace(chr(10), ' ')}" + (f" ({keys[0]})" if keys else ""))
+        a.setProperty("base_tip", a.toolTip())
         if cb:
             a.triggered.connect(lambda _=False: cb())
         a.setCheckable(checkable)
@@ -149,6 +188,7 @@ class MainWindow(QMainWindow):
 
     def _menu(self, items):
         m = QMenu(self)
+        m.setToolTipsVisible(True)
         for it in items:
             if it is None:
                 m.addSeparator()
@@ -168,7 +208,7 @@ class MainWindow(QMainWindow):
         a("save", "Save", "save", self.file_save, "Ctrl+S")
         a("save_as", "Save As...", "save_as", self.file_save_as, "Ctrl+Shift+S")
         a("undo", "Undo", "undo", self.undo, "Ctrl+Z")
-        a("redo", "Redo", "redo", self.redo, "Ctrl+Y")
+        a("redo", "Redo", "redo", self.redo, ["Ctrl+Y", "Ctrl+Shift+Z"])
         a("delete", "Delete", "delete", lambda: self.delete_node(self.tree.current()), "Delete")
         a("rename", "Rename", "rename", lambda: self.tree.edit_current(), "F2")
         a("duplicate", "Duplicate", "duplicate", lambda: self.duplicate_node(self.tree.current()), "Ctrl+Shift+D")
@@ -183,9 +223,38 @@ class MainWindow(QMainWindow):
         a("compute", "Compute", "compute", self.compute, "Ctrl+=")
         a("stop", "Stop", "stop", self.stop_job)
         a("prefs", "Preferences...", "preferences", self.preferences)
-        a("help", "Documentation", "help", self.open_docs, "F1")
+        a("help", "Help", "help", self.context_help, "F1", tip="Help on the selected node")
+        a("docs", "Documentation", "help", self.open_docs, "Ctrl+F1", tip="The documentation's front page")
         a("about", f"About {APP_NAME}", "app", self.about)
-        a("reset_desktop", "Reset\nDesktop", "reset_desktop", self.reset_desktop)
+        a("reset_desktop", "Reset\nDesktop", "reset_desktop", self.reset_desktop,
+          tip="Restore the current layout's windows")
+        a("recovery_files", "Recovery Files...", "refresh", self.show_recovery_files,
+          tip="Models of interrupted sessions that were never saved")
+        lay = QActionGroup(self)
+        for key, text, tip in (("widescreen", "Widescreen Layout", "Model Builder, Settings and Graphics side by side"),
+                               ("regular", "Regular Screen Layout", "Model Builder above Settings, Graphics beside "
+                                                                     "them (narrow or 4:3 screens)")):
+            act = a(f"layout_{key}", text, "layout", (lambda k=key: self.apply_layout(k)), tip=tip, checkable=True)
+            lay.addAction(act)
+        a("maximize", "Maximize\nGraphics", "graphics_window", self.toggle_maximize, checkable=True,
+          tip="Hide the other windows (double-click the Graphics tab does the same)")
+        a("minimize_ribbon", "Minimize the Ribbon", None, lambda: self.ribbon.set_minimized(
+            self.act["minimize_ribbon"].isChecked()), checkable=True,
+          tip="Show only the tab names; click a tab to show its commands (double-click a tab does the same)")
+        # moving between windows, as in COMSOL
+        a("next_window", "Next Window", None, lambda: self.cycle_focus(1), "Ctrl+Tab")
+        a("prev_window", "Previous Window", None, lambda: self.cycle_focus(-1), "Ctrl+Shift+Tab")
+        a("focus_tree", "Model Builder", "model_builder", lambda: self.focus_pane("tree"), "Ctrl+Alt+Left")
+        a("focus_settings", "Settings", "settings_window", lambda: self.focus_pane("settings"), "Ctrl+Alt+Right")
+        a("next_section", "Next Settings Section", None, lambda: self.settings.focus_section(1), "Ctrl+Alt+Down")
+        a("prev_section", "Previous Settings Section", None, lambda: self.settings.focus_section(-1), "Ctrl+Alt+Up")
+        a("filter_tree", "Filter the Model Builder", None, lambda: self.tree.focus_filter(), "Ctrl+L")
+        a("go_back", "Go Back", "back", lambda: self.tree.go_back(), "Alt+Left")
+        a("go_forward", "Go Forward", "forward", lambda: self.tree.go_forward(), "Alt+Right")
+        a("sel_all", "Select All", "select_all", lambda: self.graphics.select_all(), "Ctrl+A",
+          tip="Select all entities of the active selection")
+        a("sel_clear", "Clear Selection", "clear_selection", lambda: self.graphics.clear_selection(), "Ctrl+D",
+          tip="Clear the active selection")
         a("show_sif", "Show Elmer\nInput File", "sif", self.show_sif)
         a("export_case", "Export Elmer\nCase", "export", self.export_case)
         a("run_script", "Run Python\nScript", "python", self.run_script)
@@ -203,9 +272,11 @@ class MainWindow(QMainWindow):
         r.add_right(self.act["help"])
         self.recent_menu = QMenu("Recent", self)
         fm = QMenu(self)
+        fm.setToolTipsVisible(True)
         for n in ("new", "open"):
             fm.addAction(self.act[n])
         fm.addMenu(self.recent_menu)
+        fm.addAction(self.act["recovery_files"])
         fm.addSeparator()
         for n in ("save", "save_as"):
             fm.addAction(self.act[n])
@@ -219,6 +290,7 @@ class MainWindow(QMainWindow):
         fm.addAction(self.act["prefs"])
         fm.addSeparator()
         fm.addAction(self.act["help"])
+        fm.addAction(self.act["docs"])
         fm.addAction(self.act["about"])
         fm.addSeparator()
         q = fm.addAction(icons.icon("close"), "Exit")
@@ -270,6 +342,10 @@ class MainWindow(QMainWindow):
             ("1D Plot Group", "plot_group_1d", lambda: self.add_plot_group("pg1d")),
             ("Polar Plot Group", "plot_group_1d", lambda: self.add_plot_group("pgpolar"))])))
         g = t.add_group("Layout")
+        self.m_layout = self._menu([self.act["layout_widescreen"], self.act["layout_regular"], None,
+                                    self.act["maximize"], self.act["minimize_ribbon"], None,
+                                    self.act["reset_desktop"]])
+        g.add_large(self._a("layout", "Layout", "layout", menu=self.m_layout, tip="Desktop layout"))
         g.add_large(self.act["reset_desktop"])
 
         # --- Definitions
@@ -459,6 +535,32 @@ class MainWindow(QMainWindow):
         g.add_large(self._a("show_sif2", "Show Elmer\nInput File", "sif", self.show_sif))
         g.add_large(self._a("export_case2", "Export Elmer\nCase", "export", self.export_case))
         g.add_large(self._a("prefs2", "Elmer\nInstallation", "preferences", self.preferences))
+
+        # --- contextual tab of the selected plot group (named after it, as in COMSOL)
+        t = r.add_tab("Plot Group")
+        g = t.add_group("Plot")
+        g.add_large(self._a("pg_plot", "Plot", "plot", lambda: self.plot(self._current_pg()),
+                            tip="Plot the selected plot group (F7 and F8 on a plot group do the same)"))
+        g.add_large(self._a("pg_snap", "Image\nSnapshot", "snapshot", lambda: self.graphics.snapshot_dialog()))
+        g = t.add_group("Add Plot")
+        self.pg3_plots = plots
+        g.add_large(plots[0])
+        g.add_small(plots[1:4])
+        g.add_small(plots[4:7])
+        g.add_small(plots[7:9] + [plots[14]])
+        g = t.add_group("Add 1D Plot")
+        g.add_small(plots[9:12])
+        g.add_small(plots[12:14] + plots[16:17])
+        g = t.add_group("Attributes")
+        g.add_large(self.act["r_def"])
+        g.add_small([self.act["r_plot.selection"], self.act["r_plot.colorexpr"]])
+        r.set_tab_visible("Plot Group", False)
+        for a in self.act.values():                    # a command chosen in a minimized ribbon folds it again
+            a.triggered.connect(r.command_triggered)
+        r.minimizedChanged.connect(self.act["minimize_ribbon"].setChecked)
+        r.setContextMenuPolicy(Qt.CustomContextMenu)
+        r.customContextMenuRequested.connect(
+            lambda pos: None if self.no_modal else self._menu([self.act["minimize_ribbon"]]).exec(r.mapToGlobal(pos)))
         self.setMenuWidget(r)
 
     def _build_panes(self):
@@ -471,15 +573,15 @@ class MainWindow(QMainWindow):
         self.tree.renameRequested.connect(self.rename)
         self.tree.activated.connect(lambda n: self.build_all_context())
         self.tree.move_cb = self.move_node
+        self.tree.issues = self.node_issues
         self.dock_tree = self._dock("Model Builder", "model_builder", self.tree, Qt.LeftDockWidgetArea)
         self.settings = SettingsWindow(self, self)
         self.settings.actionRequested.connect(self.on_settings_action)
         self.dock_settings = self._dock("Settings", "settings_window", self.settings, Qt.LeftDockWidgetArea)
-        self.splitDockWidget(self.dock_tree, self.dock_settings, Qt.Horizontal)
-        self.resizeDocks([self.dock_tree, self.dock_settings], [300, 380], Qt.Horizontal)
         # central graphics
         self.central = QTabWidget(self)
         self.central.setDocumentMode(False)
+        self.central.tabBar().tabBarDoubleClicked.connect(lambda _i: self.act["maximize"].trigger())
         self.gstack = QStackedWidget()
         self.graphics = GraphicsView(self)
         self.graphics.entityClicked.connect(self.on_entity_clicked)
@@ -498,24 +600,88 @@ class MainWindow(QMainWindow):
         self.progress = ProgressPane(self)
         self.logpane = LogPane(self)
         self.table = TablePane(self)
+        self.messages.nodeLinkClicked.connect(self.goto_tag)
         self.dock_msg = self._dock("Messages", "messages", self.messages, Qt.BottomDockWidgetArea)
         self.dock_prog = self._dock("Progress", "progress", self.progress, Qt.BottomDockWidgetArea)
         self.dock_log = self._dock("Log", "log", self.logpane, Qt.BottomDockWidgetArea)
         self.dock_table = self._dock("Table", "table", self.table, Qt.BottomDockWidgetArea)
-        self.tabifyDockWidget(self.dock_msg, self.dock_prog)
-        self.tabifyDockWidget(self.dock_prog, self.dock_log)
-        self.tabifyDockWidget(self.dock_log, self.dock_table)
-        self.dock_msg.raise_()
-        self.resizeDocks([self.dock_msg], [190], Qt.Vertical)
         self.matbrowser = MaterialBrowser(self)
         self.matbrowser.addRequested.connect(self.add_library_material)
         self.dock_mat = self._dock("Add Material", "materials", self.matbrowser, Qt.RightDockWidgetArea)
         self.dock_mat.hide()
+
+    # ================================================================== desktop layouts
+    def _auto_layout(self) -> str:
+        """COMSOL picks Widescreen or Regular Screen by the monitor: side by side needs a wide screen."""
+        scr = self.screen() or QApplication.primaryScreen()
+        g = scr.availableGeometry() if scr is not None else None
+        return "widescreen" if g is None or (g.width() >= 1500 and g.width() / max(g.height(), 1) >= 1.5) else "regular"
+
+    def _arrange(self, mode: str):
+        """The default arrangement of a layout: Widescreen puts Model Builder, Settings and Graphics side by side;
+        Regular Screen stacks Model Builder above Settings. Messages, Progress, Log and Table are tabbed below."""
+        for d in self.findChildren(QDockWidget):     # start from nothing: re-tabifying docks in place duplicates tabs
+            d.setFloating(False)
+            self.removeDockWidget(d)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock_tree)
+        self.splitDockWidget(self.dock_tree, self.dock_settings, Qt.Horizontal if mode == "widescreen" else Qt.Vertical)
+        for d in (self.dock_msg, self.dock_prog, self.dock_log, self.dock_table):
+            self.addDockWidget(Qt.BottomDockWidgetArea, d)
+        self.tabifyDockWidget(self.dock_msg, self.dock_prog)
+        self.tabifyDockWidget(self.dock_prog, self.dock_log)
+        self.tabifyDockWidget(self.dock_log, self.dock_table)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock_mat)
+        for d in (self.dock_tree, self.dock_settings, self.dock_msg, self.dock_prog, self.dock_log, self.dock_table):
+            d.show()
+        self.dock_mat.hide()
+        self.dock_msg.raise_()
+        if mode == "widescreen":
+            self.resizeDocks([self.dock_tree, self.dock_settings], [300, 380], Qt.Horizontal)
+        else:
+            self.resizeDocks([self.dock_tree], [380], Qt.Horizontal)
+            self.resizeDocks([self.dock_tree, self.dock_settings], [300, 520], Qt.Vertical)
+        self.resizeDocks([self.dock_msg], [190], Qt.Vertical)
         self.resizeDocks([self.dock_mat], [300], Qt.Horizontal)
+
+    def apply_layout(self, mode: str, restore=True):
+        """Switch to a layout. Each layout keeps its own window arrangement (saved when you leave it); *restore*
+        False gives its default arrangement (Reset Desktop)."""
+        old = getattr(self, "layout_mode", None)
+        if self._maximized_state is not None:
+            self.act["maximize"].setChecked(False)
+            self._maximized_state = None
+        if old and old != mode:
+            self.qs.setValue(f"window_state/{old}", self.saveState())
+        self.layout_mode = mode
+        self.act[f"layout_{mode}"].setChecked(True)
+        self._arrange(mode)
+        st = self.qs.value(f"window_state/{mode}") if restore else None
+        if st is None and restore and mode == "widescreen":
+            st = self.qs.value("window_state")        # saved by an earlier version: its only layout
+        if isinstance(st, QByteArray):
+            self.restoreState(st)
+        self.qs.setValue("layout_mode", mode)
+
+    def reset_desktop(self):
+        self.apply_layout(self.layout_mode, restore=False)
+
+    def toggle_maximize(self):
+        """Hide every window but Graphics (again: bring them back as they were)."""
+        if self._maximized_state is None:
+            self._maximized_state = self.saveState()
+            for d in self.findChildren(QDockWidget):
+                d.hide()
+            self.act["maximize"].setChecked(True)
+        else:
+            st, self._maximized_state = self._maximized_state, None
+            self.restoreState(st)
+            self.act["maximize"].setChecked(False)
 
     def _dock(self, title, icon_name, widget, area):
         d = QDockWidget(title, self)
         d.setObjectName(f"dock_{title.replace(' ', '_')}")
+        d.setAccessibleName(title)
+        widget.setAccessibleName(title)
         d.setWidget(widget)
         d.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable | QDockWidget.DockWidgetClosable)
         d.setWindowIcon(icons.icon(icon_name))
@@ -529,8 +695,25 @@ class MainWindow(QMainWindow):
         self.pbar.setMaximumHeight(14)
         self.pbar.hide()
         self.mem = QLabel("")
-        self.mem.setStyleSheet("color:#444; padding: 0 6px;")
+        self.mem.setToolTip("Memory used by Elmer Studio: resident | virtual")
+        self.st_job = QLabel("")
+        self.st_job.setAccessibleName("Running job")
+        self.st_job.hide()
+        self.st_stop = QToolButton()
+        self.st_stop.setDefaultAction(self.act["stop"])
+        self.st_stop.setAutoRaise(True)
+        self.st_stop.setAccessibleName("Stop")
+        self.st_stop.hide()
+        sb.addPermanentWidget(self.st_job)
         sb.addPermanentWidget(self.pbar)
+        sb.addPermanentWidget(self.st_stop)
+        self.st_geo, self.st_mesh, self.st_sol = (QToolButton(), QToolButton(), QToolButton())
+        for b, which in ((self.st_geo, "geo"), (self.st_mesh, "mesh"), (self.st_sol, "sol")):
+            b.setObjectName("StatusState")
+            b.setAutoRaise(True)
+            b.clicked.connect(lambda _=False, w=which: self._status_click(w))
+            b.hide()
+            sb.addPermanentWidget(b)
         sb.addPermanentWidget(self.mem)
 
     def _update_mem(self):
@@ -566,6 +749,9 @@ class MainWindow(QMainWindow):
         self._update_title()
         self._update_geom_actions()
         self.tree.select(model.root)
+        self.recovery.discard()                          # a new, opened or recovered model: nothing unsaved yet
+        self._checkpoint_rev = None
+        self.schedule_update()
 
     def _file_name(self):
         if self.file_path:
@@ -598,13 +784,429 @@ class MainWindow(QMainWindow):
         # inside a work plane a 3D geometry takes the planar sketch primitives (add_geom puts them into the plane)
         in_wp = sd == 3 and cur is not None and (cur.kind == "geom.workplane" or (
             cur.parent is not None and cur.parent.kind == "geom.workplane"))
+        nocomp = "Add a component first (Home > Add Component)" if self.model.component is None else None
         for a in self.geo3d_actions + self.wp_actions:
-            a.setEnabled(sd == 3)
+            self._set_avail(a, nocomp or (None if sd == 3 else "Needs a 3D component"))
         for a in self.fc_actions:                  # 3D: edges of a solid; 2D or inside a work plane: sketch vertices
-            a.setEnabled(sd in (2, 3))
+            self._set_avail(a, nocomp or (None if sd in (2, 3) else "Needs a 2D or 3D component"))
         for a in self.geo2d_actions:
-            a.setEnabled(sd == 2 or (in_wp and a.data() in WP_KINDS))
-        self.act["add_comp"].setEnabled(self.model.component is None)
+            self._set_avail(a, nocomp or (None if sd == 2 or (in_wp and a.data() in WP_KINDS) else
+                                          "A planar primitive: select a Work Plane (or a node inside one) to add it "
+                                          "to the plane's sketch"))
+        self._set_avail(self.act["add_comp"], None if self.model.component is None else
+                        "The model already has its component (one component per model)")
+
+    @staticmethod
+    def _set_avail(a: QAction, reason: str | None):
+        """Enable *a*, or disable it and say why in its tooltip and status tip."""
+        base = a.property("base_tip") or a.toolTip()
+        a.setEnabled(reason is None)
+        tip = base if reason is None else f"{base}\nUnavailable: {reason}"
+        if a.toolTip() != tip:
+            a.setToolTip(tip)
+            a.setStatusTip(tip.replace("\n", " - "))
+
+    def schedule_update(self):
+        """Command availability, the status bar and the tree's markers follow the model: refresh them once the
+        current edit is done."""
+        if not self._actions_pending:
+            self._actions_pending = True
+            QTimer.singleShot(0, self._update_ui_state)
+
+    def _update_ui_state(self):
+        self._actions_pending = False
+        try:
+            self.update_actions()
+            self.update_status()
+            self._update_tabs()
+            self.tree.update_marks()
+        except RuntimeError:            # the window is being destroyed
+            pass
+
+    def node_issues(self, node: Node) -> list[tuple[str, str]]:
+        """What is wrong with or out of date in a node, for the Model Builder's marks and tooltips."""
+        out = []
+        k = node.kind
+        par = node.parent
+        nt = REGISTRY.get(k)
+        sel = node.selection
+        if sel is not None and node.enabled and not node.meta.get("default") and not sel.all and not sel.named \
+                and not sel.entities and (k == "material" or k.startswith(("mp.", "dg.", "cpl."))
+                                          or (par is not None and par.kind.startswith("physics."))):
+            try:
+                shown = nt is None or nt.selection_visible is None or nt.selection_visible(
+                    {**node.props, "__sdim": self.sdim(), "__axi": self.is_axi()})
+            except Exception:  # noqa: BLE001
+                shown = True
+            if shown:
+                out.append(("warning", f"No {level_plural(sel.level)} selected: it applies nowhere."))
+        if k == "material" and node.enabled and self.model.component is not None:
+            vals = node.props.get("values") or {}
+            missing = [MATPROPS[p][0] for p in self.required_matprops(node) if not str(vals.get(p, "")).strip()]
+            if missing:
+                out.append(("error", "Missing material properties: " + ", ".join(missing) + "."))
+        if k == "geometry" and self.geo is not None and self.geo_stale:
+            out.append(("stale", "Edited since it was built: build it again (F8)."))
+        if k == "mesh" and self.mesh is not None and self.mesh_stale:
+            out.append(("stale", "The model changed since the mesh was built."))
+        if k == "study" and self.model.component is not None:
+            text, state, tip = self._solution_state(node)
+            if state == "stale":
+                out.append(("stale", tip))
+            elif state == "error":
+                out.append(("error", f"{text}. {tip}"))
+        return out
+
+    def update_actions(self):
+        """One availability rule per command; the ribbon, the shortcut, the menus and the context menu share the
+        QAction, so they agree. A disabled command says why."""
+        cur = self.tree.current()
+        comp = self.model.component
+        nt = REGISTRY.get(cur.kind) if cur is not None else None
+        sa = self._set_avail
+        a = self.act
+        nocomp = "Add a component first (Home > Add Component)" if comp is None else None
+        sa(a["undo"], None if self.undo_stack else "Nothing to undo")
+        sa(a["redo"], None if self.redo_stack else "Nothing to redo")
+        pick = "Select a node in the Model Builder" if cur is None else None
+        fixed = None
+        if cur is not None and cur.meta.get("default"):
+            fixed = f"'{cur.label}' is a default feature: add a feature after it to override it"
+        elif cur is not None and (cur.parent is None or (nt is not None and not nt.deletable)):
+            fixed = f"'{cur.label}' is a fixed part of the model"
+        sa(a["delete"], pick or fixed)
+        sa(a["rename"], pick or (None if cur.kind != "root" and (nt is None or nt.renamable) else
+                                 "The root's name is the file name: use Save As"))
+        sa(a["duplicate"], pick or fixed or (None if cur.kind not in ("global", "results", "geometry", "mesh",
+                                                                      "materials", "geom.finalize")
+                                             else f"'{cur.label}' cannot be duplicated"))
+        cant_dis = pick or (None if nt is not None and nt.can_disable and not cur.meta.get("default") else
+                            f"'{cur.label}' cannot be disabled" if cur is not None else None)
+        sa(a["disable"], cant_dis or (None if cur.enabled else "Already disabled"))
+        sa(a["enable"], cant_dis or (None if not cur.enabled else "Not disabled"))
+        for name, d in (("move_up", -1), ("move_down", 1)):
+            reason = pick
+            if reason is None:
+                sib = cur.parent.children if cur.parent is not None else [cur]
+                j = sib.index(cur) + d
+                if cur.parent is None or not (0 <= j < len(sib)):
+                    reason = "Already the " + ("first" if d < 0 else "last") + " node of its branch"
+                elif sib[j].kind == "geom.finalize" or sib[j].meta.get("default") or cur.meta.get("default"):
+                    reason = "Default and finalizing nodes keep their place"
+            sa(a[name], reason)
+        for name in ("build_selected", "build_all"):
+            sa(a[name], None if comp is not None or (cur is not None and cur.kind.startswith(("study", "pg", "plot.",
+                                                                                              "eval."))) else nocomp)
+        for name in ("geom_build", "geom_build2", "import", "import2", "mesh_build", "mesh_build2", "mesh_size",
+                     "mesh_size2", "mesh_ftet", "mesh_ftri", "mesh_fquad", "mesh_mapped", "mesh_sizen", "mesh_dist",
+                     "mesh_stats", "mesh_qual", "add_mat", "add_mat2", "blank_mat", "add_phys", "add_phys2", "vars",
+                     "vars2", "cpl_average", "cpl_integration", "cpl_maximum", "cpl_minimum", "dg_ddom", "dg_pnmv",
+                     "geom.boxsel", "add_study", "add_study2", "steps", "geom.union", "geom.intersection",
+                     "geom.difference", "geom.array", "geom.copy", "geom.mirror", "geom.move", "geom.rotate",
+                     "geom.scale", "geom_build2"):
+            sa(a[name], nocomp)
+        self._update_geom_actions(cur)          # the per-dimension rules of the primitives (they say no component too)
+        if comp is not None:
+            sd = self.sdim()
+            for name, kind in (("mesh_ftet", "mesh.ftet"), ("mesh_ftri", "mesh.ftri"), ("mesh_fquad", "mesh.fquad"),
+                               ("mesh_mapped", "mesh.mapped")):
+                ok = (kind == "mesh.ftet") == (sd == 3)        # the mesh sequence's generators per dimension
+                sa(a[name], None if ok else f"{REGISTRY[kind].title} meshes {'3D' if kind == 'mesh.ftet' else '2D'} "
+                                            "components")
+        phys = B.physics_nodes(self.model)
+        nophys = nocomp or (None if phys else "Add a physics interface first (Home > Add Physics)")
+        for name in ("phys_dom", "phys_bnd"):
+            sa(a[name], nophys)
+        ids = {physics_def(p.kind).id for p in phys}
+        any_mp = any(set(cp["requires"]) <= ids for cp in COUPLINGS.values())
+        for name in ("mp", "mp2"):
+            sa(a[name], nophys or (None if any_mp else "No multiphysics coupling applies to these physics interfaces"))
+        has_study = bool(self.model.studies())
+        nostudy = None if has_study else "Add a study first (Home > Add Study)"
+        noelmer = None if self.inst is not None else "Elmer was not found: set its folder in File > Preferences"
+        for name in ("compute", "compute2"):
+            sa(a[name], nostudy or noelmer)
+        for name in ("show_sif", "show_sif2", "export_case", "export_case2", "sweep", "show_solver", "clear_sol"):
+            sa(a[name], nocomp or nostudy)
+        sa(a["stop"], None if self.busy() else "Nothing is running")
+        sa(a["mesh_clear"], nocomp or (None if self.mesh is not None else "There is no mesh"))
+        pl = cur if cur is not None and cur.kind.startswith("plot.") else None
+        for kind in ("plot.deform", "plot.selection", "plot.colorexpr"):
+            ok = pl is not None and kind in REGISTRY[pl.kind].child_kinds(pl)
+            sa(a["r_def" if kind == "plot.deform" else f"r_{kind}"],
+               None if ok else f"Select a plot that takes a {REGISTRY[kind].title} attribute")
+        nosol = None if any(d.kind == "dset.solution" for d in self.datasets()) else "Compute a study first"
+        for name in ("pg3", "pg2", "pgp", "add_pg"):
+            sa(a[name], nocomp)
+        if comp is not None:
+            sa(a["pg3"], None if self.sdim() == 3 else "A 3D plot group needs a 3D component")
+        sa(a["pg_plot"], None if self._current_pg() is not None else "Select a plot group")
+        for name in ("r_report",):
+            sa(a[name], nosol)
+        sa(a["sel_all"], None if self.active_sel is not None else "No selection list is active")
+        sa(a["sel_clear"], None if self.active_sel is not None else "No selection list is active")
+        sa(a["go_back"], None if self.tree.can_go(-1) else "No earlier node")
+        sa(a["go_forward"], None if self.tree.can_go(1) else "No later node")
+        sa(a["recovery_files"], None if recovery.orphans() else "No interrupted sessions to recover")
+
+    def _current_pg(self) -> Node | None:
+        cur = self.tree.current() if hasattr(self, "tree") else None
+        if cur is None:
+            return None
+        return cur if cur.kind.startswith("pg") else cur.ancestor("pg")
+
+    def _update_tabs(self):
+        """Tabs of stages that need a component appear with it; the selected plot group gets its contextual tab."""
+        has = self.model.component is not None
+        for name in ("Geometry", "Materials", "Physics", "Mesh"):
+            self.ribbon.set_tab_visible(name, has)
+        pg = self._current_pg()
+        self.ribbon.set_tab_visible("Plot Group", pg is not None, pg.label if pg is not None else None)
+
+    # ================================================================== status bar
+    def update_status(self):
+        """Persistent state of the model in the status bar: geometry, mesh and solution of the current study, each
+        with what it means and a click that goes to its node."""
+        comp = self.model.component
+        st = self._study_of(self.tree.current()) if comp is not None else None
+        if comp is None:
+            items = [(self.st_geo, "", "", ""), (self.st_mesh, "", "", ""), (self.st_sol, "", "", "")]
+        else:
+            if self.geo is None:
+                geo = ("Geometry: not built", "stale", "Build it: Geometry > Build All (F8)")
+            elif self.geo_stale:
+                geo = ("Geometry: needs update", "stale", "The geometry or a parameter changed since it was built")
+            else:
+                nd = self.geo.count("domain")
+                geo = (f"Geometry: {nd} domain{'s' if nd != 1 else ''}", "ok", "Built and up to date")
+            if self.mesh is None:
+                mesh = ("Mesh: not built", "", "Built when you compute, or with Mesh > Build Mesh")
+            elif self.mesh_stale:
+                mesh = ("Mesh: needs update", "stale", "The model changed since the mesh was built")
+            else:
+                mesh = (f"Mesh: {self.mesh.stats['elements']} elements", "ok", "Built and up to date")
+            sol = self._solution_state(st)
+            items = [(self.st_geo, *geo), (self.st_mesh, *mesh), (self.st_sol, *sol)]
+        narrow = self.width() < 1100              # short forms; the tooltip keeps the whole sentence
+        self.mem.setVisible(not narrow)
+        for lab, text, state, tip in items:
+            lab.setVisible(bool(text))
+            short = text.split(":")[0] + {"ok": " ok", "stale": " *", "error": " !"}.get(state, " -")
+            lab.setText(short if narrow and text else text)
+            lab.setToolTip((text + "\n" if narrow else "") + tip + ("\nClick to go to the node." if text else ""))
+            lab.setAccessibleName(text)
+            if lab.property("state") != state:
+                lab.setProperty("state", state)
+                lab.style().unpolish(lab)
+                lab.style().polish(lab)
+
+    def _solution_state(self, st: Node | None):
+        if st is None:
+            return ("Study: none", "", "Add a study: Home > Add Study")
+        folders = sorted(glob.glob(os.path.join(self.workdir, st.tag, "sol_*_*", "meta.json")))
+        if not folders:
+            return (f"{st.label}: not computed", "", "Compute it: Ctrl+= or Study > Compute")
+        try:
+            with open(folders[-1], encoding="utf-8") as f:
+                meta = json.load(f)
+        except (OSError, ValueError):
+            meta = {}
+        status = meta.get("status", "converged")
+        if status == "failed":
+            return (f"{st.label}: failed", "error", "The last computation failed: see Messages and Log")
+        if status == "not converged":
+            return (f"{st.label}: NOT CONVERGED", "error", "; ".join(meta.get("diagnostics", [])[:3]))
+        mj = os.path.join(os.path.dirname(folders[-1]), "model.json")
+        try:
+            keep = st.child("study.solvers") is not None
+            key = (mj, os.path.getmtime(mj), keep)
+            cache = self.__dict__.setdefault("_solved_inputs", {})
+            if key not in cache:
+                with open(mj, encoding="utf-8") as f:
+                    cache.clear()
+                    cache[key] = _inputs(Model.from_dict(json.load(f)), keep)
+            same = cache[key] == _inputs(self.model, keep)
+        except (OSError, ValueError, KeyError):
+            same = True                                   # an older solution without its model: unknown, say nothing
+        if not same:
+            return (f"{st.label}: out of date", "stale",
+                    "The model's inputs changed since this solution was computed; results still show the computed "
+                    "solution. Compute again to update it.")
+        return (f"{st.label}: solved", "ok", "The solution matches the model's current inputs")
+
+    def _status_click(self, which):
+        comp = self.model.component
+        if comp is None:
+            return
+        target = {"geo": comp.child("geometry"), "mesh": comp.child("mesh"),
+                  "sol": self._study_of(self.tree.current())}.get(which)
+        if target is not None:
+            self.tree.select(target)
+
+    def _update_job_status(self):
+        if self.job is None:
+            self.job_timer.stop()
+            self.st_job.hide()
+            self.st_stop.hide()
+            return
+        el = int(time.time() - self._job_started)
+        txt = f"{self._job_title}  {el // 60:02d}:{el % 60:02d}"
+        if self._job_stage:
+            txt += f"  {self._job_stage}"
+        if self._stopping:
+            txt += "  - stopping..."
+        self.st_job.setText(txt)
+        self.st_job.show()
+        self.st_stop.setVisible(not self._stopping)
+
+    # ================================================================== focus and help
+    def _panes(self):
+        return [("tree", self.tree.tree), ("settings", self.settings),
+                ("graphics", self.graphics.plotter.interactor if self.graphics.plotter is not None else self.graphics),
+                ("messages", self.messages.view)]
+
+    def focus_pane(self, name: str):
+        """Move the keyboard focus to a window (and show it if it was hidden or tabbed away)."""
+        dock = {"tree": self.dock_tree, "settings": self.dock_settings, "messages": self.dock_msg}.get(name)
+        if dock is not None:
+            dock.show()
+            dock.raise_()
+        if name == "settings":
+            self.settings.focus_first()
+            return
+        w = dict(self._panes()).get(name)
+        if w is not None:
+            w.setFocus(Qt.ShortcutFocusReason)
+
+    def cycle_focus(self, d: int):
+        """Ctrl+Tab / Ctrl+Shift+Tab: the next or previous window (Model Builder, Settings, Graphics, Messages)."""
+        panes = [(n, w) for n, w in self._panes() if w.isVisible()]
+        if not panes:
+            return
+        fw = QApplication.focusWidget()
+        cur = next((i for i, (_n, w) in enumerate(panes) if fw is not None and (fw is w or w.isAncestorOf(fw))), -1)
+        self.focus_pane(panes[(cur + d) % len(panes)][0])
+
+    def context_help(self):
+        """F1: the documentation of the selected node (its section of the Reference)."""
+        cur = self.tree.current()
+        self.open_url(help_url(cur.kind if cur is not None and cur.kind != "root" else "root", DOCS_URL))
+
+    def open_url(self, url: str):
+        self.last_url = url
+        self.statusBar().showMessage(f"Help: {url}", 5000)
+        if self.no_modal:
+            return
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        if not QDesktopServices.openUrl(QUrl(url)):
+            self.messages.add(f"Documentation: {url}")
+
+    def goto_tag(self, tag: str):
+        """A link in Messages: select the node it names."""
+        n = self.model.by_tag(tag)
+        if n is not None:
+            self.tree.select(n)
+            self.focus_pane("tree")
+
+    # ================================================================== recovery
+    def checkpoint(self, force=False):
+        """Write the unsaved model to this session's recovery folder (when it changed since the last checkpoint)."""
+        if not self.dirty and not force:
+            return
+        if self._checkpoint_rev == self.rev and not force:
+            return
+        try:
+            self.recovery.checkpoint(self.model.to_dict(), self.file_path, self.workdir, self._file_name())
+            self._checkpoint_rev = self.rev
+        except OSError as exc:
+            self.statusBar().showMessage(f"Recovery checkpoint failed: {exc}", 5000)
+
+    def offer_recovery(self) -> bool:
+        """At start: models of sessions that ended without saving. Returns True if one was recovered."""
+        if self.no_modal or not self.qs.value("offer_recovery", True, bool):
+            return False
+        found = recovery.orphans()
+        if not found:
+            return False
+        return self.show_recovery_files(found)
+
+    def show_recovery_files(self, found=None) -> bool:
+        found = recovery.orphans() if found is None else found
+        if not found:
+            self.statusBar().showMessage("No recovery files.", 4000)
+            return False
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Recovery Files")
+        dlg.resize(640, 300)
+        v = QVBoxLayout(dlg)
+        v.addWidget(QLabel(f"{APP_NAME} closed without saving these models (a crash, a power cut or a killed "
+                           "process). Open one to continue; it opens as an unsaved model."))
+        lst = QListWidget()
+        lst.setAccessibleName("Recovery files")
+        for e in found:
+            desc = f"{e.get('label') or 'Untitled'}  -  {e.get('saved', '').replace('T', ' ')}"
+            if e.get("file_path"):
+                desc += f"  -  {e['file_path']}"
+            if e.get("job"):
+                desc += f"  -  '{e['job']['title']}' was running"
+            it = QListWidgetItem(icons.icon("app"), desc)
+            it.setData(Qt.UserRole, e)
+            lst.addItem(it)
+        lst.setCurrentRow(0)
+        v.addWidget(lst, 1)
+        bb = QDialogButtonBox()
+        b_open = bb.addButton("Open", QDialogButtonBox.AcceptRole)
+        b_del = bb.addButton("Delete", QDialogButtonBox.DestructiveRole)
+        bb.addButton("Later", QDialogButtonBox.RejectRole)
+        chosen = {}
+
+        def delete():
+            it = lst.currentItem()
+            if it is not None:
+                recovery.discard(it.data(Qt.UserRole))
+                lst.takeItem(lst.row(it))
+            if lst.count() == 0:
+                dlg.reject()
+        b_open.clicked.connect(lambda: (chosen.__setitem__("e", lst.currentItem().data(Qt.UserRole))
+                                        if lst.currentItem() else None, dlg.accept()))
+        b_del.clicked.connect(delete)
+        bb.rejected.connect(dlg.reject)
+        lst.itemDoubleClicked.connect(lambda it: (chosen.__setitem__("e", it.data(Qt.UserRole)), dlg.accept()))
+        v.addWidget(bb)
+        if not dlg.exec() or "e" not in chosen:
+            self.schedule_update()
+            return False
+        return self.recover(chosen["e"])
+
+    def recover(self, entry: dict) -> bool:
+        """Open a recovery checkpoint as an unsaved model (its file name kept, its solutions if they survived)."""
+        if not self._confirm_discard():
+            return False
+        try:
+            m, info = recovery.load(entry)
+        except Exception as exc:  # noqa: BLE001
+            self.messages.add(f"Could not recover {entry.get('dir')}: {exc}", "error")
+            return False
+        work = info.get("workdir") or ""
+        work = work if work and os.path.isdir(work) else project.new_workdir()
+        path = info.get("file_path") or None
+        self._set_model(m, path, work)
+        self.dirty = True                                 # never saved: Save writes it
+        self._update_title()
+        recovery.discard(entry)
+        self.checkpoint(force=True)                       # it is this session's unsaved model now
+        msg = f"Recovered the unsaved model of {info.get('saved', '').replace('T', ' ')}"
+        if path:
+            msg += f" (file {path}; the file itself still has the last saved version)"
+        self.messages.add(msg + ". Save it to keep it.", "warning")
+        if info.get("job"):
+            self.messages.add(f"'{info['job']['title']}' was running when that session ended (started "
+                              f"{info['job']['started'].replace('T', ' ')}); its solution may be missing or "
+                              "incomplete. Compute the study again.", "warning")
+        if m.component is not None:
+            self.build_geometry()
+        return True
 
     def _confirm_discard(self) -> bool:
         if not self.dirty:
@@ -704,6 +1306,9 @@ class MainWindow(QMainWindow):
         self._update_title()
         self.messages.add(f"Saved file: {fn}")
         self._add_recent(fn)
+        self.recovery.discard()
+        self._checkpoint_rev = None
+        self.schedule_update()
         return True
 
     def file_save_as(self, fn: str | None = None) -> bool:
@@ -730,12 +1335,20 @@ class MainWindow(QMainWindow):
             a = self.recent_menu.addAction(fn)
             a.triggered.connect(lambda _=False, f=fn: self._confirm_discard() and self.open_file(f))
 
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        if (ev.size().width() < 1100) != (ev.oldSize().width() < 1100):
+            self.schedule_update()
+
     def closeEvent(self, ev):
         if not self._confirm_discard():
             ev.ignore()
             return
         self.stop_job()
-        self.qs.setValue("window_state", self.saveState())
+        if self._maximized_state is not None:
+            self.toggle_maximize()
+        self.qs.setValue(f"window_state/{self.layout_mode}", self.saveState())
+        self.qs.setValue("layout_mode", self.layout_mode)
         self.qs.setValue("window_geometry", self.saveGeometry())
         try:
             if self.graphics.plotter is not None:
@@ -743,12 +1356,8 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
         project.discard_workdir(getattr(self, "workdir", None))
+        self.recovery.discard()                       # closed on purpose: nothing to recover
         ev.accept()
-
-    def reset_desktop(self):
-        self.restoreState(self._default_state)
-        for d in (self.dock_tree, self.dock_settings, self.dock_msg):
-            d.show()
 
     # ================================================================== undo / mutation
     def _push_undo(self, snap: str | None = None):
@@ -759,6 +1368,7 @@ class MainWindow(QMainWindow):
         self.redo_stack.clear()
         self.rev = self._new_rev()
         self._update_title()
+        self.schedule_update()
 
     def _restore(self, snap):
         cur = self.tree.current()
@@ -770,6 +1380,7 @@ class MainWindow(QMainWindow):
         n = self.model.by_tag(tag) if tag else None
         self.tree.refresh(select=n or self.model.root)
         self._update_geom_actions()
+        self.schedule_update()
 
     def undo(self):
         if self.undo_stack:
@@ -916,6 +1527,7 @@ class MainWindow(QMainWindow):
 
     def activate_selection(self, node: Node | None, show: Node | None = None):
         self.active_sel = node
+        self.schedule_update()
         target = node or show
         if target is None or target.selection is None:
             return
@@ -1188,8 +1800,6 @@ class MainWindow(QMainWindow):
             return [("Export", "export", "Write the file")]
         if k == "materials":
             return [("Add Material from Library", "materials", "Open the Add Material window")]
-        if k == "params":
-            return [("Load from File", "open", "")] if False else []
         return []
 
     def on_settings_action(self, name, node):
@@ -1291,7 +1901,8 @@ class MainWindow(QMainWindow):
                 return None
             if status == "not converged":
                 self.messages.add("Solution NOT CONVERGED (kept by the study settings): "
-                                  + "; ".join(sol.meta.get("diagnostics", [])), "warning")
+                                  + "; ".join(sol.meta.get("diagnostics", [])), "warning",
+                                  node=os.path.basename(os.path.dirname(folder)))
             self.sol_cache[folder] = sol
         sol = self.sol_cache[folder]
         from ..core.nodes import bind_results
@@ -1391,16 +2002,14 @@ class MainWindow(QMainWindow):
                    f"Bounding box: [{g.bbox[0]:.4g}, {g.bbox[3]:.4g}] x [{g.bbox[1]:.4g}, {g.bbox[4]:.4g}]"
                    + (f" x [{g.bbox[2]:.4g}, {g.bbox[5]:.4g}]" if g.sdim == 3 else "") + f" {g.unit}")
             out.append(("Geometry Statistics", QLabel(txt)))
-        if node.kind == "study.solver":
-            pass
         return out
 
     # ================================================================== selection / graphics updates
     def on_node_selected(self, node: Node):
         self.active_sel = None
         self.settings.show_node(node)
-        self._update_contextual(node)
         self._update_geom_actions(node)
+        self.schedule_update()
         k = node.kind
         if k.startswith("pg"):
             self.plot(node)
@@ -1419,14 +2028,6 @@ class MainWindow(QMainWindow):
             pass
         elif self.model.component is not None:
             self._show_geometry_for(node)
-
-    def _update_contextual(self, node):
-        tabs = {"geometry": "Geometry", "materials": "Materials", "mesh": "Mesh", "study": "Study", "results": "Results"}
-        for anc in node.path():
-            if anc.kind.startswith("physics."):
-                return
-            if anc.kind in tabs and node.kind != "root":
-                pass
 
     def _show_geometry_for(self, node: Node):
         if self.model.component is None:
@@ -1482,6 +2083,7 @@ class MainWindow(QMainWindow):
 
     def build_context_menu(self, node: Node) -> QMenu:
         m = QMenu(self)
+        m.setToolTipsVisible(True)
         k = node.kind
         nt = REGISTRY.get(k)
 
@@ -1540,7 +2142,7 @@ class MainWindow(QMainWindow):
             for kind in nt.child_kinds(node):
                 add_kind(m, kind)
         if k.startswith("geom.") and k not in ("geom.workplane",):
-            m.addAction(icons.icon("build_selected"), "Build Selected", self.build_selected)
+            m.addAction(self.act["build_selected"])
             m.addAction(icons.icon("build_all"), "Build All Objects", self.build_geometry)
         if k == "materials":
             m.addSeparator()
@@ -1566,19 +2168,21 @@ class MainWindow(QMainWindow):
         if k == "results":
             m.addSeparator()
         if node.parent is not None and k not in ("global", "results"):
+            # the ribbon's own commands (same shortcut, availability and reason when unavailable); they act on the
+            # current node, which the right-click made this node
+            self.update_actions()
             m.addSeparator()
             if nt is None or nt.renamable:
-                m.addAction(icons.icon("rename"), "Rename", self.tree.edit_current, "F2")
+                m.addAction(self.act["rename"])
             if nt is not None and nt.deletable and not node.meta.get("default"):
-                m.addAction(icons.icon("duplicate"), "Duplicate", lambda: self.duplicate_node(node))
-                m.addAction(icons.icon("delete"), "Delete", lambda: self.delete_node(node))
+                m.addAction(self.act["duplicate"])
+                m.addAction(self.act["delete"])
             if nt is not None and nt.can_disable and not node.meta.get("default"):
-                if node.enabled:
-                    m.addAction(icons.icon("disable"), "Disable", lambda: self.set_enabled(node, False))
-                else:
-                    m.addAction(icons.icon("enable"), "Enable", lambda: self.set_enabled(node, True))
-            m.addAction(icons.icon("up"), "Move Up", lambda: self.move_node(node, -1))
-            m.addAction(icons.icon("down"), "Move Down", lambda: self.move_node(node, 1))
+                m.addAction(self.act["disable" if node.enabled else "enable"])
+            m.addAction(self.act["move_up"])
+            m.addAction(self.act["move_down"])
+        m.addSeparator()
+        m.addAction(self.act["help"])
         return m
 
     # ================================================================== ribbon helpers
@@ -1867,15 +2471,15 @@ class MainWindow(QMainWindow):
             self.create_node("material", comp.child("materials"))
 
     # ================================================================== jobs
-    def _start_job(self, fn, title, on_done, on_event=None, cancellable=False):
+    def _start_job(self, fn, title, on_done, on_event=None, node=None):
         if self.job is not None:
             # queue it (a newer request with the same title replaces an older queued one)
-            self._queue = [q for q in getattr(self, "_queue", []) if q[1] != title] + [(fn, title, on_done, on_event)]
+            self._queue = [q for q in getattr(self, "_queue", []) if q[1] != title] + [(fn, title, on_done, on_event, node)]
             self.statusBar().showMessage(f"{title}: queued", 3000)
             return True
         self.job = Job(fn, self)
         # bound methods of this QObject => queued delivery on the GUI thread
-        self._job_cb = (title, on_done, on_event)
+        self._job_cb = (title, on_done, on_event, node)
         self.job.done.connect(self._on_job_done)
         self.job.failed.connect(self._on_job_failed)
         self.job.event.connect(self._on_job_event)
@@ -1883,25 +2487,42 @@ class MainWindow(QMainWindow):
         self.pbar.show()
         self.statusBar().showMessage(title + "...")
         QApplication.setOverrideCursor(Qt.BusyCursor)
+        self._job_title, self._job_stage, self._stopping = title, "", False
+        self._job_started = time.time()
+        self.job_timer.start(1000)
+        self.checkpoint()                               # a crash during the job must not lose unsaved edits
+        try:
+            self.recovery.note_job(title)
+        except OSError:
+            pass
         self.job.start()
+        self._update_job_status()
+        self.schedule_update()
         return True
 
     def _on_job_done(self, r):
         if self.job is not None and self.job.cancelled:      # stopped while it ran: drop the result
-            self._job_failed(self._job_cb[0], "stopped by the user", "")
+            self._job_failed(self._job_cb[0], "stopped by the user", "", self._job_cb[3])
         else:
             self._job_done(r, self._job_cb[1])
         self._next_job()
 
     def _on_job_failed(self, msg, tb):
-        self._job_failed(self._job_cb[0], msg, tb)
+        self._job_failed(self._job_cb[0], msg, tb, self._job_cb[3])
         self._next_job()
 
     def _next_job(self):
         q = getattr(self, "_queue", [])
         if q and self.job is None:
-            fn, title, on_done, on_event = q.pop(0)
-            self._start_job(fn, title, on_done, on_event)
+            fn, title, on_done, on_event, node = q.pop(0)
+            self._start_job(fn, title, on_done, on_event, node)
+        if self.job is None:
+            try:
+                self.recovery.note_job(None)
+            except OSError:
+                pass
+            self._update_job_status()
+            self.schedule_update()
 
     def busy(self) -> bool:
         # a job counts as busy until its done/failed handler has run on the GUI thread
@@ -1923,16 +2544,16 @@ class MainWindow(QMainWindow):
             self.messages.add(f"Error: {exc}", "error")
             traceback.print_exc()
 
-    def _job_failed(self, title, msg, tb):
+    def _job_failed(self, title, msg, tb, node=None):
         QApplication.restoreOverrideCursor()
         self.pbar.hide()
         self.job = None
         self._pending_after_geo = None
-        self.messages.add(f"{title} failed: {msg}", "error")
+        self.messages.add(f"{title} failed: {msg}", "error", node=node)
         if tb:
             self.logpane.add(tb)
         self.statusBar().showMessage(f"{title} failed", 6000)
-        if "stopped by the user" not in msg:
+        if "stopped by the user" not in msg and not self.no_modal:
             QMessageBox.warning(self, APP_NAME, f"{title} failed:\n\n{msg}")
 
     def stop_job(self):
@@ -1943,6 +2564,8 @@ class MainWindow(QMainWindow):
         self._pending_after_geo = None
         if self.job is not None:
             self.job.cancelled = True
+            self._stopping = True
+            self._update_job_status()
             if self.job.runner is not None:
                 self.job.runner.stop()
         if dropped:
@@ -1985,7 +2608,7 @@ class MainWindow(QMainWindow):
                 self.graphics.show_geometry(res)
             if cur is not None and cur.kind in ("geometry", "geom.finalize"):
                 self.settings.refresh()
-        self._start_job(work, "Building geometry", done)
+        self._start_job(work, "Building geometry", done, node=comp.child("geometry"))
 
     def build_selected(self):
         cur = self.tree.current()
@@ -2045,7 +2668,7 @@ class MainWindow(QMainWindow):
             cur = self.tree.current()
             if cur is not None and cur.kind == "mesh":
                 self.settings.refresh()
-        self._start_job(work, "Building mesh", done)
+        self._start_job(work, "Building mesh", done, node=self.model.component.child("mesh"))
 
     def clear_mesh(self):
         self.mesh = None
@@ -2096,6 +2719,7 @@ class MainWindow(QMainWindow):
             return r.run()
 
         self._conv_dirty = False
+        self._sweep = ""
 
         def on_event(kind, p):
             if kind == "log":
@@ -2103,13 +2727,17 @@ class MainWindow(QMainWindow):
             elif kind == "conv":
                 self.conv.add(p)
                 self._conv_dirty = True
-                self.progress.set(f"Solver: {p[1]}", None, f"{p[3]:.2e}")
+                self.progress.set(f"Solver: {p[1]}", None, f"{p[3]:.2e}", f"iteration {p[4]}" if len(p) > 4 else None)
             elif kind == "progress":
                 frac, text = p
                 self.pbar.setRange(0, 100)
                 self.pbar.setValue(int(frac * 100))
-                self.progress.set(f"{study.label}: Compute", frac)
+                self.progress.set(f"{study.label}: Compute", frac, None, text)
+                self._job_stage = text if not self._sweep else f"{self._sweep} - {text}"
                 self.statusBar().showMessage(f"{study.label}: {text}")
+            elif kind == "sweep":
+                self._sweep = p
+                self.progress.set("Parametric sweep", None, None, p)
             elif kind == "message":
                 self.messages.add(p)
             elif kind == "warning":
@@ -2147,7 +2775,7 @@ class MainWindow(QMainWindow):
                 self.conv.redraw()
             self.central.setCurrentIndex(0)
 
-        self._start_job(work, f"Computing {study.label}", done, on_event)
+        self._start_job(work, f"Computing {study.label}", done, on_event, node=study)
 
     def _flush_log(self):
         self.logpane.flush()
@@ -2392,7 +3020,10 @@ class MainWindow(QMainWindow):
         path = os.path.join(self.workdir, study.tag) if study else self.workdir
         if not os.path.isdir(path):
             path = self.workdir
-        QDesktopServices.openUrl(QUrl.fromLocalFile(path))
+        self.last_url = QUrl.fromLocalFile(path).toString()
+        self.statusBar().showMessage(f"Case folder: {path}", 5000)
+        if not self.no_modal:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def run_script(self):
         fn, _ = QFileDialog.getOpenFileName(self, "Run Python Script", "", "Python (*.py)")
@@ -2441,11 +3072,54 @@ class MainWindow(QMainWindow):
         cb = QCheckBox("Save solutions in the model file")
         cb.setChecked(self.qs.value("save_solutions", True, bool))
         f.addRow("", cb)
+        # desktop and graphics appearance (COMSOL: Preferences > User Interface and Graphics)
+        font = QDoubleSpinBox()
+        font.setRange(7.0, 16.0)
+        font.setSingleStep(0.5)
+        font.setSuffix(" pt")
+        font.setValue(float(self.qs.value("font_pt", theme.BASE_PT)))
+        font.setToolTip("Base text size of the desktop and the plots; display scaling (100-200 %) applies on top. "
+                        "Takes effect when Elmer Studio starts again.")
+        f.addRow("Font size:", font)
+        gth = QComboBox()
+        for key, text in (("light", "Light gradient"), ("white", "White"), ("dark", "Dark")):
+            gth.addItem(text, key)
+        gth.setCurrentIndex(max(0, gth.findData(self.graphics.theme_name)))
+        f.addRow("Graphics theme:", gth)
+        eth = QComboBox()
+        for key, text in (("white", "White (readable in documents)"), ("graphics", "Same as the Graphics theme")):
+            eth.addItem(text, key)
+        eth.setCurrentIndex(max(0, eth.findData(self.graphics.export_theme)))
+        f.addRow("Image export theme:", eth)
+        auto = QSpinBox()
+        auto.setRange(0, 3600)
+        auto.setSuffix(" s")
+        auto.setValue(int(self.qs.value("autosave_s", 60)))
+        auto.setToolTip("How often unsaved changes are written to a recovery file (0: only before a computation)")
+        f.addRow("Recovery checkpoint every:", auto)
+        rec = QCheckBox("Offer to recover unsaved models after a crash")
+        rec.setChecked(self.qs.value("offer_recovery", True, bool))
+        f.addRow("", rec)
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         bb.accepted.connect(dlg.accept)
         bb.rejected.connect(dlg.reject)
         f.addRow(bb)
+        dlg.resize(620, 380)
         if dlg.exec():
+            if abs(font.value() - float(self.qs.value("font_pt", theme.BASE_PT))) > 1e-6:
+                self.qs.setValue("font_pt", font.value())
+                self.messages.add(f"Font size {font.value():g} pt: restart Elmer Studio to apply it.")
+            self.qs.setValue("graphics_theme", gth.currentData())
+            self.qs.setValue("export_theme", eth.currentData())
+            self.graphics.export_theme = eth.currentData()
+            if gth.currentData() != self.graphics.theme_name:
+                self.graphics.set_theme(gth.currentData())
+            self.qs.setValue("autosave_s", auto.value())
+            if auto.value():
+                self.autosave_timer.start(auto.value() * 1000)
+            else:
+                self.autosave_timer.stop()
+            self.qs.setValue("offer_recovery", rec.isChecked())
             inst = find_elmer(le.text().strip() or None)
             if inst:
                 self.inst = inst
@@ -2456,15 +3130,13 @@ class MainWindow(QMainWindow):
             self.qs.setValue("save_solutions", cb.isChecked())
 
     def open_docs(self):
-        """F1: the documentation site (installation, tutorials, user guide, reference)."""
-        if self.no_modal:
-            return
-        from PySide6.QtCore import QUrl
-        from PySide6.QtGui import QDesktopServices
-        if not QDesktopServices.openUrl(QUrl(DOCS_URL)):
-            self.messages.add(f"Documentation: {DOCS_URL}")
+        """Ctrl+F1: the documentation site (installation, tutorials, user guide, reference)."""
+        self.open_url(DOCS_URL)
 
     def about(self):
+        if self.no_modal:
+            self.statusBar().showMessage(f"{APP_NAME} {__version__}", 5000)
+            return
         QMessageBox.about(self, f"About {APP_NAME}",
                           f"<h3>{APP_NAME} {__version__}</h3><p>Documentation: <a href='{DOCS_URL}'>{DOCS_URL}</a></p>"
                           "<p>A model-builder desktop for the open-source "

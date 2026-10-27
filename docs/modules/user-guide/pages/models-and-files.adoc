@@ -57,9 +57,18 @@ Everything in the model is a node of the Model Builder tree:
 * *Rename* with kbd:[F2]; *Duplicate* with kbd:[Ctrl+Shift+D]; *Delete* with kbd:[Delete].
 * *Disable* (kbd:[F3]) and *Enable* (kbd:[F4]) a node to leave it out of the model without losing its settings.
 * *Reorder* with kbd:[Ctrl+Up] and kbd:[Ctrl+Down]. Order matters in the geometry sequence (features build top to bottom) and among physics features (later wins).
-* *Undo* (kbd:[Ctrl+Z]) and *Redo* (kbd:[Ctrl+Y]) cover every change to the tree and to settings.
+* *Undo* (kbd:[Ctrl+Z]) and *Redo* (kbd:[Ctrl+Y] or kbd:[Ctrl+Shift+Z]) cover every change to the tree and to settings.
 
 After a change, the geometry and mesh are rebuilt the next time they are needed (for example when you compute).
+
+[#recovery]
+== Recovery
+
+While a model has unsaved changes, Elmer Studio writes a recovery checkpoint every minute and before every computation. Set the interval in menu:File[Preferences...]. The checkpoint is removed when you save, open another model or close normally. If Elmer Studio ends any other way (a crash, a power cut, a killed process), the next start opens the *Recovery Files* window, as COMSOL does. It lists each unsaved model with its time and file name, and names the computation that was running. menu:File[Recovery Files...] opens the same window later.
+
+*Open* opens the model as unsaved, under its file name; the file itself still holds the last saved version, so save to keep the recovered one. The solutions of the interrupted session are reused when they are still there, but a computation that was running may have left an incomplete solution, so compute it again. *Delete* discards a checkpoint and *Later* keeps it for the next start.
+
+Checkpoints are stored per user (`%LOCALAPPDATA%\ElmerStudio\recovery` on Windows, `~/Library/Application Support/ElmerStudio/recovery` on macOS, `~/.local/state/ElmerStudio/recovery` on Linux).
 
 == Exporting
 

@@ -4,12 +4,13 @@ from __future__ import annotations
 import csv
 import datetime as _dt
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor, QFont, QTextCursor
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QFont, QTextCursor
 from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QPlainTextEdit,
-                               QProgressBar, QTableWidget, QTableWidgetItem, QToolButton, QVBoxLayout, QWidget)
+                               QProgressBar, QTableWidget, QTableWidgetItem, QTextBrowser, QToolButton, QVBoxLayout,
+                               QWidget)
 
-from . import icons
+from . import icons, theme
 
 
 def _toolbar(parent, buttons):
@@ -23,6 +24,7 @@ def _toolbar(parent, buttons):
         b.setIcon(icons.icon(icon_name))
         b.setIconSize(QSize(16, 16))
         b.setToolTip(tip)
+        b.setAccessibleName(tip)
         b.setAutoRaise(True)
         b.clicked.connect(cb)
         h.addWidget(b)
@@ -31,6 +33,9 @@ def _toolbar(parent, buttons):
 
 
 class MessagesPane(QWidget):
+    """One line per action. A message about a node links to it: click the link to select the node."""
+    nodeLinkClicked = Signal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         v = QVBoxLayout(self)
@@ -38,19 +43,27 @@ class MessagesPane(QWidget):
         v.setSpacing(0)
         bar, _ = _toolbar(self, [("clear", "Clear", self.clear), ("copy", "Copy All", self.copy_all)])
         v.addWidget(bar)
-        self.view = QPlainTextEdit(self)
+        self.view = QTextBrowser(self)
         self.view.setObjectName("MessagesPlain")
-        self.view.setReadOnly(True)
+        self.view.setOpenLinks(False)
+        self.view.anchorClicked.connect(lambda url: self.nodeLinkClicked.emit(url.toString().split(":", 1)[-1]))
         v.addWidget(self.view, 1)
 
-    def add(self, text: str, kind="info"):
+    def add(self, text: str, kind="info", node=None):
+        """*kind*: info, warning or error (colored and prefixed, so not by color alone); *node*: a Node (or tag) the
+        message is about, shown as a link to it."""
         stamp = _dt.datetime.now().strftime("[%b %d, %Y, %I:%M %p]").replace(" 0", " ")
-        color = {"error": "#c0392b", "warning": "#b36b00"}.get(kind)
-        line = f"{stamp} {text}"
-        if color:
-            self.view.appendHtml(f'<span style="color:{color}">{_esc(line)}</span>')
-        else:
-            self.view.appendHtml(_esc(line))
+        color = {"error": theme.ERROR, "warning": "#b36b00"}.get(kind)
+        prefix = {"error": "Error: ", "warning": "Warning: "}.get(kind, "")
+        if prefix and text.lower().startswith(prefix.lower()):
+            prefix = ""
+        body = _esc(f"{prefix}{text}")
+        if node is not None:
+            tag = node if isinstance(node, str) else node.tag
+            label = tag if isinstance(node, str) else (node.label or tag)
+            body += f' &nbsp;<a href="node:{_esc(tag)}">[{_esc(label)}]</a>'
+        line = f"{_esc(stamp)} {body}"
+        self.view.append(f'<span style="color:{color}">{line}</span>' if color else line)
         self.view.moveCursor(QTextCursor.End)
 
     def clear(self):
@@ -80,7 +93,7 @@ class LogPane(QWidget):
         self.view.setLineWrapMode(QPlainTextEdit.NoWrap)
         f = QFont("Consolas")
         f.setStyleHint(QFont.Monospace)
-        f.setPointSize(8)
+        f.setPointSizeF(theme.pt("mono"))
         self.view.setFont(f)
         v.addWidget(self.view, 1)
         self._buf: list[str] = []
@@ -100,12 +113,13 @@ class ProgressPane(QWidget):
         super().__init__(parent)
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
-        self.table = QTableWidget(0, 3, self)
-        self.table.setHorizontalHeaderLabels(["Description", "Progress", "Convergence"])
+        self.table = QTableWidget(0, 4, self)
+        self.table.setHorizontalHeaderLabels(["Description", "Progress", "Convergence", "Parameter / Value"])
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.table.setColumnWidth(2, 120)
+        self.table.setColumnWidth(3, 220)
         v.addWidget(self.table)
 
     def start(self, description):
@@ -113,8 +127,9 @@ class ProgressPane(QWidget):
         self._rows: dict[str, int] = {}
         self.set(description, 0.0)
 
-    def set(self, description, frac=None, conv=None):
-        """One row per description; frac None keeps the bar, conv None keeps the convergence text."""
+    def set(self, description, frac=None, conv=None, value=None):
+        """One row per description; frac None keeps the bar, conv/value None keep the convergence and the
+        parameter/value text (time step, sweep value, iteration)."""
         rows = getattr(self, "_rows", {})
         self._rows = rows
         if description not in rows:
@@ -126,12 +141,15 @@ class ProgressPane(QWidget):
             bar.setValue(0)
             self.table.setCellWidget(r, 1, bar)
             self.table.setItem(r, 2, QTableWidgetItem(""))
+            self.table.setItem(r, 3, QTableWidgetItem(""))
             rows[description] = r
         r = rows[description]
         if frac is not None:
             self.table.cellWidget(r, 1).setValue(int(round(100 * max(0.0, min(1.0, frac)))))
         if conv is not None:
             self.table.item(r, 2).setText(conv)
+        if value is not None:
+            self.table.item(r, 3).setText(value)
 
     def finish_all(self):
         for r in range(self.table.rowCount()):
@@ -147,7 +165,7 @@ class TablePane(QWidget):
         bar, h = _toolbar(self, [("copy", "Copy Table to Clipboard", self.copy), ("data_export", "Export (CSV)", self.export),
                                  ("clear", "Clear", self.clear)])
         self.title = QLabel("")
-        self.title.setStyleSheet("color:#555; padding-left:8px;")
+        self.title.setObjectName("TableTitle")
         h.insertWidget(3, self.title)
         v.addWidget(bar)
         self.table = QTableWidget(0, 0, self)
@@ -227,7 +245,7 @@ class ConvergencePlot(MplCanvas):
         ax.set_yscale("log")
         ax.set_xlabel("Iteration")
         ax.set_ylabel("Relative change")
-        ax.set_title("Convergence Plot", fontsize=10)
+        ax.set_title("Convergence Plot", fontsize=theme.plot_pt("plot_legend"))
         ax.grid(True, which="both", color="#e1e4e8", lw=0.7)
         for sp in ax.spines.values():
             sp.set_color("#8a9099")
@@ -245,6 +263,6 @@ class ConvergencePlot(MplCanvas):
             x, y = zip(*pts)
             self.ax.plot(x, y, "-o", ms=3, lw=1.3, color=colors[i % len(colors)], label=k)
         if self.series:
-            self.ax.legend(fontsize=7, loc="upper right")
+            self.ax.legend(fontsize=theme.plot_pt("plot_small") - 1, loc="upper right")
         self.fig.tight_layout()
         self.draw()

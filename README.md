@@ -128,8 +128,8 @@ Added with it:
 
 | COMSOL concept | Elmer Studio | Elmer back end |
 |---|---|---|
-| Model Builder / Settings / Graphics / Messages, Progress, Log, Table | same windows, dockable, *Reset Desktop* | — |
-| Ribbon: Home, Definitions, Geometry, Materials, Physics, Mesh, Study, Results, Developer | same tabs and groups, Quick Access Toolbar, File menu | — |
+| Model Builder / Settings / Graphics / Messages, Progress, Log, Table | same windows, dockable; Widescreen and Regular Screen layouts, *Reset Desktop*, maximize Graphics | — |
+| Ribbon: Home, Definitions, Geometry, Materials, Physics, Mesh, Study, Results, Developer | same tabs and groups, Quick Access Toolbar, File menu; groups fold into menus in a narrow window, *Minimize the Ribbon*, contextual plot group tab; unavailable commands say why | — |
 | Model Wizard (space dimension → physics → study), Blank Model, Application Libraries | yes; 9 example models | — |
 | Parameters with units (`10[mm]`, `20[degC]`), Variables, Analytic and Interpolation functions | yes, unit-aware evaluation, parameter table Load/Save | MATC expressions, tables |
 | Geometry: Block, Sphere, Cylinder, Cone, Torus, Ellipsoid, Rectangle, Circle, Ellipse, Polygon, Work Plane + Extrude/Revolve, Union/Difference/Intersection, Move/Copy/Rotate/Scale/Mirror/Array, Fillet/Chamfer, STEP/IGES/BREP import, Form Union | yes, with length units, Build Selected (F7) / Build All (F8) | gmsh / OpenCASCADE |
@@ -140,7 +140,11 @@ Added with it:
 | Results: 3D/2D/1D/polar plot groups; Surface, Volume, Slice, Multislice, Isosurface, Contour, Arrow, Streamline, Mesh, Line, Annotation, Deformation, Selection, Color Expression, Line Graph, Global, Point Graph, Table Graph, polar Line Graph; datasets Solution, Cut Line, Cut Point, Cut Plane, Parametric Extrusion, Revolution 2D, Mirror; color tables; unit conversion | yes | VTU results |
 | Derived values: Volume/Surface Integration, Average (2D axisymmetric: in the revolved geometry), Maximum, Minimum, Point Evaluation, Global (eigenfrequencies, operators, variables) → Tables | yes | — |
 | Export: Image, Data (CSV), VTU, HTML Report; Convergence Plot during solve | yes | — |
-| Undo/Redo, rename, duplicate, disable/enable, move, context menus, keyboard shortcuts | yes | — |
+| Undo/Redo, rename, duplicate, disable/enable, move, context menus, keyboard shortcuts (incl. Ctrl+Tab, Ctrl+Alt+arrows, F1 help per node) | yes | — |
+| Model Builder filter, node marks (error, warning, needs update) with explanations | yes | — |
+| Settings: Enter applies, Esc restores, inline errors, Ctrl+Space completion, multi-row paste as one undo, Paste Selection | yes | — |
+| Hidden entities by Up/Down, red/green hover; status bar for geometry, mesh and solution state | yes | — |
+| Recovery Files after a crash | unsaved models, with the job that was running | — |
 | Model file with solutions (`.mph`) | `.esm` (zip of model JSON + solutions + imported CAD files, with a SHA-256 manifest checked on open) | — |
 | Solver convergence (stop on non-convergence) | linear abort; Newton and coupling exhaustion stop the study or are kept, marked not converged | `Linear System Abort Not Converged` |
 | Method/Java shell | *Developer > Run Python Script* (scripting API, see below); *Show Elmer Input File*; *Export Elmer Case* | `.sif` |
@@ -185,6 +189,8 @@ Other test suites:
 - `tests/test_examples.py` solves all 9 examples.
 - `tests/test_runner_results.py` covers the parametric sweep, integrals, point/line evaluation and the save/load round trip.
 - `tests/test_gui_smoke.py` drives the real main window through nearly every command and fails on any exception or error message.
+- `tests/test_desktop.py` replays real keyboard and mouse events (QTest), including VTK picking in the Graphics window, and fails on any enabled command that does nothing; `tests/test_desktop_scaling.py` runs the app's own `--selftest-ui` at 100-200 % display scaling (also run on the packaged app by `packaging/build.py`); `tests/test_recovery.py` kills a session and recovers it.
+- `tools/reference_corpus.py` captures twelve task states with their commands, focus and the COMSOL manual page each corresponds to.
 - `tools/screenshot_tour.py` regenerates the screenshots in `docs/modules/ROOT/images/screenshots/`.
 
 ## Scripting

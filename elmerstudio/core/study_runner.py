@@ -146,6 +146,7 @@ class StudyRunner:
             if pname:
                 desc = ", ".join(f"{k} = {v:g}" for k, v in combos[vi].items())
                 self.emit("message", f"Parametric sweep: {desc}  ({vi + 1}/{len(values)})")
+                self.emit("sweep", f"{desc} ({vi + 1}/{len(values)})")
             self.emit("progress", (job / total, "Meshing"))
             if self._stop.is_set():
                 raise StudyCancelled()

@@ -15,7 +15,7 @@ The tooltip of every toolbar and ribbon button shows its shortcut. On macOS, kbd
 |kbd:[Ctrl+Shift+S] |Save As... |
 3+h|Editing the model
 |kbd:[Ctrl+Z] |Undo |Any change to the model tree or a setting.
-|kbd:[Ctrl+Y] |Redo |
+|kbd:[Ctrl+Y] or kbd:[Ctrl+Shift+Z] |Redo |
 |kbd:[Delete] |Delete |The selected node.
 |kbd:[F2] |Rename |The selected node's label.
 |kbd:[Ctrl+Shift+D] |Duplicate |The selected node (with its children).
@@ -29,7 +29,25 @@ The tooltip of every toolbar and ribbon button shows its shortcut. On macOS, kbd
 |kbd:[Ctrl+=] |Compute |Solves the current study.
 3+h|View
 |kbd:[F5] |Zoom Extents |Fits the model into the Graphics window.
-|kbd:[F1] |Documentation |Opens this documentation in your web browser. The *?* button at the right of the ribbon does the same; menu:File[About Elmer Studio] shows the version and the Elmer in use.
+|kbd:[Ctrl+A] |Select All |All entities of the active selection list (in the Graphics window).
+|kbd:[Ctrl+D] |Clear Selection |The active selection list.
+3+h|Moving around (as in COMSOL)
+|kbd:[Ctrl+Tab] |Next window |Model Builder, Settings, Graphics, Messages, in turn.
+|kbd:[Ctrl+Shift+Tab] |Previous window |
+|kbd:[Ctrl+Alt+Left] |Model Builder |Puts the keyboard focus in the tree.
+|kbd:[Ctrl+Alt+Right] |Settings |Puts the focus in the first field of the Settings window.
+|kbd:[Ctrl+Alt+Up], kbd:[Ctrl+Alt+Down] |Previous, next section |Of the Settings window.
+|kbd:[Alt+Left], kbd:[Alt+Right] |Go Back, Go Forward |Through the nodes you selected.
+|kbd:[Ctrl+L] |Filter |The Model Builder's filter field.
+|kbd:[Shift+F10] |Context menu |Of the selected node.
+3+h|Settings fields
+|kbd:[Enter] |Apply |Applies the field (leaving the field does too). The focus stays in the field.
+|kbd:[Esc] |Restore |Puts back the applied value of the field you are typing in.
+|kbd:[Ctrl+Space] |Complete |Lists the parameters, variables, functions and constants for an expression.
+|kbd:[Ctrl+V] |Paste rows |In a Parameters or Variables table: several rows at once, one undo step.
+3+h|Help
+|kbd:[F1] |Help |The documentation of the selected node: its section of the xref:reference:index.adoc[Reference].
+|kbd:[Ctrl+F1] |Documentation |The front page of this documentation. menu:File[About Elmer Studio] shows the version and the Elmer in use.
 |===
 
 Standard keys work in the Model Builder tree as in any tree view: the arrow keys move through it, and kbd:[Right] and kbd:[Left] expand and collapse branches.
@@ -44,7 +62,8 @@ Standard keys work in the Model Builder tree as in any tree view: the arrow keys
 |Right-drag |Pan
 |Wheel |Zoom
 |Left-click |Select or deselect the entity under the cursor (when a selection list is active)
-|Hover |Highlight the entity under the cursor in red; the status bar names it (for example `Boundary 6`)
+|Hover |Highlight the entity under the cursor: red if a click adds it, green if it's already selected and a click removes it. The status bar names it, for example `Boundary 6`.
+|kbd:[Up] / kbd:[Down] (or kbd:[+] / kbd:[-]) |Step through the entities under the cursor, front to back, to reach a hidden face. The status bar says which one is highlighted (`2 of 3 under the cursor`); click to select it.
 |===
 
 In 2D and 2D axisymmetric models there is nothing to rotate, so left-drag pans as well.
@@ -55,8 +74,8 @@ A click selects only when the mouse didn't move. A small drag rotates or pans wi
 
 . Select a feature with a selection, for example *Temperature 1*, in the Model Builder. Its selection list becomes *active*: the green button next to the list is on, and the Graphics window shows the selection level (domains, boundaries, edges or points).
 . Hover to find the entity, then click it to add it (blue). Click a blue entity to remove it.
-. Use *Select All* or *Clear Selection* in the Graphics toolbar, or the *+*, *−* and clear buttons beside the list.
-. Turn on *Transparency* to reach faces behind others, and *Show Labels* to see the entity numbers.
+. Use *Select All* or *Clear Selection* in the Graphics toolbar (kbd:[Ctrl+A], kbd:[Ctrl+D]), or the buttons beside the list. *Paste Selection* takes typed numbers such as `+1, 3-5 and 8+`.
+. To reach a face behind others, hover over it and press kbd:[Down] until it's highlighted, then click. Or turn on *Transparency*. *Show Labels* shows the entity numbers.
 
 For selections that should survive geometry changes, use a geometry *Box Selection*. See xref:user-guide:selections.adoc[Selections].
 

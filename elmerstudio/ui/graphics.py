@@ -5,20 +5,42 @@ import os
 import time
 
 import numpy as np
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
-from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QMenu, QSizePolicy, QToolButton, QVBoxLayout, QWidget
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer, Signal
+from PySide6.QtWidgets import QFileDialog, QLabel, QSizePolicy, QToolBar, QToolButton, QVBoxLayout, QWidget
 
-from . import icons
+from . import icons, theme
 
 FACE = np.array([205, 207, 212], np.uint8)
 FACE_2D = np.array([214, 217, 222], np.uint8)
 SELECTED = np.array([38, 92, 225], np.uint8)
-HOVER = np.array([226, 46, 46], np.uint8)
+HOVER = np.array([226, 46, 46], np.uint8)          # hovering an entity that is not selected: a click adds it
+HOVER_SELECTED = np.array([40, 170, 70], np.uint8)  # hovering a selected one: a click removes it (COMSOL's green)
 LISTED = np.array([90, 190, 245], np.uint8)
 EDGE = np.array([20, 20, 24], np.uint8)
 MESH_FACE = (0.78, 0.86, 0.94)
 BG_BOTTOM = (0.78, 0.82, 0.88)
 BG_TOP = (1.0, 1.0, 1.0)
+# graphics themes (Preferences): the working view, and the theme image exports use whatever the view uses
+THEMES = {
+    "light": {"bottom": BG_BOTTOM, "top": BG_TOP, "text": (0.1, 0.1, 0.12)},
+    "white": {"bottom": (1.0, 1.0, 1.0), "top": None, "text": (0.1, 0.1, 0.12)},
+    "dark": {"bottom": (0.13, 0.14, 0.16), "top": (0.30, 0.32, 0.36), "text": (0.92, 0.93, 0.95)},
+}
+_text_rgb = THEMES["light"]["text"]
+
+
+class _Keys(QObject):
+    """Keys in the Graphics window: Up/Down (or +/-) step through the entities under the cursor, front to back, to
+    reach hidden ones (as in COMSOL)."""
+
+    def __init__(self, view):
+        super().__init__(view)
+        self.view = view
+
+    def eventFilter(self, obj, ev):
+        if ev.type() == QEvent.KeyPress and ev.key() in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Plus, Qt.Key_Minus):
+            return self.view.cycle_candidate(1 if ev.key() in (Qt.Key_Down, Qt.Key_Plus) else -1)
+        return False
 
 
 class Scene:
@@ -43,11 +65,13 @@ class GraphicsView(QWidget):
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(0)
-        self.toolbar = QWidget(self)
+        # a QToolBar: buttons that do not fit a narrow window move to its >> menu instead of being cut off
+        self.toolbar = QToolBar(self)
         self.toolbar.setObjectName("GraphicsToolbar")
-        self.tb = QHBoxLayout(self.toolbar)
-        self.tb.setContentsMargins(4, 2, 4, 2)
-        self.tb.setSpacing(1)
+        self.toolbar.setIconSize(QSize(16, 16))
+        self.toolbar.setMovable(False)
+        self.toolbar.setAccessibleName("Graphics toolbar")
+        self.tb = self.toolbar
         v.addWidget(self.toolbar)
         try:
             import pyvista as pv
@@ -77,9 +101,20 @@ class GraphicsView(QWidget):
         self._press = None
         self._last_hover = 0.0
         self._cam_key = None
+        self.draws = 0                  # redraws (tests: a command visibly acted)
+        self._mouse = None              # last cursor position (VTK display coordinates)
+        self._cands: list[int] = []     # entities under the cursor, front to back
+        self._cand_pos = None
+        self.theme_name = "light"
+        self.export_theme = "white"
+        self._last_show = None          # (method, args, kwargs) of the shown scene, to redraw it in another theme
         self._build_toolbar()
         if self._ok:
             self._setup_vtk()
+            self._keys = _Keys(self)
+            self.plotter.interactor.installEventFilter(self._keys)
+            self.plotter.interactor.setFocusPolicy(Qt.StrongFocus)
+            self.plotter.interactor.setAccessibleName("Graphics")
 
     # ------------------------------------------------------------------ toolbar
     def _tool(self, icon_name, tip, cb, checkable=False):
@@ -87,6 +122,7 @@ class GraphicsView(QWidget):
         b.setIcon(icons.icon(icon_name))
         b.setIconSize(QSize(16, 16))
         b.setToolTip(tip)
+        b.setAccessibleName(tip)
         b.setAutoRaise(True)
         b.setCheckable(checkable)
         if checkable:
@@ -97,9 +133,7 @@ class GraphicsView(QWidget):
         return b
 
     def _sep(self):
-        s = QLabel("|")
-        s.setStyleSheet("color:#c9cdd2; padding: 0 3px;")
-        self.tb.addWidget(s)
+        self.tb.addSeparator()
 
     def _build_toolbar(self):
         self._tool("zoom_in", "Zoom In", lambda: self.zoom(1.25))
@@ -113,8 +147,8 @@ class GraphicsView(QWidget):
         self.b_zx = self._tool("view_zx", "Go to ZX View", lambda: self.view("zx"))
         self.b_persp = self._tool("perspective", "Orthographic/Perspective Projection", self.toggle_projection, True)
         self._sep()
-        self._tool("select_all", "Select All", self.select_all)
-        self._tool("clear_selection", "Clear Selection", self.clear_selection)
+        self._tool("select_all", "Select All (Ctrl+A)", self.select_all)
+        self._tool("clear_selection", "Clear Selection (Ctrl+D)", self.clear_selection)
         self._sep()
         self.b_transp = self._tool("transparency", "Transparency", self.set_transparency, True)
         self.b_wire = self._tool("wireframe", "Wireframe Rendering", self.set_wireframe, True)
@@ -126,16 +160,23 @@ class GraphicsView(QWidget):
         self.b_labels = self._tool("legend", "Show Labels (entity numbers)", self.set_labels, True)
         self._sep()
         self._tool("snapshot", "Image Snapshot", self.snapshot_dialog)
-        self.tb.addStretch(1)
+        spacer = QWidget(self.toolbar)
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.tb.addWidget(spacer)
         self.info = QLabel("")
-        self.info.setStyleSheet("color:#555; padding-right:6px;")
+        self.info.setObjectName("GraphicsInfo")
         self.tb.addWidget(self.info)
+        ext = self.toolbar.findChild(QToolButton, "qt_toolbar_ext_button")
+        if ext is not None:                          # the >> button of a narrow window, for screen readers too
+            ext.setAccessibleName("More Graphics tools")
+            ext.setToolTip("More Graphics tools")
 
     # ------------------------------------------------------------------ vtk setup
     def _setup_vtk(self):
         import vtk
         p = self.plotter
         p.set_background(BG_BOTTOM, top=BG_TOP)
+        self._sync_dpi()
         self._axes_on = True
         p.add_axes(interactive=False, line_width=2, labels_off=False, color="black",
                    x_color=(0.85, 0.15, 0.15), y_color=(0.15, 0.6, 0.15), z_color=(0.15, 0.3, 0.85))
@@ -182,16 +223,87 @@ class GraphicsView(QWidget):
 
     def _mmove(self, obj, ev):
         obj.OnMouseMove()
+        self._mouse = self._pos()
         if self._press is None and self.level and self.mode == "geometry":
             now = time.time()
             if now - self._last_hover > 0.04:
                 self._last_hover = now
+                self._cands, self._cand_pos = [], None          # the cursor moved: a new stack of candidates
                 h = self._pick(self._pos())
                 if h != self.hover:
                     self.hover = h
                     self._recolor()
                     if h is not None:
-                        self.status.emit(f"{self.level.capitalize()} {h}")
+                        self.status.emit(f"{self.level.capitalize()} {h}"
+                                         + (" (selected: click to remove)" if h in self.selected else ""))
+
+    # ------------------------------------------------------------------ hidden entities
+    def candidates_at(self, pos) -> list[int]:
+        """Entities of the active level under display position *pos*, nearest first (every face the view ray
+        crosses; edges and points within a few pixels)."""
+        if self.geo is None or not self.level or not self._ok:
+            return []
+        lvl, sd = self.level, self.sdim
+        r = self.plotter.renderer
+        out: list[int] = []
+        if (sd == 3 and lvl in ("domain", "boundary")) or (sd == 2 and lvl == "domain"):
+            fm = getattr(self, "_face_mesh", None)
+            if fm is None or not len(self._face_ids):
+                return []
+            pts = []
+            for z in (0.0, 1.0):
+                r.SetDisplayPoint(float(pos[0]), float(pos[1]), z)
+                r.DisplayToWorld()
+                w = r.GetWorldPoint()
+                pts.append(np.array(w[:3]) / (w[3] or 1.0))
+            try:
+                hit, cells = fm.ray_trace(pts[0], pts[1], first_point=False)
+            except Exception:  # noqa: BLE001 - no OBB tree on an empty mesh
+                return []
+            order = np.argsort(np.linalg.norm(np.asarray(hit).reshape(-1, 3) - pts[0], axis=1)) if len(cells) else []
+            for k in order:
+                c = int(cells[k])
+                if 0 <= c < len(self._face_ids):
+                    ent = int(self._face_ids[c])
+                    ents = self.geo.adj_up["boundary"].get(ent, []) if (sd == 3 and lvl == "domain") else [ent]
+                    out += [int(e) for e in ents if int(e) not in out]
+            return out
+        # curves and points: by distance on the screen
+        if lvl == "point":
+            src = {int(k): np.asarray(v, float).reshape(1, 3) for k, v in self.geo.display.get("point", {}).items()}
+        else:
+            src = {int(k): P for k, (P, _S) in self.geo.display.get(lvl if lvl in ("edge", "boundary") else "", {}).items()}
+        best = []
+        for ent, P in src.items():
+            d = min(abs(x - pos[0]) + abs(y - pos[1]) for x, y in self._to_display(P))
+            if d < 12:
+                best.append((d, ent))
+        return [e for _d, e in sorted(best)]
+
+    def _to_display(self, P):
+        r = self.plotter.renderer
+        out = []
+        for p in np.asarray(P, float).reshape(-1, 3):
+            r.SetWorldPoint(float(p[0]), float(p[1]), float(p[2]), 1.0)
+            r.WorldToDisplay()
+            out.append(r.GetDisplayPoint()[:2])
+        return out
+
+    def cycle_candidate(self, step: int) -> bool:
+        """Highlight the next (step 1) or previous entity under the cursor; a click then selects it."""
+        if self.mode != "geometry" or not self.level or self._mouse is None:
+            return False
+        if not self._cands or self._cand_pos != self._mouse:
+            self._cands, self._cand_pos = self.candidates_at(self._mouse), self._mouse
+        if not self._cands:
+            return False
+        i = self._cands.index(self.hover) if self.hover in self._cands else -1
+        self.hover = self._cands[(i + step) % len(self._cands)]
+        self._recolor()
+        k = self._cands.index(self.hover) + 1
+        self.status.emit(f"{self.level.capitalize()} {self.hover} ({k} of {len(self._cands)} under the cursor; "
+                         "click to select it)")
+        return True
 
     # ------------------------------------------------------------------ picking
     def _pick(self, pos) -> int | None:
@@ -245,14 +357,20 @@ class GraphicsView(QWidget):
     def _click(self, pos, ctrl):
         if self.mode != "geometry" or not self.level:
             return
-        ent = self._pick(pos)
+        stepped = self._cands and self._cand_pos is not None and self.hover in self._cands and \
+            abs(pos[0] - self._cand_pos[0]) + abs(pos[1] - self._cand_pos[1]) < 4
+        ent = self.hover if stepped else self._pick(pos)       # the entity stepped to with Up/Down
         if ent is not None:
             self.entityClicked.emit(self.level, ent, ctrl)
 
     # ------------------------------------------------------------------ geometry scene
     def show_geometry(self, geo, level=None, selected=(), material_colors=None, reset_camera=None, labels=None):
+        self.draws += 1
         if not self._ok:
             return
+        self._last_show = ("geometry", (geo,), {"level": level, "selected": selected,
+                                                "material_colors": material_colors, "labels": labels})
+        self._cands, self._cand_pos = [], None
         self._labels_level = labels or (self._labels_level if getattr(self, "labels_on", False) else None)
         import pyvista as pv
         self.mode = "geometry"
@@ -364,7 +482,8 @@ class GraphicsView(QWidget):
                 txt.append(str(num))
         if pts:
             import pyvista as pv
-            self.plotter.add_point_labels(pv.PolyData(np.array(pts)), txt, font_size=12, point_size=1,
+            self.plotter.add_point_labels(pv.PolyData(np.array(pts)), txt, font_size=theme.plot_pt("plot_title"),
+                                          point_size=1,
                                           text_color="black", shape_color="lightyellow", shape="rect",
                                           shape_opacity=0.9, margin=2, bold=True, always_visible=True,
                                           name="labels", show_points=False)
@@ -416,12 +535,12 @@ class GraphicsView(QWidget):
                 rgb[np.isin(ids, faces_of(lst))] = LISTED
                 rgb[np.isin(ids, faces_of(sel))] = SELECTED
                 if hov is not None:
-                    rgb[np.isin(ids, faces_of([hov]))] = HOVER
+                    rgb[np.isin(ids, faces_of([hov]))] = HOVER_SELECTED if hov in sel else HOVER
             elif (sd == 3 and lvl == "boundary") or (sd == 2 and lvl == "domain"):
                 rgb[np.isin(ids, list(lst))] = LISTED
                 rgb[np.isin(ids, list(sel))] = SELECTED
                 if hov is not None:
-                    rgb[ids == hov] = HOVER
+                    rgb[ids == hov] = HOVER_SELECTED if hov in sel else HOVER
             fm.cell_data["rgb"] = rgb
         cm = getattr(self, "_curve_mesh", None)
         if cm is not None and len(self._curve_ids):
@@ -431,7 +550,7 @@ class GraphicsView(QWidget):
                 rgb[np.isin(ids, list(lst))] = LISTED
                 rgb[np.isin(ids, list(sel))] = SELECTED
                 if hov is not None:
-                    rgb[ids == hov] = HOVER
+                    rgb[ids == hov] = HOVER_SELECTED if hov in sel else HOVER
             cm.cell_data["rgb"] = rgb
             a = self._actors.get("curves")
             if a is not None:
@@ -443,7 +562,7 @@ class GraphicsView(QWidget):
             if lvl == "point":
                 rgb[np.isin(self._point_ids, list(sel))] = SELECTED
                 if hov is not None:
-                    rgb[self._point_ids == hov] = HOVER
+                    rgb[self._point_ids == hov] = HOVER_SELECTED if hov in sel else HOVER
             pm.point_data["rgb"] = rgb
             a = self._actors.get("points")
             if a is not None:
@@ -453,8 +572,10 @@ class GraphicsView(QWidget):
 
     # ------------------------------------------------------------------ mesh scene
     def show_mesh(self, mesh_result, quality=False, reset_camera=None):
+        self.draws += 1
         if not self._ok:
             return
+        self._last_show = ("mesh", (mesh_result,), {"quality": quality})
         import pyvista as pv
         from ..core.results import Topology
         self.mode = "mesh"
@@ -498,8 +619,10 @@ class GraphicsView(QWidget):
 
     # ------------------------------------------------------------------ results scene
     def show_scene(self, scene: Scene, reset_camera=None):
+        self.draws += 1
         if not self._ok:
             return
+        self._last_show = ("scene", (scene,), {})
         self.mode = "results"
         self.level = None
         self.sdim = scene.sdim
@@ -526,8 +649,8 @@ class GraphicsView(QWidget):
             import pyvista as pv
             try:
                 p.add_point_labels(pv.PolyData(np.array([np.asarray(t[0], float)[:3] for t in pts])),
-                                   [str(t[1]) for t in pts], font_size=11, point_size=7, point_color="black",
-                                   text_color="black", shape_color="white", shape_opacity=0.75, margin=2,
+                                   [str(t[1]) for t in pts], font_size=theme.plot_pt("plot_annotation"), point_size=7,
+                                   point_color="black", text_color="black", shape_color="white", shape_opacity=0.75, margin=2,
                                    always_visible=True, name="annotations",
                                    show_points=any(len(t) < 3 or t[2] for t in pts))
             except Exception as exc:
@@ -536,7 +659,7 @@ class GraphicsView(QWidget):
             import vtk
             t = vtk.vtkTextActor()
             t.SetInput(scene.title)
-            _font(t.GetTextProperty(), 12)
+            _font(t.GetTextProperty(), theme.plot_pt("plot_title"))
             t.GetTextProperty().SetVerticalJustificationToTop()
             t.GetPositionCoordinate().SetCoordinateSystemToNormalizedViewport()
             t.SetPosition(0.008, 0.985)
@@ -555,9 +678,11 @@ class GraphicsView(QWidget):
         import vtk
         p = self.plotter
         lo, hi = float(clim[0]), float(clim[1])
-        if hi <= lo:
-            hi = lo + max(abs(lo) * 1e-6, 1e-30)
+        true_lo, true_hi = getattr(clim, "data", None) or (lo, hi)      # the data's own min/max for the markers
         big = max(abs(lo), abs(hi))
+        if hi <= lo:                 # a constant field: a band around the value, labelled with the value itself
+            d = abs(lo) * 0.01 if lo else 1.0
+            lo, hi = lo - d, hi + d
         exp = int(math.floor(math.log10(big))) if big > 0 else 0
         exp = exp if (exp >= 4 or exp <= -3) else 0
         sc = 10.0 ** (-exp)
@@ -596,16 +721,16 @@ class GraphicsView(QWidget):
         sb.DrawFrameOff()
         sb.UnconstrainedFontSizeOn()
         for tp in (sb.GetLabelTextProperty(), sb.GetTitleTextProperty()):
-            _font(tp, 10)
+            _font(tp, theme.plot_pt("plot_legend"))
         sb.SetTitle("")
         p.add_actor(sb, name=f"legend{index}")
-        texts = [(f"▲ {_fmt(hi)}", 0.855), (f"▼ {_fmt(lo)}", 0.07)] if maxmin else []
+        texts = [(f"▲ {_fmt(true_hi)}", 0.855), (f"▼ {_fmt(true_lo)}", 0.07)] if maxmin else []
         if exp:
             texts.append((f"×10{_sup(exp)}", 0.825))
         for k, (s, y) in enumerate(texts):
             t = vtk.vtkTextActor()
             t.SetInput(s)
-            _font(t.GetTextProperty(), 10)
+            _font(t.GetTextProperty(), theme.plot_pt("plot_legend"))
             t.GetPositionCoordinate().SetCoordinateSystemToNormalizedViewport()
             t.SetPosition(x0 + 0.004, y)
             p.add_actor(t, name=f"legend{index}_{k}")
@@ -633,8 +758,41 @@ class GraphicsView(QWidget):
     def clear(self):
         if self._ok:
             self.mode = "empty"
+            self._last_show = None
             self._clear()
             self.plotter.render()
+
+    # ------------------------------------------------------------------ themes and display scaling
+    def _sync_dpi(self):
+        """VTK sizes text in points at the render window's DPI; with Qt's display scaling the window has
+        devicePixelRatio device pixels per logical pixel, so the DPI scales with it (legends keep their size)."""
+        try:
+            dpr = self.plotter.interactor.devicePixelRatioF()
+            self.plotter.ren_win.SetDPI(int(round(72 * max(1.0, dpr))))
+        except Exception:  # noqa: BLE001
+            pass
+
+    def set_theme(self, name: str, redraw=True):
+        global _text_rgb
+        th = THEMES.get(name, THEMES["light"])
+        self.theme_name = name if name in THEMES else "light"
+        _text_rgb = th["text"]
+        if not self._ok:
+            return
+        self.plotter.set_background(th["bottom"], top=th["top"])
+        if redraw:
+            self._replay()
+
+    def _replay(self):
+        if self._last_show is None:
+            self.plotter.render()
+            return
+        kind, args, kw = self._last_show
+        cam = self.plotter.camera_position
+        getattr(self, {"geometry": "show_geometry", "mesh": "show_mesh", "scene": "show_scene"}[kind])(
+            *args, reset_camera=False, **kw)
+        self.plotter.camera_position = cam
+        self.plotter.render()
 
     def _camera_for(self, bb, sdim, reset):
         key = (sdim, tuple(round(float(v), 6) for v in bb))
@@ -672,6 +830,7 @@ class GraphicsView(QWidget):
 
     # ------------------------------------------------------------------ toolbar actions
     def zoom(self, f):
+        self.draws += 1
         if self._ok:
             self.plotter.camera.zoom(f)
             self.plotter.render()
@@ -689,12 +848,14 @@ class GraphicsView(QWidget):
         iren.SetInteractorStyle(st)
 
     def zoom_extents(self):
+        self.draws += 1
         if self._ok:
             self.plotter.reset_camera()
             self.plotter.camera.zoom(0.92)
             self.plotter.render()
 
     def default_view(self):
+        self.draws += 1
         if not self._ok:
             return
         if self.sdim == 2:
@@ -706,6 +867,7 @@ class GraphicsView(QWidget):
         self.plotter.render()
 
     def view(self, which):
+        self.draws += 1
         if not self._ok:
             return
         getattr(self.plotter, f"view_{which}")()
@@ -785,17 +947,26 @@ class GraphicsView(QWidget):
         if getattr(self, "grid_on", False) or (self.sdim == 2 and self.mode in ("geometry", "results", "mesh")):
             try:
                 p.show_bounds(grid=getattr(self, "grid_on", False), location="outer", ticks="outside",
-                              xtitle=" ", ytitle=" ", ztitle=" ", color=(0.25, 0.25, 0.28), font_size=9,
+                              xtitle=" ", ytitle=" ", ztitle=" ", color=_text_rgb, font_size=theme.plot_pt("plot_axis"),
                               show_zaxis=self.sdim == 3, show_zlabels=self.sdim == 3, n_xlabels=6, n_ylabels=5,
                               fmt="%.3g", use_2d=self.sdim == 2)
             except Exception:
                 pass
 
     def snapshot(self, path, w=None, h=None):
+        """Write an image in the export theme (white by default, whatever the working theme is), then go back."""
         if not self._ok:
             return
         size = (w, h) if w and h else None
-        self.plotter.screenshot(path, window_size=size)
+        working = self.theme_name
+        export = working if self.export_theme == "graphics" else self.export_theme
+        if export != working:
+            self.set_theme(export)
+        try:
+            self.plotter.screenshot(path, window_size=size)
+        finally:
+            if export != working:
+                self.set_theme(working)
 
     def snapshot_dialog(self):
         fn, _ = QFileDialog.getSaveFileName(self, "Image Snapshot", "snapshot.png", "PNG image (*.png)")
@@ -818,7 +989,7 @@ def _font(tp, size):
             _FONT_FILE = f if os.path.isfile(f) else ""
         except Exception:
             _FONT_FILE = ""
-    tp.SetColor(0.1, 0.1, 0.12)
+    tp.SetColor(*_text_rgb)
     tp.ShadowOff()
     tp.BoldOff()
     tp.ItalicOff()

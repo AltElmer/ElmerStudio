@@ -17,11 +17,27 @@ image::screenshots/ui_overview_annotated.png[Annotated Elmer Studio desktop,role
 |6 |*Messages*, *Progress*, *Log* and *Table* panes, tabbed together.
 |===
 
-Every window is a dock: drag its title to move it, double-click to float it, or close it. menu:Home[Reset Desktop] restores the default layout.
+Every window is a dock: drag its title to move it, double-click to float it, or close it. menu:Home[Reset Desktop] restores the default arrangement of the current layout.
+
+[#layouts]
+== Layouts
+
+As in COMSOL there are two layouts, under menu:Home[Layout]:
+
+* *Widescreen Layout*: Model Builder, Settings and Graphics side by side.
+* *Regular Screen Layout*: Model Builder above Settings, with Graphics beside them, for narrow, 4:3 or high-scaling screens.
+
+The first start picks one from the screen's size. Each layout remembers its own arrangement: windows you move or close in one come back when you return to it, and *Reset Desktop* resets only the current one. *Maximize Graphics* (or double-click the *Graphics* tab) hides the other windows until you do it again.
+
+Text and controls scale with the operating system's display scaling (100-200 %). menu:File[Preferences...] sets the base font size of the desktop and the plots (it takes effect at the next start).
 
 == Ribbon
 
-The ribbon shows the commands of one stage of the workflow per tab. The *Home* tab collects the most used commands of all stages.
+The ribbon shows the commands of one stage of the workflow per tab. The *Home* tab collects the most used commands of all stages. The *Geometry*, *Materials*, *Physics* and *Mesh* tabs appear once the model has a component. Selecting a plot group adds a contextual tab named after it, with its plots and attributes.
+
+When the window is too narrow for a tab, its groups collapse from the right into one button each, named after the group, whose menu holds all of the group's commands, as in COMSOL. Nothing becomes unreachable at any width. To minimize the ribbon to its tab names, right-click it and choose *Minimize the Ribbon*, or double-click a tab. A tab you click then shows its commands until you choose one.
+
+A command that can't be used right now is greyed out, and its tooltip says why, for example _Unavailable: Add a study first (Home > Add Study)_. The ribbon button, its keyboard shortcut and the Model Builder's context menu are the same command, so they're always available together.
 
 [cols="1,4",options="header"]
 |===
@@ -64,6 +80,20 @@ Right-click a node to see what you can add to it. Every node also has *Rename* (
 
 Double-click a node to build, compute, plot or evaluate it, the same as kbd:[F8].
 
+The *Filter* field above the tree (kbd:[Ctrl+L]) shows only the nodes whose label or name contains the text, plus the branches that lead to them. kbd:[Esc] clears it. Filtering doesn't change the selected node.
+
+Node icons carry marks, and the tooltip says what each one means:
+
+[cols="1,4",options="header"]
+|===
+|Mark |Meaning
+|red cross (lower left) |An error, such as a material missing a property the physics needs.
+|orange triangle (lower left) |A warning, such as a feature with no entities selected, which applies nowhere.
+|asterisk (upper right) |Edited since it was built or computed: the geometry, the mesh, or a study whose solution is out of date.
+|red stroke, grey italic label |Disabled, or inactive because a node above it is disabled.
+|*D* badge |A default feature.
+|===
+
 == Settings window
 
 The Settings window shows the selected node's settings in sections that you can expand and collapse. Typical sections:
@@ -73,7 +103,17 @@ The Settings window shows the selected node's settings in sections that you can 
 * *Equation*: the equation the feature contributes, as COMSOL shows it.
 * the feature's own settings, with the symbol on the left and the SI unit on the right of each field.
 
-Fields accept expressions with parameters, functions, units and, where it makes sense, the dependent variables (`+T+`, `+phil+`, …). A field with an invalid expression turns pink. Results nodes have a *Plot* or *Evaluate* button at the top.
+Fields accept expressions with parameters, functions, units and, where it makes sense, the dependent variables (`+T+`, `+phil+`, …). Results nodes have a *Plot* or *Evaluate* button at the top.
+
+Editing a field works like this:
+
+* What you type is a draft, shown with a dashed border. kbd:[Enter], or leaving the field, applies it as one undoable edit. kbd:[Esc] puts back the applied value.
+* An expression with a syntax or unit error is not applied. The field turns pink and the reason appears in red under it, for example _Not applied: Syntax error_. Your text stays so you can fix it. A name that isn't defined yet is applied and noted in orange, because you may define it later, as in COMSOL.
+* Typing a name, or kbd:[Ctrl+Space], lists the parameters, variables, functions and constants you can use, with their values and descriptions.
+* In the Parameters and Variables tables, kbd:[Ctrl+V] pastes several rows at once, for example from a spreadsheet, as one undo step. kbd:[Delete] clears the selected cells.
+* After an edit that rebuilds the form, the field you were in keeps the focus and the scroll position stays.
+
+A selection section shows how many entities are selected (_3 of 12 boundaries selected_). Its *Paste Selection* button takes typed entity numbers: `+1, 3-5 and 8+` (separated by commas, semicolons, colons, spaces or "and", with ranges as in COMSOL).
 
 == Graphics window
 
@@ -101,15 +141,17 @@ From left to right:
 |Image Snapshot |Save the Graphics window as a PNG file.
 |===
 
-Mouse actions are listed under xref:keyboard-shortcuts.adoc#mouse[Keyboard and mouse].
+Mouse actions are listed under xref:keyboard-shortcuts.adoc#mouse[Keyboard and mouse]. When the window is narrow, toolbar buttons that don't fit move to the toolbar's kbd:[»] menu.
+
+In menu:File[Preferences...], the *Graphics theme* (light gradient, white or dark) and the *Image export theme* are separate settings. Exported images are white by default whatever the working theme is, so they stay readable in documents. A field that has the same value everywhere is plotted as one color, with that value on the legend's max/min markers.
 
 == Messages, Progress, Log and Table
 
 [cols="1,4",options="header"]
 |===
 |Pane |Shows
-|*Messages* |One line per action: geometry and mesh statistics, solver runs, solution times, warnings and errors. When Elmer stops with an error, its own `ERROR::` line is quoted here.
-|*Progress* |The running job: study step, sweep or time step, and a progress bar. menu:Study[Stop] cancels it.
+|*Messages* |One line per action: geometry and mesh statistics, solver runs, solution times, warnings and errors (prefixed _Warning:_ and _Error:_, not only colored). When Elmer stops with an error, its own `ERROR::` line is quoted here. A message about a node ends with a link to it, such as `[Study 1]`; click it to select the node.
+|*Progress* |The running job: one row per stage, with its progress, convergence, and the *Parameter / Value* (time step, sweep value, iteration). menu:Study[Stop] cancels it.
 |*Log* |ElmerSolver's own output, live.
 |*Table* |The results of evaluations (integrals, maxima, point values, global values) and mesh statistics. Copy them, or export them as CSV.
 |===
@@ -121,4 +163,9 @@ While a study runs, a *Convergence Plot* tab next to *Graphics* shows the nonlin
 * *Add Material* (menu:Home[Add Material]): the material library on the right, with a property preview.
 * *Model Wizard* and *New* (menu:File[New]).
 * *Elmer input file* (menu:Study[Show Elmer Input File]): the generated `.sif`, read-only.
-* *Preferences* (menu:File[Preferences...]): the Elmer installation.
+* *Preferences* (menu:File[Preferences...]): the Elmer installation, font size, graphics and export themes, and recovery checkpoints.
+* *Recovery Files* (menu:File[Recovery Files...]): see xref:user-guide:models-and-files.adoc#recovery[Recovery].
+
+== Status bar
+
+The right of the status bar always shows the state of the model: *Geometry* (built, needs update, not built), *Mesh*, and the current study (*not computed*, *solved*, *out of date*, *NOT CONVERGED*, *failed*). A study is out of date when its inputs (geometry, materials, physics, mesh, study settings or parameters) changed since it was computed. Editing a plot doesn't make it out of date. Click an item to go to its node. While a job runs, the status bar shows its name, elapsed time, stage and a *Stop* button. In a narrow window the items shorten to their name and a mark (*ok*, `*` or `!`), and the tooltip keeps the full text.

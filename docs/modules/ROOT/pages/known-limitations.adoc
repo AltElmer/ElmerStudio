@@ -29,6 +29,14 @@ This list is deliberately explicit.
 * Coupling operators work in results, not inside the equations.
 * In the electrochemistry interfaces, there is no electrode (solid-phase) domain, total-current or total-power electrode condition, or double-layer capacitance.
 
+== Desktop
+
+* The desktop has one light theme. The Graphics window has light, white and dark themes, with a separate theme for exported images.
+* kbd:[F1] opens the help in the web browser. There is no Help window inside the desktop.
+* Recovery keeps the unsaved model and reuses the interrupted session's solutions, but cannot continue a solve from where it stopped (COMSOL's *Continue*).
+* The mouse wheel zooms. Hidden entities are reached with kbd:[Up]/kbd:[Down] or kbd:[+]/kbd:[-] (the wheel does not step through them).
+* A font size change takes effect at the next start.
+
 == Approximations
 
 * Integrals over quadratic elements use linearized cells (about 0.1 % on smooth fields). Boundary fluxes from reaction loads, such as electrode currents and heat flows, are exact.

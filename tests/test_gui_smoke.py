@@ -14,6 +14,7 @@ import warnings
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 warnings.filterwarnings("ignore")
+os.environ.setdefault("ELMERSTUDIO_RECOVERY_DIR", tempfile.mkdtemp(prefix="es_recovery_"))
 
 from PySide6.QtCore import QTimer  # noqa: E402
 from PySide6.QtWidgets import QApplication, QDialog, QMenu, QMessageBox  # noqa: E402
@@ -45,11 +46,11 @@ def main():
     w.no_modal = True
     orig_add = w.messages.add
 
-    def msg_add(text, kind="info"):
+    def msg_add(text, kind="info", node=None):
         if kind == "error":
             ERRORS.append(f"message: {text}")
         LOG.append(f"[{kind}] {text}")
-        orig_add(text, kind)
+        orig_add(text, kind, node)
     w.messages.add = msg_add
     w.resize(1500, 900)
     w.show()

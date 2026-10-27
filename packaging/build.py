@@ -166,7 +166,8 @@ def smoke():
     res = os.path.join(DIST, "selftest.txt")
     if os.path.exists(res):
         os.remove(res)
-    cmd = [executable(), "--example", "heat_sink", "--quit-after", "5", "--selftest-out", res, "--selftest-compute"]
+    cmd = [executable(), "--example", "heat_sink", "--quit-after", "5", "--selftest-out", res, "--selftest-compute",
+           "--selftest-ui"]
     print("+", " ".join(cmd), flush=True)
     try:
         subprocess.run(cmd, timeout=180)
@@ -176,6 +177,8 @@ def smoke():
     print("selftest:", txt.strip() or "(no output)", flush=True)
     if not txt.startswith("OK") or "geometry=built" not in txt:
         raise SystemExit("frozen application self-test failed")
+    if "ui=ok" not in txt:
+        raise SystemExit("frozen application desktop self-test failed (ribbon, layouts, clipping, names, recovery)")
     if "elmer=None" not in txt and "frames=1" not in txt:
         raise SystemExit("frozen application found Elmer but the solve/plot self-test failed")
 
