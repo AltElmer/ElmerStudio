@@ -328,9 +328,11 @@ class StudyRunner:
                             if overrides is None and comp.tag in cache:
                                 mesh = cache[comp.tag]
                             else:
-                                mesh = build_mesh(self.model, overrides)
+                                mesh = build_mesh(self.model, overrides, inst=self.inst)
                                 mesh.comp_tag = comp.tag
                                 self.emit("mesh", mesh)
+                                for m in mesh.messages:
+                                    self.emit("message", m)
                             meshes[comp.tag] = mesh
                             st = mesh.stats
                             self.emit("message", (f"{comp.label}: " if len(order) > 1 else "")

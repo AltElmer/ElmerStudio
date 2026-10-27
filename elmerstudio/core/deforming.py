@@ -196,10 +196,14 @@ class DeformingRun:
         from .remesh import RemeshError, remesh_2d
         if self.mover.sdim != 2:
             raise RuntimeError(f"{self.step.label}: remeshing is available for 2D and 2D axisymmetric models")
+        was = self.mesh.stats.get("mesher")
         try:
             new = remesh_2d(self.mesh, nodes, set(self.moving), self.profiles)
         except RemeshError as exc:
             raise RuntimeError(f"{self.step.label}: {exc} at t = {t:.6g} s") from None
+        if was == "ElmerGrid" and self.remeshes == 0:
+            self.r.emit("message", f"{self.step.label}: remeshing uses Gmsh (triangles); the ElmerGrid mesh is "
+                                   "replaced from this time on")
         self.mesh = new
         self.mesh_index += 1
         topology_to_npz(self.mesh, os.path.join(self.folder, f"mesh_{self.mesh_index}.npz"))

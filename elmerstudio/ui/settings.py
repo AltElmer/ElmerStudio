@@ -775,6 +775,16 @@ class SettingsWindow(QWidget):
             cb = QComboBox()
             for value, text in p.choices:
                 cb.addItem(text, value)
+            # a choice that cannot be used now is greyed out and says why (the current value stays shown)
+            gone = self.ctx.choice_unavailable(node, p.key) if hasattr(self.ctx, "choice_unavailable") else {}
+            for i in range(cb.count()):
+                why = gone.get(cb.itemData(i))
+                if why:
+                    cb.setItemData(i, f"Unavailable: {why}", Qt.ItemDataRole.ToolTipRole)
+                    if cb.itemData(i) != val:
+                        cb.model().item(i).setEnabled(False)
+            if p.tip or gone.get(val):
+                cb.setToolTip("\n".join(t for t in (p.tip, gone.get(val) and f"Unavailable: {gone[val]}") if t))
             idx = max(0, cb.findData(val))
             cb.setCurrentIndex(idx)
             cb.setProperty("prop_key", p.key)

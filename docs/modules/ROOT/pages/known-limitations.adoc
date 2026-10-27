@@ -28,6 +28,20 @@ This list is deliberately explicit.
 * Coupling operators work in results, not inside the equations.
 * In the electrochemistry interfaces, there is no electrode (solid-phase) domain, total-current or total-power electrode condition, or double-layer capacitance.
 
+== ElmerGrid mesher
+
+The ElmerGrid mesher (xref:user-guide:mesh.adoc[Mesh]) covers only part of what ElmerGrid can do:
+
+* Only layouts of axis-aligned rectangles and blocks. ElmerGrid's geometry mappings (curved lines, sine waves, circles), revolved meshes, polar shells and 1D meshes are not used, so curved or rotated geometry needs gmsh.
+* Every subcell gets equal elements. ElmerGrid's element ratios and densities are not exposed, and *Distribution* nodes and local *Size* nodes are refused.
+* In 3D, ElmerGrid makes at least two element layers in z in every layer of blocks.
+* Quadratic prisms are not available: ElmerGrid extrudes only linear triangles.
+* ElmerGrid's mesh conversion (from other formats) and its clean-up options such as `-autoclean` are not offered: they renumber bodies and boundaries, and Studio's selections depend on the geometry's numbers.
+* A boundary that lies inside a single domain (an embedded line or face) has no ElmerGrid elements, so the mesh is refused.
+* Remeshing in a deforming-domain study uses gmsh. Messages says so when it replaces an ElmerGrid mesh.
+
+Partitioning for MPI runs is done by ElmerGrid (Metis) for both meshers, as before.
+
 == Desktop
 
 * The desktop has one light theme. The Graphics window has light, white and dark themes, with a separate theme for exported images.

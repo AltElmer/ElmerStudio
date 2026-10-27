@@ -18,6 +18,10 @@ Mesh ribbon
 |Element size | | |Normal |Extremely fine, Extra fine, Finer, Fine, Normal, Coarse, Coarser, Extra coarse, Extremely coarse
 5+h|Element Order
 |Geometry shape order / element order | | |Automatic (from physics discretization) |Automatic (from physics discretization), Linear, Quadratic
+5+h|Mesher
+|Mesher +
+_ElmerGrid makes structured meshes of layouts of axis-aligned rectangles (2D) or blocks (3D); other geometries need Gmsh_ | | |Gmsh |Gmsh, ElmerGrid (structured)
+|Element shape | | |Quadrilaterals (hexahedra in 3D) |Quadrilaterals (hexahedra in 3D), Triangles (prisms in 3D)
 5+h|Advanced
 |3D algorithm | | |Delaunay |Delaunay, Frontal (Netgen), HXT (parallel Delaunay)
 |2D algorithm | | |Frontal-Delaunay |Frontal-Delaunay, Delaunay, Frontal-Delaunay for quads, MeshAdapt

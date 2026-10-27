@@ -1,7 +1,7 @@
 = Mesh
-:description: Physics-controlled and user-controlled meshes, size attributes, mapped meshes with distributions, statistics and quality.
+:description: Physics-controlled and user-controlled meshes, size attributes, mapped meshes with distributions, the ElmerGrid mesher, statistics and quality.
 
-Elmer Studio meshes the geometry with gmsh and writes a native Elmer mesh, including the boundary elements and their parent elements, which Elmer needs for boundary fluxes. menu:Home[Build Mesh] builds it. Compute builds it when needed.
+Elmer Studio meshes the geometry with gmsh (or, for rectangle and block layouts, ElmerGrid) and writes a native Elmer mesh, including the boundary elements and their parent elements, which Elmer needs for boundary fluxes. menu:Home[Build Mesh] builds it. Compute builds it when needed.
 
 == Physics-controlled mesh
 
@@ -41,9 +41,36 @@ The mesh is quadratic or linear according to the physics discretization (_Geomet
 * menu:Mesh[Plot Quality] colours the elements by quality.
 * menu:Mesh[Clear Mesh] removes the mesh.
 
+== ElmerGrid mesher
+
+Set _Mesher_ on *Mesh 1* to *ElmerGrid (structured)* to mesh with ElmerGrid, Elmer's own structured mesher, instead of gmsh. COMSOL has no such choice; it is an Elmer option.
+
+ElmerGrid can mesh a geometry when it is a layout of rectangles (2D) or blocks (3D) whose sides are parallel to the x, y and z axes. The rectangles and blocks can touch, stack and leave holes. For example: a block, two materials side by side, an L-shape, a stack of layers.
+
+How it meshes:
+
+* Elmer Studio cuts the geometry into a grid of subcells at the coordinates of its points, and gives every subcell the number of the domain it lies in.
+* ElmerGrid divides every subcell into equal elements no larger than the maximum element size. It needs at least two element layers in z in 3D.
+* _Element shape_ chooses quadrilaterals (hexahedra in 3D) or triangles (prisms in 3D). A user-controlled *Free Triangular* node chooses triangles, *Free Quad* or *Mapped* quadrilaterals.
+* _Element order_ works as for gmsh. Quadratic elements are 9-node quadrilaterals, 6-node triangles and 20-node hexahedra.
+
+The mesh keeps the geometry's numbers: the domains and boundaries in Elmer are the ones you select in the Model Builder. Statistics, quality plot and the mesh plot work as for gmsh. The Messages window and Statistics say which mesher made the mesh.
+
+ElmerGrid uses only the maximum element size. The minimum size, growth rate, curvature factor and narrow-region settings apply to gmsh only, and Messages says so.
+
+When ElmerGrid cannot mesh the model, the choice is greyed out and its tooltip says why. The *Mesh 1* node shows an error mark, and Build Mesh stops with the reason in Messages. It never falls back to gmsh. ElmerGrid refuses:
+
+* curved, slanted or rotated boundaries (a circle, a fillet, a rotated block);
+* a *Size* on selected domains, boundaries, edges or points, and *Distribution* nodes;
+* *Free Tetrahedral*;
+* quadratic prisms (triangles in 3D with quadratic elements);
+* a model when ElmerGrid is not installed next to ElmerSolver.
+
+ElmerGrid must be in the same folder as ElmerSolver (or, in an elmerfem build tree, in `elmergrid/src`).
+
 == Advanced
 
-*Mesh 1* has the gmsh _3D algorithm_ (Delaunay, Frontal, HXT) and _2D algorithm_ (Frontal-Delaunay, Delaunay, Frontal-Delaunay for quads, MeshAdapt), and _Optimize element quality_.
+*Mesh 1* has the gmsh _3D algorithm_ (Delaunay, Frontal, HXT) and _2D algorithm_ (Frontal-Delaunay, Delaunay, Frontal-Delaunay for quads, MeshAdapt), and _Optimize element quality_. They are hidden when the mesher is ElmerGrid.
 
 == Tips
 

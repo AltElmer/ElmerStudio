@@ -53,13 +53,22 @@ register(NodeType("mesh", "Mesh", "mesh", "mesh", deletable=False, can_disable=F
                       Prop("order", "Geometry shape order / element order:", "choice", "auto",
                            choices=[("auto", "Automatic (from physics discretization)"), ("1", "Linear"), ("2", "Quadratic")],
                            section="Element Order"),
+                      Prop("mesher", "Mesher:", "choice", "gmsh",
+                           choices=[("gmsh", "Gmsh"), ("elmergrid", "ElmerGrid (structured)")], section="Mesher",
+                           tip="ElmerGrid makes structured meshes of layouts of axis-aligned rectangles (2D) or "
+                               "blocks (3D); other geometries need Gmsh"),
+                      Prop("eg_shape", "Element shape:", "choice", "quad",
+                           choices=[("quad", "Quadrilaterals (hexahedra in 3D)"), ("tri", "Triangles (prisms in 3D)")],
+                           section="Mesher", visible=lambda p: p.get("mesher") == "elmergrid"),
                       Prop("algo3", "3D algorithm:", "choice", "1",
                            choices=[("1", "Delaunay"), ("4", "Frontal (Netgen)"), ("10", "HXT (parallel Delaunay)")],
-                           section="Advanced"),
+                           section="Advanced", visible=lambda p: p.get("mesher", "gmsh") == "gmsh"),
                       Prop("algo2", "2D algorithm:", "choice", "6",
                            choices=[("6", "Frontal-Delaunay"), ("5", "Delaunay"), ("8", "Frontal-Delaunay for quads"),
-                                    ("1", "MeshAdapt")], section="Advanced"),
-                      Prop("optimize", "Optimize element quality", "bool", True, section="Advanced"),
+                                    ("1", "MeshAdapt")], section="Advanced",
+                           visible=lambda p: p.get("mesher", "gmsh") == "gmsh"),
+                      Prop("optimize", "Optimize element quality", "bool", True, section="Advanced",
+                           visible=lambda p: p.get("mesher", "gmsh") == "gmsh"),
                   ]))
 register(NodeType("mesh.size", "Size", "size", "mesh_size", selection="domain", selection_all=True, props=[
     Prop("scope", "Geometric entity level:", "choice", "entire",
@@ -169,12 +178,21 @@ def _preset(i) -> tuple:
 
 
 class Mesher:
-    def __init__(self, model: Model, overrides=None):
+    def __init__(self, model: Model, overrides=None, inst=None):
         self.model = model
         self.comp = model.component
         self.mesh_node = self.comp.child("mesh")
         self.geom_node = self.comp.child("geometry")
         self.overrides = overrides
+        self._inst = inst
+
+    @property
+    def inst(self):
+        """The Elmer installation whose ElmerGrid meshes (found on first use)."""
+        if self._inst is None:
+            from .elmer import find_elmer
+            self._inst = find_elmer()
+        return self._inst
 
     def _has_flow(self) -> bool:
         return any(c.kind == "physics.spf" and c.enabled for c in self.comp.children)
@@ -238,6 +256,11 @@ class Mesher:
                         mapped.append(ch.selection)
                     elif ch.kind == "mesh.distribution":
                         dists.append((ch.selection, int(ch.get("n", 10)), ch))
+            if mn.get("mesher", "gmsh") == "elmergrid":    # structured mesh of the same geometry, same numbering
+                from . import elmergrid
+                res = elmergrid.mesh(self, gb, geo, hmax, order, progress)
+                res.stats["time"] = time.time() - t0
+                return res
             gmsh.option.setNumber("Mesh.MeshSizeMax", hmax)
             gmsh.option.setNumber("Mesh.MeshSizeMin", hmin)
             gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", max(4.0, 2 * math.pi / max(hcurve, 0.05)))
@@ -415,5 +438,6 @@ class Mesher:
         return res
 
 
-def build_mesh(model: Model, overrides=None, progress=None) -> MeshResult:
-    return Mesher(model, overrides).run(progress)
+def build_mesh(model: Model, overrides=None, progress=None, inst=None) -> MeshResult:
+    """Mesh the component; *inst* is the Elmer installation for the ElmerGrid mesher (found when None)."""
+    return Mesher(model, overrides, inst).run(progress)

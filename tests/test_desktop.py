@@ -499,6 +499,56 @@ def test_node_states_are_explained(win):
     assert "needs update" in w.st_geo.text() or w.st_geo.text().endswith("*")
 
 
+def _mesher_combo(w, mesh):
+    from PySide6.QtWidgets import QComboBox
+    w.tree.refresh(select=mesh)
+    _settle()
+    cbs = [c for c in w.settings.findChildren(QComboBox) if c.property("prop_key") == "mesher"]
+    assert cbs, "no Mesher choice in the Mesh Settings"
+    cb = cbs[-1]
+    i = cb.findData("elmergrid")
+    return cb, i, cb.model().item(i).isEnabled(), cb.itemData(i, Qt.ItemDataRole.ToolTipRole) or ""
+
+
+def test_elmergrid_choice_says_why_it_is_unavailable(win):
+    w = win
+    if w.inst is None or not w.inst.grid:
+        pytest.skip("ElmerGrid not installed")
+    m = _model(w)                                    # a rectangle: ElmerGrid can mesh it (the control)
+    _cb, _i, enabled, tip = _mesher_combo(w, m.component.child("mesh"))
+    assert enabled and "Unavailable" not in tip, tip
+    w.set_prop(w.model.component.child("mesh"), "mesher", "elmergrid")
+    w.mesh_statistics()                              # builds the mesh, lists it, plots its quality
+    _wait(w, lambda: not w.busy() and w.mesh is not None and not w.mesh_stale)
+    _settle()
+    assert w.mesh.stats["mesher"] == "ElmerGrid" and w.mesh.quality, w.mesh.stats
+    rows = [w.table.table.item(r, 0).text() + "=" + w.table.table.item(r, 1).text()
+            for r in range(w.table.table.rowCount())]
+    assert "Mesher=ElmerGrid" in rows, rows
+    if _graphics_ok(w):
+        assert "mesh" in w.graphics.plotter.actors
+    assert "Meshed with ElmerGrid" in w.messages.view.toPlainText()
+    _wait(w, lambda: not w.busy())
+    m = B.new_model("2D", ["ht"], "stationary")      # a circle: it cannot
+    m.create("geom.circle", m.component.child("geometry"), index=0, r="1")
+    w._set_model(m, None, project.new_workdir())
+    w.build_geometry()
+    _wait(w, lambda: not w.busy() and w.geo is not None)
+    mesh = w.model.component.child("mesh")
+    _cb, _i, enabled, tip = _mesher_combo(w, mesh)
+    assert not enabled and "not straight and parallel to the x or y axis" in tip, tip
+    w.set_prop(mesh, "mesher", "elmergrid")
+    _settle()
+    mesh = w.model.component.child("mesh")
+    assert any(lv == "error" and "ElmerGrid cannot mesh this model" in t for lv, t in w.node_issues(mesh))
+    n0 = len(w.messages.view.toPlainText())
+    w.build_mesh()
+    _wait(w, lambda: not w.busy())
+    said = w.messages.view.toPlainText()[n0:]
+    assert "ElmerGrid meshes only layouts of axis-aligned rectangles" in said, said
+    assert "Complete mesh" not in said, "a refused ElmerGrid mesh was built anyway (fallback to gmsh?)"
+
+
 def test_message_links_select_the_node(win):
     w = win
     m = _model(w)

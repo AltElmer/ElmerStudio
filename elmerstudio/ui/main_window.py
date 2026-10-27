@@ -884,6 +884,10 @@ class MainWindow(QMainWindow):
             out.append(("stale", "Edited since it was built: build it again (F8)."))
         if k == "mesh" and self.mesh is not None and self.mesh_stale:
             out.append(("stale", "The model changed since the mesh was built."))
+        if k == "mesh" and node.get("mesher") == "elmergrid":
+            reason = self.choice_unavailable(node, "mesher").get("elmergrid")
+            if reason:
+                out.append(("error", f"ElmerGrid cannot mesh this model: {reason}"))
         if k == "study" and self.model.component is not None:
             text, state, tip = self._solution_state(node)
             if state == "stale":
@@ -1809,6 +1813,23 @@ class MainWindow(QMainWindow):
 
     def is_axi(self):
         return is_axisymmetric(self.model.component)
+
+    def choice_unavailable(self, node: Node, key: str) -> dict:
+        """Choices of a node's setting that cannot be used now: {value: reason}, for the Settings form's tooltip."""
+        if node.kind != "mesh" or key != "mesher":
+            return {}
+        from ..core import elmergrid
+        if self.inst is None or not self.inst.grid:
+            where = f" next to ElmerSolver in {self.inst.bin}" if self.inst is not None else " (Elmer was not found)"
+            return {"elmergrid": f"ElmerGrid was not found{where}."}
+        # the built geometry decides; before it is built, Build Mesh checks it and says why in Messages
+        why = elmergrid.problems(self.geo) + elmergrid.sequence_problems(node, self.sdim(), self._mesh_order(node))
+        return {"elmergrid": " ".join(why)} if why else {}
+
+    def _mesh_order(self, node: Node) -> int:
+        from ..core.meshing import physics_order
+        order = node.get("order", "auto")
+        return physics_order(self.model) if order == "auto" else int(order)
 
     def length_unit(self):
         g = self.model.component.child("geometry") if self.model.component else None
@@ -2766,7 +2787,7 @@ class MainWindow(QMainWindow):
         comp = self.model.component
 
         def work(emit):
-            return build_mesh(model_snapshot)
+            return build_mesh(model_snapshot, inst=self.inst)
 
         def done(res):
             with self.model.scoped(comp):
@@ -2780,6 +2801,8 @@ class MainWindow(QMainWindow):
             self.geo_stale = False
         else:
             self.messages.add("The model changed while the mesh was built; build it again.", "warning")
+        for m in res.messages:
+            self.messages.add(m)
         st = res.stats
         self.messages.add(f"Complete mesh consists of {st['elements']} domain elements and {st['boundary_elements']} "
                           f"boundary elements ({st['nodes']} nodes, order {st['order']}). "
@@ -2804,7 +2827,9 @@ class MainWindow(QMainWindow):
             self.build_mesh(then=self.mesh_statistics)
             return
         st = self.mesh.stats
-        rows = [["Number of nodes", st["nodes"]], ["Domain elements", st["elements"]],
+        rows = [["Mesher", st.get("mesher", "Gmsh")]] + ([["ElmerGrid subcells", st["subcells"]]]
+                                                         if "subcells" in st else [])
+        rows += [["Number of nodes", st["nodes"]], ["Domain elements", st["elements"]],
                 ["Boundary elements", st["boundary_elements"]], ["Element order", st["order"]],
                 ["Minimum element quality", st["min_quality"]], ["Average element quality", st["avg_quality"]]]
         rows += [[f"{k}", v] for k, v in st["types"].items()]
@@ -3082,7 +3107,7 @@ class MainWindow(QMainWindow):
         steps = B.study_steps(study)
         if not steps:
             raise SifError("The study has no steps")
-        mesh = self.mesh if (self.mesh is not None and not self.mesh_stale) else build_mesh(self.model)
+        mesh = self.mesh if (self.mesh is not None and not self.mesh_stale) else build_mesh(self.model, inst=self.inst)
         self.mesh, self.mesh_stale = mesh, False
         return mesh, build_sif(self.model, study, steps[0], mesh.geometry, len(mesh.nodes))
 
