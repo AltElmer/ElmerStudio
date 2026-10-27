@@ -5,6 +5,13 @@
 
 Physics come from the Model Wizard, or from menu:Home[Add Physics] at any time. Each interface appears under the component with its *default features*. For Heat Transfer in Solids these are *Solid 1* (the domain equation), *Initial Values 1* and *Thermal Insulation 1* on exterior boundaries.
 
+Most interfaces solve a fixed Elmer variable (Heat Transfer solves `Temperature`), so a component has one of each: to cover more domains, select them in the interface's Domain Selection. Two interfaces may be added more than once, each instance with its own dependent variable:
+
+* *Transport of Diluted Species*: a second interface gets the species `+c2+` (setting _Species_), solved as the Elmer variable `Concentration_c2`. Its results are `+c2+`, `+tds1.tflux+`, `+tds1.tfluxMag+` and `+tds1.ntflux+` (with the interface's tag). Several species in one domain need streamline diffusion: AdvectionDiffusion keeps each species' keywords apart, ModelPDE does not.
+* *Coefficient Form PDE*: a second interface gets the dependent variable `+u2+`. ModelPDE reads the same coefficients for every instance, so two PDE interfaces must be on different domains.
+
+When two interfaces would still overwrite each other in Elmer (the same variable, or one Elmer keyword set to different values in the same domain or boundary), building the study stops with an error that names both.
+
 Add features with menu:Physics[Domains] and menu:Physics[Boundaries], or by right-clicking the interface. The ribbon lists the features of the interface that is selected, or that the selected node belongs to.
 
 Each feature's Settings window has:

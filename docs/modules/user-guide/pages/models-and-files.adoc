@@ -31,9 +31,23 @@ A model has one *Component* with a fixed space dimension:
 
 == Saving and opening
 
-* menu:File[Save] (kbd:[Ctrl+S]) and menu:File[Save As...] (kbd:[Ctrl+Shift+S]) write an `.esm` file. It is a zip archive with the model (as JSON) and the computed solutions, so plots and tables come back when you open it.
+* menu:File[Save] (kbd:[Ctrl+S]) and menu:File[Save As...] (kbd:[Ctrl+Shift+S]) write an `.esm` file. It is a zip archive with the model (as JSON) and the computed solutions, so plots and tables come back when you open it. The file is written to a temporary name and renamed when it is complete. If saving fails, the model keeps its previous file name.
 * menu:File[Open...] (kbd:[Ctrl+O]) and menu:File[Recent] reopen models. You can also pass a file on the command line: `elmerstudio model.esm`.
-* When you open another model or close the window, Elmer Studio asks about unsaved changes. It also removes the temporary working folder of the model you leave.
+* When you open another model or close the window, Elmer Studio asks about unsaved changes. It also removes the temporary working folder of the model you leave. The title bar's `*` follows undo: undoing back to the saved state clears it, and undoing past it sets it.
+
+[#file-format]
+=== What the file holds
+
+[cols="1,3",options="header"]
+|===
+|Entry |Content
+|`model.json` |The model tree: every node and setting.
+|`work/<study>/<solution>/` |Each computed solution: `meta.json` (status, solver diagnostics, the parameter values it was computed with), `mesh.npz`, the result files, `model.json` (the model as it was solved), `solver.log`, and for deforming geometries the frame coordinates (`frames.npz`) and remeshed topologies (`mesh_<k>.npz`).
+|`assets/` |Copies of external files the model reads, such as imported CAD geometry.
+|`manifest.json` |The size and SHA-256 of every stored file, and whether solutions were included.
+|===
+
+On opening, Elmer Studio checks every stored file against the manifest. Missing or damaged files are listed in a warning, and the affected solutions are not shown until you compute again. A file saved without solutions opens without that warning. If an imported CAD file is no longer at its original path, the model uses the packaged copy. A file whose entries point outside its own folder (such as `../`) is refused.
 
 == Working with nodes
 

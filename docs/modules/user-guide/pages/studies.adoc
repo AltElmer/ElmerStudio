@@ -56,8 +56,18 @@ menu:Study[Show Default Solver] adds *Solver Configurations* to the study with a
 == Computing
 
 * menu:Home[Compute] (kbd:[Ctrl+=]) solves the study that the selected node belongs to, or the first study when the selected node is outside any study. Right-click a study and choose *Compute* to pick one.
-* menu:Study[Stop] cancels the run.
+* menu:Study[Stop] cancels the run, and any geometry or mesh builds waiting to run. A geometry or mesh build that is already running cannot be interrupted; it finishes in the background and its result is discarded.
 * menu:Study[Clear All Solutions] deletes the solutions.
+
+[#convergence]
+=== When the solver does not converge
+
+Elmer Studio accepts a solution only when Elmer converged:
+
+* A *linear solver* that reaches its maximum number of iterations without meeting its tolerance stops the study with an error (Elmer's own default, _Linear System Abort Not Converged_). A direct solver never does.
+* *Nonlinear (Newton) iterations* that reach _Maximum nonlinear iterations_ without meeting the _Nonlinear tolerance_, and *coupling iterations* that reach _Max coupling iterations_ without meeting the _Coupling tolerance_, also stop the study. Elmer only reports these at an output level Studio does not log, so Studio reads them from the iteration history: in a coupled study, only the Newton iterations of the last coupling iteration count.
+
+To look at such a solution anyway, set _When nonlinear or coupling iterations do not converge_ on the *Study* node to *Keep the solution, marked not converged*. The solution is then shown, and *Messages* warns that it is not converged each time you plot it. Each solution folder records its status (`converged`, `not converged` or `failed`) and the reasons in `meta.json`, next to `solver.log`.
 
 During the run:
 

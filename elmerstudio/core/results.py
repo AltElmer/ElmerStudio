@@ -247,6 +247,17 @@ class Solution:
         self._geom_frame = 0
         self._frame_nodes = None
 
+    @property
+    def catalog(self) -> list[tuple]:
+        """CATALOG plus this solution's own entries (species named per interface, from the SIF build)."""
+        return CATALOG + [tuple(e) for e in (self.meta.get("catalog") or [])]
+
+    def _bflux(self, expr) -> bool:
+        """True if *expr* reads a flux density reconstructed from nodal reaction loads."""
+        extra = [a for a, _s, c, *_r in (self.meta.get("catalog") or []) if c in ("bflux", "-bflux")]
+        return bool(_BFLUX.search(str(expr)) or extra and re.search(
+            r"\b(?:" + "|".join(re.escape(a).replace(r"\.", r"[._]") for a in extra) + r")\b", str(expr)))
+
     def _set_geometry(self, i: int):
         """Moving meshes: put frame *i*'s node coordinates into the topology (grids and weights follow)."""
         if not self.moving or i < 0 or i == self._geom_frame:
@@ -412,7 +423,7 @@ class Solution:
             return []
         arr = self.arrays(i)
         out = []
-        for alias, src, comp, label, unit, kind in CATALOG:
+        for alias, src, comp, label, unit, kind in self.catalog:
             if src in arr:
                 a = arr[src]
                 if isinstance(comp, int) and (a.ndim < 2 or comp >= a.shape[1]):
@@ -422,7 +433,7 @@ class Solution:
                 if src == "stress" and comp in (4, 5) and self.sdim == 2:
                     continue
                 out.append((alias, label, unit, kind))
-        known = {c[1] for c in CATALOG}
+        known = {c[1] for c in self.catalog}
         for k, a in arr.items():
             if k not in known and "eigenmode" not in k:
                 out.append((k.replace(" ", "_"), k, "", "vector" if a.ndim == 2 and a.shape[1] in (2, 3) else "scalar"))
@@ -434,7 +445,7 @@ class Solution:
     def names(self, i: int) -> dict:
         arr = self.arrays(i)
         names: dict = {}
-        for alias, src, comp, label, unit, kind in CATALOG:
+        for alias, src, comp, label, unit, kind in self.catalog:
             if src not in arr:
                 continue
             a = arr[src]
@@ -752,7 +763,7 @@ class Solution:
         e = SHORT.get(expr.strip(), expr.strip())
         if e in ("x", "y", "z", "r"):
             return f"{e}-coordinate", "m"
-        for alias, src, comp, label, unit, kind in CATALOG:
+        for alias, src, comp, label, unit, kind in self.catalog:
             if alias == e or alias.replace(".", "_") == e:
                 return label, unit
         from .acoustics import EFC_LABELS, EFC_NAME, INCIDENT_LABELS
@@ -785,7 +796,7 @@ class Solution:
         "Compute integral in revolved geometry"; ignored on other models.  Off: the r-z plane measure."""
         vals = self.evaluate(expr, i)
         rev = bool(revolved) and self.sdim == 2 and bool(self.meta.get("axi"))
-        if level == "boundary" and _BFLUX.search(str(expr)):
+        if level == "boundary" and self._bflux(expr):
             # a flux density reconstructed from nodal reaction loads: integrate with the lumped (HRZ) weights that
             # reconstructed it, so integrals over boundary subsets add up to the electrode current exactly (the
             # quadratic shape functions would drop the corner loads -- a corner of a 6-node triangle integrates
@@ -928,7 +939,8 @@ def _split_quadratic_edges(g):
     return out
 
 
-_DOTTED = re.compile(r"\b(ht|solid|es|ec|mf|spf|acpr|tds|pde|cd|tcd)((?:\.\w+)+)")
+# interface prefixes: tds.tflux, and a second instance's tds1.tflux
+_DOTTED = re.compile(r"\b((?:ht|solid|es|ec|mf|spf|acpr|tds|pde|cd|tcd)\d*)((?:\.\w+)+)")
 
 
 def _dotted(expr: str) -> str:

@@ -19,6 +19,9 @@ Study ribbon
 5+h|Parallel Computing
 |Number of MPI processes +
 _Requires an MPI-enabled Elmer (ElmerSolver_mpi and mpiexec)._ | | |`+1+` |Integer
+5+h|Study Settings
+|When nonlinear or coupling iterations do not converge +
+_A linear solver that runs out of iterations always stops the study. Nonlinear (Newton) and segregated coupling iterations that reach their maximum without meeting the tolerance stop it too, unless kept: then the solution is shown, marked not converged._ | | |Stop with an error |Stop with an error, Keep the solution, marked not converged
 |===
 
 [#study-stationary]

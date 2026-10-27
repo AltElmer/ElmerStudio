@@ -129,6 +129,9 @@ class ExprEdit(QLineEdit):
 
     def _check(self, t):
         ok, tip = self.validate(t)
+        # a syntax or unit error is not applied (the draft stays, marked); an unknown name is, as in COMSOL (it may
+        # be defined later), only marked
+        self.blocking = not ok and not str(tip).startswith(("Unknown symbol", "Unknown function"))
         self.setProperty("error", not ok)
         self.setToolTip(tip)
         self.style().unpolish(self)
@@ -330,16 +333,13 @@ class SettingsWindow(QWidget):
         active.setChecked(not locked and not sel.all)
         active.setToolTip("Activate selection: click entities in the Graphics window to add/remove them")
         active.setEnabled(not locked and not sel.all)
-        add = QToolButton()
-        add.setIcon(icons.icon("add"))
-        add.setToolTip("Add entities selected in the Graphics window")
         rem = QToolButton()
         rem.setIcon(icons.icon("remove"))
         rem.setToolTip("Remove selected entities from the list")
         clr = QToolButton()
         clr.setIcon(icons.icon("clear"))
         clr.setToolTip("Clear selection")
-        for b in (active, add, rem, clr):
+        for b in (active, rem, clr):
             b.setAutoRaise(True)
             b.setIconSize(QSize(16, 16))
             b.setEnabled(b.isEnabled() and not locked and not sel.all)
@@ -363,7 +363,6 @@ class SettingsWindow(QWidget):
             self.refresh()
         combo.currentIndexChanged.connect(on_combo)
         active.toggled.connect(lambda on: self.ctx.activate_selection(node if on else None))
-        add.clicked.connect(lambda: self.ctx.add_graphics_selection(node))
         rem.clicked.connect(lambda: self.ctx.remove_entities(node, [i.data(Qt.UserRole) for i in lst.selectedItems()
                                                                      if i.data(Qt.UserRole) is not None]))
         clr.clicked.connect(lambda: self.ctx.set_selection(node, entities=[]))
@@ -403,6 +402,14 @@ class SettingsWindow(QWidget):
                 return False, str(exc)
         return check
 
+    def _commit_expr(self, e: ExprEdit, p: Prop, commit):
+        if not e.blocking:
+            commit(e.text())
+            return
+        msgs = getattr(self.ctx, "messages", None)
+        if msgs is not None:
+            msgs.add(f"{p.label.rstrip(':')} not applied: {e.toolTip()}", "warning")
+
     def _editor(self, sec: Section, node: Node, p: Prop):
         k = p.kind
         val = node.props.get(p.key, p.default)
@@ -411,7 +418,7 @@ class SettingsWindow(QWidget):
         commit = lambda v, key=p.key, rebuild=False: self.ctx.set_prop(node, key, v, rebuild)  # noqa: E731
         if k == "expr":
             e = ExprEdit(val, self._validator(node, p))
-            e.editingFinished.connect(lambda: commit(e.text()))
+            e.editingFinished.connect(lambda: self._commit_expr(e, p, commit))
             sec.add_row(p.label, e, unit, p.symbol)
         elif k in ("string",):
             e = QLineEdit(str(val))

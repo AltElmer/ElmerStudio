@@ -401,25 +401,10 @@ class GeometryBuilder:
 
     # ---- expression helpers (COMSOL semantics: unitless numbers are in the geometry unit)
     def _param_units(self):
-        flags = {}
-        for name, expr in self.model.parameter_rows():
-            has = "[" in expr
-            if not has:
-                try:
-                    has = any(flags.get(s, False) for s in units.free_symbols(expr))
-                except Exception:
-                    has = False
-            flags[name] = has
-        return flags
+        return units.parameter_unit_flags(self.model.parameter_rows())   # row order does not matter
 
     def _has_units(self, expr) -> bool:
-        s = str(expr)
-        if "[" in s:
-            return True
-        try:
-            return any(self.param_has_units.get(n, False) for n in units.free_symbols(s))
-        except Exception:
-            return False
+        return units.expr_has_units(expr, flags=self.param_has_units)
 
     def L(self, node: Node, key: str) -> float:
         expr = node.get(key, "0")

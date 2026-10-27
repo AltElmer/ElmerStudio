@@ -105,6 +105,12 @@ def bind_results(model, sol, geo=None):
         params = dict(model.parameters())
     except Exception:
         params = {}
+    # provenance: a parameter keeps the value the solution was computed with (editing the model afterwards does
+    # not rewrite an old solution's inputs); parameters added since are available for postprocessing
+    solved = sol.meta.get("params") or {}
+    changed = sorted(k for k, v in solved.items() if k in params and abs(params[k] - v) > 1e-12 * max(abs(v), 1e-300))
+    params.update(solved)
+    sol.params_changed = changed
     if sol.meta.get("sweep_param") and sol.meta.get("sweep_value") is not None:
         params[sol.meta["sweep_param"]] = sol.meta["sweep_value"]
     params.update(sol.meta.get("sweep_params") or {})          # every swept parameter of this run
@@ -147,6 +153,13 @@ register(NodeType("study", "Study", "std", "study", deletable=True, can_disable=
                       Prop("convplot", "Generate convergence plots", "bool", True, section="Study Settings"),
                       Prop("np", "Number of MPI processes:", "int", 1, section="Parallel Computing",
                            tip="Requires an MPI-enabled Elmer (ElmerSolver_mpi and mpiexec)."),
+                      Prop("nonconv", "When nonlinear or coupling iterations do not converge:", "choice", "stop",
+                           choices=[("stop", "Stop with an error"),
+                                    ("keep", "Keep the solution, marked not converged")],
+                           section="Study Settings",
+                           tip="A linear solver that runs out of iterations always stops the study. Nonlinear (Newton) "
+                               "and segregated coupling iterations that reach their maximum without meeting the "
+                               "tolerance stop it too, unless kept: then the solution is shown, marked not converged."),
                   ]))
 _phys_tbl = Prop("physics", "", "physics_table", {}, section="Physics and Variables Selection")
 register(NodeType("study.stationary", "Stationary", "stat", "stationary", props=[

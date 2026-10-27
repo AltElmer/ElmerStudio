@@ -72,6 +72,8 @@ Each plot has an expression and a unit. Click the button beside the expression f
 
 The _Unit_ list offers the units of the expression's quantity (°C, °F or K for a temperature, MPa for a stress, mm for a displacement, …).
 
+Parameters in result expressions take the values the solution was computed with. If you change a parameter after computing, the existing solution keeps the old value, and *Messages* says which parameters differ from the model until you compute again. Parameters added after the solve are available for postprocessing.
+
 == Datasets
 
 [cols="1,3",options="header"]

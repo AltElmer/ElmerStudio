@@ -18,7 +18,7 @@ from . import units
 from .builder import ensure_solver_configs, physics_nodes, study_steps
 from .materials import MATPROPS
 from .model import Model, Node, is_axisymmetric, space_dim
-from .physics import COUPLINGS, FEATURES, physics_def
+from .physics import COUPLINGS, FEATURES, instance_variable, physics_def
 
 SIGMA_SB = 5.670374419e-08
 
@@ -216,11 +216,11 @@ class SifContext:
         if self.axi:
             f.update({"r": "Coordinate 1", "z": "Coordinate 2"})
         for ph in physics_nodes(self.model):
-            pd = physics_def(ph.kind)
-            for sym, (var, _lbl, _u) in pd.depvars.items():
-                if pd.id == "pde":
-                    var = ph.get("depvar", "u")
-                    sym = var
+            inst = instance_variable(ph)
+            if inst is not None:
+                f.setdefault(*inst)
+                continue
+            for sym, (var, _lbl, _u) in physics_def(ph.kind).depvars.items():
                 f.setdefault(sym, var)
         return f
 
@@ -408,7 +408,8 @@ class SifContext:
 
     def nl_iters(self, ph: Node, default: int) -> int:
         pd = physics_def(ph.kind)
-        own = {v for (v, _l, _u) in pd.depvars.values()}
+        inst = instance_variable(ph)
+        own = {inst[1]} if inst else {v for (v, _l, _u) in pd.depvars.values()}
         if self.nonlinear & own:
             return default
         if pd.id == "spf":
@@ -437,7 +438,9 @@ class SifContext:
             out.update({"Linear System Solver": "Iterative", "Linear System Iterative Method": method,
                         "Linear System Max Iterations": maxit, "Linear System Convergence Tolerance": tol,
                         "Linear System Preconditioning": prec, "Linear System Residual Output": 50,
-                        "Linear System Abort Not Converged": False})
+                        # Elmer's own default: a linear solve that runs out of iterations stops the run, so an
+                        # unconverged field is never presented as a solution
+                        "Linear System Abort Not Converged": True})
             if method == "BiCGStabl":
                 out["BiCGstabl polynomial degree"] = 4
         if cfg:
@@ -491,6 +494,56 @@ class SifResult:
     meta: dict = field(default_factory=dict)
 
 
+def _merge(target: dict, kws: dict, owners: dict, ph: Node, where: str):
+    """Add an interface's keywords to a section.  Elmer reads a keyword once per section, so two interfaces that
+    give one keyword different values would silently overwrite each other: an error instead."""
+    for k, v in kws.items():
+        text = v.text if isinstance(v, SifValue) else str(v)
+        prev = owners.get(k.lower())
+        if prev is not None and prev[0] is not ph and prev[1] != text:
+            raise SifError(f"{ph.label} and {prev[0].label} both set the Elmer keyword '{k}' in {where}, to different "
+                           f"values ({prev[1]} and {text}): their solvers would read one value. Solve them on "
+                           "different domains or in separate study steps.")
+        owners[k.lower()] = (ph, text)
+        target[k] = v
+
+
+# Elmer solvers that prefix their keywords with the variable name, so that several instances can share a body
+_NAMESPACED = {"AdvectionDiffusion"}
+
+
+def _check_solvers(solvers, phys_domains):
+    """Two interfaces cannot solve one Elmer variable, nor share a body with a solver that reads unprefixed
+    keywords (ModelPDE's Diffusion Coefficient, ...): the second would overwrite the first."""
+    seen: dict = {}
+    for s in solvers:
+        if s.post or s.physics is None:
+            continue
+        var = re.sub(r"^-dofs\s+\d+\s+", "", str(s.keywords.get("Variable", ""))).split("[")[0].strip()
+        ph = s.physics
+        other = seen.get(var.lower())
+        if other is not None and other is not ph:
+            hint = ("give each its own dependent variable name" if physics_def(ph.kind).instance_var else
+                    "one interface covers several domains: select them in its Domain Selection and remove the other")
+            raise SifError(f"{ph.label} and {other.label} both solve the Elmer variable '{var}'; {hint}.")
+        seen[var.lower()] = ph
+    by_proc: dict = {}
+    for s in solvers:
+        proc = s.keywords.get("Procedure")
+        if s.post or s.physics is None or not isinstance(proc, tuple) or proc[0] in _NAMESPACED:
+            continue
+        for other in by_proc.get(proc, []):
+            common = sorted(set(phys_domains.get(s.physics.tag, [])) & set(phys_domains.get(other.tag, [])))
+            if other is not s.physics and common:
+                tds = "tds" in (physics_def(s.physics.kind).id, physics_def(other.kind).id)
+                raise SifError(f"{s.physics.label} and {other.label} both use Elmer's {proc[0]} solver in domain "
+                               f"{', '.join(map(str, common))}, which reads the same keywords for both"
+                               + ("; turn on streamline diffusion in the species transport (AdvectionDiffusion keeps "
+                                  "each species' keywords apart)" if tds else
+                                  "; solve them on different domains or in separate study steps") + ".")
+        by_proc.setdefault(proc, []).append(s.physics)
+
+
 def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, overrides=None,
               output_name="case", continuation: str | None = None, quasi_static_time: float | None = None,
               skip_post: bool = False) -> SifResult:
@@ -516,6 +569,7 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     bf = {d: {} for d in domains}
     ic = {d: {} for d in domains}
     eqx = {d: {} for d in domains}
+    owners: dict = {}                 # (section, entity) -> {keyword: (interface, value)}
     for ph in ctx.active:
         ctx._current_physics = ph
         doms = set(phys_domains[ph.tag])
@@ -523,7 +577,7 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             for d in _entities(ctx, f, "domain", doms):
                 for sec, target in (("material", mat), ("bodyforce", bf), ("ic", ic), ("equation", eqx)):
                     for fn in _feature_fns(f.kind, sec):
-                        target[d].update(fn(f, ctx, d))
+                        _merge(target[d], fn(f, ctx, d), owners.setdefault((sec, d), {}), ph, f"domain {d}")
     # multiphysics couplings
     mp = ctx.comp.child("multiphysics")
     active_ids = {physics_def(p.kind).id for p in ctx.active}
@@ -559,7 +613,7 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                 per[b] = dict(kws)    # later feature overrides earlier (COMSOL semantics)
         for b, kws in per.items():
             if b in bc:
-                bc[b].update(kws)
+                _merge(bc[b], kws, owners.setdefault(("bc", b), {}), ph, f"boundary {b}")
     ctx._current_physics = None
 
     # ---- solvers (species transport last: it reads the flow velocity and the electrolyte potential's gradient)
@@ -571,6 +625,7 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             post = bool(s.pop("__post__", False))
             solvers.append(SolverEntry(ph, s, post))
     ctx._current_physics = None
+    _check_solvers(solvers, phys_domains)
     if skip_post:                  # an intermediate solve (e.g. a deforming-electrode predictor): no derived fields
         for s in solvers:
             if s.post and s.keywords.get("Procedure") == ("FluxSolver", "FluxSolver"):
@@ -581,6 +636,20 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     freq = skind == "study.freq"
     meta = {"kind": skind, "times": [], "freqs": [], "neig": 0, "warnings": ctx.warnings, "physics": [p.tag for p in ctx.active],
             "axi": bool(ctx.axi)}
+    # results of species other than c, under their own names (alias, Elmer array, component, label, unit, kind)
+    catalog = []
+    for ph in ctx.active:
+        inst = instance_variable(ph)
+        if inst is None or physics_def(ph.kind).id != "tds" or inst[1] == "Concentration":
+            continue
+        sym, v, t = inst[0], inst[1].lower(), ph.tag
+        catalog += [(sym, v, None, f"Concentration {sym}", "mol/m^3", "scalar"),
+                    (f"{t}.tflux", f"{v} flux", "vec", f"Diffusive flux of {sym}", "mol/(m^2*s)", "vector"),
+                    (f"{t}.tfluxMag", f"{v} flux", "mag", f"Diffusive flux magnitude of {sym}", "mol/(m^2*s)",
+                     "scalar"),
+                    (f"{t}.ntflux", f"{v} loads", "-bflux", f"Normal total flux of {sym} (outward)", "mol/(m^2*s)",
+                     "scalar")]
+    meta["catalog"] = catalog
     # variables of a physics active on some domains only: results leave them undefined elsewhere (Elmer writes 0)
     var_domains = {}
     for s in solvers:
@@ -727,6 +796,19 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             if continuation == "reuse":
                 sim.update({"Restart File": "previous.result", "Restart Position": 0})
     sim["Solver Input File"] = "case.sif"
+    # what the runner needs to judge convergence from Elmer's ComputeChange lines (nonlinear and coupling)
+    def _num(v, default):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return default
+    meta["convergence"] = {
+        "ss_maxit": int(sim.get("Steady State Max Iterations", 1) or 1),
+        "solvers": [{"equation": str(s.keywords.get("Equation", "")).lower(), "post": bool(s.post),
+                     "nl_maxit": int(_num(s.keywords.get("Nonlinear System Max Iterations"), 1)),
+                     "nl_tol": _num(s.keywords.get("Nonlinear System Convergence Tolerance"), 1e-7),
+                     "ss_tol": _num(s.keywords.get("Steady State Convergence Tolerance"), 1e-6)}
+                    for s in solvers if s.keywords.get("Equation")]}
 
     g = [0, 0, -1] if sd == 3 else [0, -1, 0]
     consts = {"Gravity": f"Real {g[0]} {g[1]} {g[2]} 9.80665", "Stefan Boltzmann": SIGMA_SB,

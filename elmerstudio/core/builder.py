@@ -70,9 +70,17 @@ def add_physics(m: Model, pid: str, comp: Node | None = None) -> Node:
     comp = comp or m.component
     pd = PHYSICS[pid]
     existing = [c for c in comp.children if c.kind == pd.kind]
+    if existing and not pd.instance_var:
+        # its Elmer variable is fixed: a second interface would solve (and overwrite) the same field
+        raise ValueError(f"{existing[0].label} is already in {comp.label}. One interface covers several domains: "
+                         "select them in its Domain Selection.")
     tag = pd.id if not existing and not m.by_tag(pd.id) else m.new_tag(pd.id)
     label = pd.name if not existing else f"{pd.name} {len(existing) + 1}"
     ph = m.create(pd.kind, comp, index=_insert_index(comp), tag=tag, label=label)
+    if existing:                                     # its own dependent variable: c2, u2, ...
+        prop, base = pd.instance_var
+        taken = {str(c.get(prop, base)).strip() for c in existing}
+        ph.props[prop] = next(f"{base}{i}" for i in range(2, 1000) if f"{base}{i}" not in taken)
     for kind, level in pd.defaults:
         f = m.create(kind, ph)
         f.meta["default"] = True

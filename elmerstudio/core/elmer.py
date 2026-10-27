@@ -258,6 +258,78 @@ class RunState:
         return None
 
 
+def convergence_problems(conv, spec) -> list[str]:
+    """Iterations that stopped at their maximum without meeting the tolerance, from Elmer's ComputeChange lines
+    (RunState.conv: (n, equation, NS|SS, relative change, iteration)) and the SIF's convergence spec
+    (sif meta["convergence"]).  Elmer itself only reports these at an output level the runner does not log."""
+    if not spec:
+        return []
+    solvers = {s["equation"]: s for s in spec.get("solvers", []) if not s.get("post")}
+    ss_maxit = int(spec.get("ss_maxit", 1) or 1)
+    nl_bad: dict = {}                                  # equation -> [count, total, worst relc, maxit, tol]
+    ss_bad = [0, 0, 0.0]                               # blocks at the maximum, blocks, worst relc
+    nl_cur: dict = {}                                  # equation -> (iteration, relc) of the Newton loop running
+    nl_block: dict = {}                                # equation -> its Newton loop in the latest coupling iteration
+    ss_last: dict = {}
+    has_ss: set = set()
+
+    def judge_nl(eq, seq):
+        it, rel = seq
+        sp = solvers[eq]
+        rec = nl_bad.setdefault(eq, [0, 0, 0.0, sp["nl_maxit"], sp["nl_tol"]])
+        rec[1] += 1
+        if sp["nl_maxit"] > 1 and it >= sp["nl_maxit"] and rel > sp["nl_tol"]:
+            rec[0] += 1
+            rec[2] = max(rec[2], rel)
+
+    def close_ss():
+        top = max(it for it, _r in ss_last.values())
+        ss_bad[1] += 1
+        if ss_maxit > 1 and top >= ss_maxit:
+            over = [rel for eq, (_it, rel) in ss_last.items() if rel > solvers[eq]["ss_tol"]]
+            if over:
+                ss_bad[0] += 1
+                ss_bad[2] = max(ss_bad[2], max(over))
+        # only the Newton loops of the last coupling iteration count: earlier ones run on a partner field that is
+        # still changing, and stopping them at their maximum is how a segregated iteration normally proceeds
+        for eq, seq in nl_block.items():
+            judge_nl(eq, seq)
+        nl_block.clear()
+        ss_last.clear()
+
+    for _n, eq, kind, relc, it in conv:
+        eq = eq.strip().lower()
+        if eq not in solvers:
+            continue
+        if kind == "NS":
+            if eq in nl_cur and it <= nl_cur[eq][0]:   # a new Newton loop (no coupling line in between)
+                seq = nl_cur.pop(eq)
+                if eq not in has_ss:
+                    judge_nl(eq, seq)
+            nl_cur[eq] = (it, relc)
+        elif kind == "SS":
+            has_ss.add(eq)
+            if eq in ss_last and it <= ss_last[eq][0]:
+                close_ss()
+            ss_last[eq] = (it, relc)
+            if eq in nl_cur:
+                nl_block[eq] = nl_cur.pop(eq)
+    if ss_last:
+        close_ss()
+    for eq, seq in nl_cur.items():
+        judge_nl(eq, seq)
+    out = []
+    for eq, (bad, total, worst, maxit, tol) in nl_bad.items():
+        if bad:
+            out.append(f"nonlinear iterations of '{eq}' reached the maximum {maxit} without meeting the tolerance "
+                       f"{tol:g} (relative change up to {worst:.3g}) in {bad} of {total} solve(s)")
+    if ss_bad[0]:
+        out.append(f"the coupling iterations between the physics reached the maximum {ss_maxit} without meeting "
+                   f"the coupling tolerance (relative change up to {ss_bad[2]:.3g}) in {ss_bad[0]} of {ss_bad[1]} "
+                   f"step(s)")
+    return out
+
+
 def write_case(case_dir: str, elmer_mesh, sif_text: str):
     os.makedirs(case_dir, exist_ok=True)
     elmer_mesh.write(os.path.join(case_dir, "mesh"))

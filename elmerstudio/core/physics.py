@@ -49,6 +49,9 @@ class PhysicsDef:
     description: str = ""
     equation: str = ""
     conflicts: tuple = ()
+    # (prop, default) of an interface that may be added more than once: each instance names its own dependent
+    # variable.  Other interfaces solve a fixed Elmer variable and exist once per component.
+    instance_var: tuple = ()
 
     @property
     def kind(self):
@@ -110,10 +113,17 @@ def linsys(kind="iterative", method="BiCGStab", precond="ILU0", tol=1e-10, maxit
     d = {"Linear System Solver": "Iterative", "Linear System Iterative Method": method,
          "Linear System Max Iterations": maxit, "Linear System Convergence Tolerance": tol,
          "Linear System Preconditioning": precond, "Linear System Residual Output": 20,
-         "Linear System Abort Not Converged": False}
+         "Linear System Abort Not Converged": True}       # Elmer's default: never accept an unconverged solve
     if method.lower() == "bicgstabl":
         d["BiCGstabl polynomial degree"] = 4
     return d
+
+
+def projection_linsys(ctx):
+    """The linear solver of a derived-field projection (FluxSolver, field calculators), a mass matrix: direct when
+    small, else CG with ILU0.  A diagonal preconditioner stalls on quadratic elements short of 1e-10, and an
+    unconverged solve stops the run.  (CG+ILU0 broke down on Elmer 26.2 devel on a small 2D case: direct there.)"""
+    return linsys("iterative", "CG", "ILU0", 1e-10, 2000) if ctx.n_nodes > 100_000 else linsys("direct", "UMFPack")
 
 
 def nonlin(maxit=1, tol=1e-7, newton_after=3, relax=1.0):
@@ -206,7 +216,7 @@ def _ht_solvers(ph, ctx):
     s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20), tol=1e-7)))
     flux = {"Equation": "Heat Flux Solver", "Procedure": ("FluxSolver", "FluxSolver"),
             "Calculate Flux": True, "Flux Variable": "Temperature", "Flux Coefficient": "Heat Conductivity",
-            **linsys("iterative", "CG", "Diagonal", 1e-10, 500), "__post__": True}
+            **projection_linsys(ctx), "__post__": True}
     return [s, flux]
 
 
@@ -676,8 +686,7 @@ def _cd_solvers(ph, ctx):
     s.update(ctx.solver_settings(ph, nl))
     flux = {"Equation": "Electrolyte Current", "Procedure": ("FluxSolver", "FluxSolver"), "Calculate Flux": True,
             "Flux Variable": "phil", "Flux Coefficient": cond,
-            # a mass-matrix projection: direct unless large (CG+ILU0 broke down on Elmer 26.2 devel, small 2D case)
-            **(linsys("iterative", "CG", "ILU0", 1e-10, 500) if ctx.n_nodes > 100_000 else linsys("direct", "UMFPack")),
+            **projection_linsys(ctx),
             "Exec Solver": "After Timestep",        # once, on the converged (coupled) solution
             "__post__": True}
     if tds_migration(ctx.model):                    # migrating species read grad(phil) in every coupling iteration
@@ -747,7 +756,7 @@ def _mf_solvers(ph, ctx):
     calc = {"Equation": "MgDyn2D Fields", "Procedure": ("MagnetoDynamics", "MagnetoDynamicsCalcFields"),
             "Potential Variable": "Az", "Calculate Magnetic Field Strength": True,
             "Calculate Current Density": True, "Calculate Nodal Fields": True, "Calculate Elemental Fields": False,
-            **linsys("iterative", "CG", "Diagonal", 1e-9, 500), "__post__": True}
+            **projection_linsys(ctx), "__post__": True}
     return [s, calc]
 
 
@@ -1000,6 +1009,22 @@ def tds_migration(model) -> bool:
                                     for ph in comp.children if ph.kind == "physics.tds" for f in ph.children)
 
 
+def tds_var(ph) -> str:
+    """The Elmer variable of a Transport of Diluted Species interface: Concentration for the species c, else
+    Concentration_<species>.  AdvectionDiffusion prefixes its keywords with it, so that species do not collide."""
+    sp = str(ph.get("species", "c") if ph is not None else "c").strip() or "c"
+    return "Concentration" if sp == "c" else f"Concentration_{sp}"
+
+
+def instance_variable(ph) -> tuple[str, str] | None:
+    """(symbol, Elmer variable) of an interface that names its dependent variable per instance, else None."""
+    pd = physics_def(ph.kind)
+    if not pd.instance_var:
+        return None
+    sym = str(ph.get(*pd.instance_var)).strip() or pd.instance_var[1]
+    return sym, (tds_var(ph) if pd.id == "tds" else sym)
+
+
 def tds_stabilized(ph) -> bool:
     """True when a Transport of Diluted Species interface runs Elmer's AdvectionDiffusion with SUPG (streamline
     diffusion) rather than the Galerkin ModelPDE.  AdvectionDiffusion has no linear reaction term: an interface with
@@ -1030,11 +1055,11 @@ def _tds_velocity(n, ctx):
 
 
 def _tds_tp(n, ctx, d):
-    out = {"Diffusion Coefficient": ctx.value(n.get("D"))}      # FluxSolver's coefficient in both formulations
     if tds_stabilized(n.parent):
-        out["Concentration Diffusivity"] = out["Diffusion Coefficient"]
-        return out                                                 # convection: the Equation section (_tds_tp_eq)
-    out["Time Derivative Coefficient"] = 1.0
+        # AdvectionDiffusion's own keyword, also the FluxSolver's coefficient (ModelPDE's Diffusion Coefficient
+        # would be read by any other ModelPDE in the domain).  Convection: the Equation section (_tds_tp_eq)
+        return {f"{tds_var(n.parent)} Diffusivity": ctx.value(n.get("D"))}
+    out = {"Diffusion Coefficient": ctx.value(n.get("D")), "Time Derivative Coefficient": 1.0}
     vel = _tds_velocity(n, ctx)
     if vel is None:
         out["Convection Coefficient"] = 1.0
@@ -1052,22 +1077,26 @@ def _tds_tp_eq(n, ctx, d):
     cannot collide with Heat Transfer's Convection keywords in the same body."""
     if not tds_stabilized(n.parent):
         return {}
+    var = tds_var(n.parent)
     out = {"Concentration Units": "Absolute Mass"}
     vel = _tds_velocity(n, ctx)
     if vel is None:
-        out["Concentration Convection"] = "Computed"
-        out["Concentration Convection Field Variable"] = "Flow Solution"
+        out[f"{var} Convection"] = "Computed"
+        out[f"{var} Convection Field Variable"] = "Flow Solution"
     elif vel:
-        out["Concentration Convection"] = "Constant"
+        out[f"{var} Convection"] = "Constant"
         for i, v in enumerate(vel):
-            out[f"Concentration Convection Velocity {i + 1}"] = ctx.value(v)
+            out[f"{var} Convection Velocity {i + 1}"] = ctx.value(v)
     else:
-        out["Concentration Convection"] = "None"
+        out[f"{var} Convection"] = "None"
     return out
 
 
 def _tds_key(n, galerkin, stabilized):
-    return stabilized if tds_stabilized(n.parent) else galerkin
+    """ModelPDE's keyword, or AdvectionDiffusion's (a leading '*' stands for the interface's variable)."""
+    if not tds_stabilized(n.parent):
+        return galerkin
+    return tds_var(n.parent) + stabilized[1:] if stabilized.startswith("*") else stabilized
 
 
 feature("tds.tp", "Transport Properties", "tp", "feature_domain", "domain", "material", _tds_tp, default=True,
@@ -1088,10 +1117,10 @@ feature("tds.tp", "Transport Properties", "tp", "feature_domain", "domain", "mat
                  r"\mathbf{J}=-D\nabla c - z\frac{D}{RT}F c\nabla\phi_l$")
 FEATURES["tds.tp.eq"] = Feature("tds.tp", "equation", _tds_tp_eq)
 feature("tds.init", "Initial Values", "init", "initial_values", "domain", "ic",
-        lambda n, ctx, d: {"Concentration": ctx.value(n.get("c0"))}, default=True,
+        lambda n, ctx, d: {tds_var(n.parent): ctx.value(n.get("c0"))}, default=True,
         props=[Prop("c0", "Concentration:", default="0", unit="mol/m^3", section="Initial Values", symbol="c")])
 feature("tds.reac", "Reactions", "reac", "feature_domain", "domain", "bodyforce",
-        lambda n, ctx, d: {_tds_key(n, "Field Source", "Concentration Diffusion Source"): ctx.value(n.get("R0"))},
+        lambda n, ctx, d: {_tds_key(n, "Field Source", "* Diffusion Source"): ctx.value(n.get("R0"))},
         props=[Prop("k", "First-order rate constant:", default="0", unit="1/s", section="Reaction Rates", symbol="k"),
                Prop("R0", "Reaction rate (source):", default="0", unit="mol/(m^3*s)", section="Reaction Rates", symbol="R₀")],
         equation=r"$R = -k\,c + R_0$")
@@ -1100,11 +1129,11 @@ FEATURES["tds.reac.mat"] = Feature("tds.reac", "material", lambda n, ctx, d: {"R
 feature("tds.nf", "No Flux", "nflx", "default_feature", "boundary", "bc", None, default=True,
         equation=r"$-\mathbf{n}\cdot\mathbf{J} = 0$")
 feature("tds.conc", "Concentration", "conc", "feature_boundary", "boundary", "bc",
-        lambda n, ctx, d=None: {"Concentration": ctx.value(n.get("c0"))},
+        lambda n, ctx, d=None: {tds_var(n.parent): ctx.value(n.get("c0"))},
         props=[Prop("c0", "Concentration:", default="1[mol/m^3]", unit="mol/m^3", section="Concentration", symbol="c₀")],
         equation=r"$c = c_0$")
 feature("tds.flux", "Flux", "fl", "feature_boundary", "boundary", "bc",
-        lambda n, ctx, d=None: ({_tds_key(n, "Field Flux", "Concentration Flux"): ctx.value(n.get("N0"))}
+        lambda n, ctx, d=None: ({_tds_key(n, "Field Flux", "* Flux"): ctx.value(n.get("N0"))}
                                 if n.get("type", "general") == "general"
                                 else {_tds_key(n, "Robin Coefficient", "Mass Transfer Coefficient"): ctx.value(n.get("kc")),
                                       _tds_key(n, "External Field", "External Concentration"): ctx.value(n.get("cb"))}),
@@ -1129,7 +1158,7 @@ def _tds_esc(n, ctx, d=None):
                        "expression so the reaction current is known on the boundary")
     i, _di = cd_kinetics(es)
     flux = f"({n.get('nu', '1')})*({sub_eta(i, cd_eta(es))})/(({n.get('nel', '1')})*{F_CONST!r})"
-    return {_tds_key(n, "Field Flux", "Concentration Flux"): ctx.value(flux)}
+    return {_tds_key(n, "Field Flux", "* Flux"): ctx.value(flux)}
 
 
 feature("tds.esc", "Electrode Surface Coupling", "esc", "feature_boundary", "boundary", "bc", _tds_esc,
@@ -1148,21 +1177,24 @@ feature("tds.outflow", "Outflow", "out", "feature_boundary", "boundary", "bc", N
 
 
 def _tds_solvers(ph, ctx):
+    var = tds_var(ph)
+    sp = "" if var == "Concentration" else f" {var[len('Concentration_'):]}"
     if tds_stabilized(ph):
         # streamline-upwind Petrov-Galerkin: consistent stabilization of convection-dominated transport.  (Elmer's
         # residual-free bubbles diverged on a quadrilateral strip with a near-zero migration velocity.)
-        s = {"Equation": "Diluted Species", "Procedure": ("AdvectionDiffusion", "AdvectionDiffusionSolver"),
-             "Variable": "Concentration", "Stabilization Method": "Stabilized", "Calculate Loads": True}
+        s = {"Equation": f"Diluted Species{sp}", "Procedure": ("AdvectionDiffusion", "AdvectionDiffusionSolver"),
+             "Variable": var, "Stabilization Method": "Stabilized", "Calculate Loads": True}
     else:
-        s = {"Equation": "Diluted Species", "Procedure": ("ModelPDE", "AdvDiffSolver"), "Variable": "Concentration",
+        s = {"Equation": f"Diluted Species{sp}", "Procedure": ("ModelPDE", "AdvDiffSolver"), "Variable": var,
              "Calculate Loads": True}        # reaction loads: the exactly conservative flux through fixed-c boundaries
         if ph.get("stab", False):
             ctx.warnings.append(f"{ph.label}: a first-order reaction rate constant; the species transport is solved "
                                 "without streamline diffusion")
     s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
-    flux = {"Equation": "Species Flux", "Procedure": ("FluxSolver", "FluxSolver"), "Calculate Flux": True,
-            "Flux Variable": "Concentration", "Flux Coefficient": "Diffusion Coefficient",
-            **(linsys("iterative", "CG", "ILU0", 1e-10, 500) if ctx.n_nodes > 100_000 else linsys("direct", "UMFPack")),
+    flux = {"Equation": f"Species Flux{sp}", "Procedure": ("FluxSolver", "FluxSolver"), "Calculate Flux": True,
+            "Flux Variable": var,
+            "Flux Coefficient": f"{var} Diffusivity" if tds_stabilized(ph) else "Diffusion Coefficient",
+            **projection_linsys(ctx),
             "Exec Solver": "After Timestep", "__post__": True}
     return [s, flux]
 
@@ -1174,11 +1206,17 @@ define_physics(PhysicsDef(
     domain=["tds.tp", "tds.reac", "tds.init"],
     boundary=["tds.conc", "tds.flux", "tds.esc", "tds.nf", "tds.sym", "tds.outflow"],
     solvers=_tds_solvers,
-    plots=lambda ph, sd, st: [{"label": "Concentration (tds)", "type": "surface", "expr": "c", "cmap": "RainbowLight", "dims": sd}],
+    plots=lambda ph, sd, st: [{"label": f"Concentration ({ph.tag})", "type": "surface",
+                               "expr": str(ph.get("species", "c")).strip() or "c", "cmap": "RainbowLight", "dims": sd}],
     description="Diffusion, convection and first-order reactions of a dilute species. Elmer AdvectionDiffusion "
                 "(streamline diffusion) or ModelPDE (Galerkin).",
-    equation=r"$\frac{\partial c}{\partial t} + \nabla\cdot(-D\nabla c) + \mathbf{u}\cdot\nabla c = R$"),
-    extra_props=[Prop("stab", "Streamline diffusion", "bool", True, section="Consistent Stabilization", legacy=False,
+    equation=r"$\frac{\partial c}{\partial t} + \nabla\cdot(-D\nabla c) + \mathbf{u}\cdot\nabla c = R$",
+    instance_var=("species", "c")),
+    extra_props=[Prop("species", "Species (dependent variable name):", "string", "c", section="Dependent Variables",
+                      tip="Each Transport of Diluted Species interface solves one species; a second interface needs "
+                          "its own name, e.g. c2, and streamline diffusion (AdvectionDiffusion keeps the species' "
+                          "keywords apart)"),
+                 Prop("stab", "Streamline diffusion", "bool", True, section="Consistent Stabilization", legacy=False,
                       tip="Consistent stabilization of convection-dominated transport (element Péclet number > 1), "
                           "which otherwise oscillates from node to node: streamline-upwind Petrov-Galerkin (SUPG). "
                           "Consistent: it vanishes for the exact solution. Elmer AdvectionDiffusion; without it, "
@@ -1238,7 +1276,8 @@ define_physics(PhysicsDef(
     solvers=_pde_solvers,
     plots=lambda ph, sd, st: [{"label": "u", "type": "surface", "expr": "u", "cmap": "RainbowLight", "dims": sd}],
     description="Scalar second-order PDE in coefficient form. Elmer ModelPDE.",
-    equation=r"$d_a\frac{\partial u}{\partial t} + \nabla\cdot(-c\nabla u) + \boldsymbol{\beta}\cdot\nabla u + a u = f$"),
+    equation=r"$d_a\frac{\partial u}{\partial t} + \nabla\cdot(-c\nabla u) + \boldsymbol{\beta}\cdot\nabla u + a u = f$",
+    instance_var=("depvar", "u")),
     extra_props=[Prop("depvar", "Dependent variable name:", "string", "u", section="Dependent Variables")])
 
 

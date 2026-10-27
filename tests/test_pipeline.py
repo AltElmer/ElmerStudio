@@ -68,7 +68,6 @@ def test_heat_block_linear():
     err = np.max(np.abs(T - (300 + 100 * g.points[:, 0])))
     print(f"heat block: max |T - Texact| = {err:.2e} K  ({len(mesh.nodes)} nodes, order {mesh.order})  {case}")
     assert err < 1e-6
-    return g
 
 
 def test_heat_source_slab():

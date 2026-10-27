@@ -254,7 +254,46 @@ def evaluate_parameters(rows: list[tuple[str, str]], overrides: dict | None = No
         if len(nxt) == len(pending):
             break
         pending = nxt
+    # name the dependency that blocks each unresolved parameter: a circular reference, or a missing name
+    left = {name for name in errs}
+    for name, expr in rows:
+        if name not in errs:
+            continue
+        try:
+            missing = sorted(free_symbols(expr) - set(vals))
+        except Exception:
+            continue
+        cyc = _cycle_from(name, rows, left)
+        if cyc:
+            errs[name] = "Circular reference: " + " -> ".join(cyc)
+        elif missing:
+            errs[name] = f"'{expr}' depends on undefined {', '.join(missing)}"
     return vals, errs
+
+
+def _cycle_from(start, rows, unresolved):
+    """A dependency cycle through *start* among the unresolved parameters, as a list of names, or None."""
+    deps = {}
+    for name, expr in rows:
+        try:
+            deps[name] = free_symbols(expr) & unresolved
+        except Exception:
+            deps[name] = set()
+    path, seen = [start], set()
+
+    def walk(n):
+        for d in sorted(deps.get(n, ())):
+            if d == start:
+                return path + [start]
+            if d not in seen:
+                seen.add(d)
+                path.append(d)
+                r = walk(d)
+                if r:
+                    return r
+                path.pop()
+        return None
+    return walk(start)
 
 
 # --------------------------------------------------------------------------- MATC export
@@ -266,19 +305,36 @@ def _fmt(v: float) -> str:
     return f"{v:.12g}"
 
 
-def expr_has_units(expr, rows) -> bool:
+def parameter_unit_flags(rows) -> dict[str, bool]:
+    """Which parameters carry units, directly ("2[mm]") or through any parameter they depend on.  Resolved over
+    the dependency graph, independent of row order (a parameter may refer to one defined further down); a
+    circular definition carries no units (and evaluate_parameters reports it)."""
+    deps: dict[str, set] = {}
+    flags: dict[str, bool] = {}
+    for name, e in rows:
+        e = str(e)
+        flags[name] = "[" in e
+        try:
+            deps[name] = free_symbols(e)
+        except Exception:
+            deps[name] = set()
+    changed = True
+    while changed:                                     # monotone: a flag only turns on, so this terminates
+        changed = False
+        for name, d in deps.items():
+            if not flags[name] and any(flags.get(t, False) for t in d):
+                flags[name] = changed = True
+    return flags
+
+
+def expr_has_units(expr, rows=None, flags: dict | None = None) -> bool:
     """Does *expr* carry units, directly ("2[mm]") or through a parameter defined with units?  *rows*: the
-    model's parameter rows [(name, expression)], in definition order."""
+    model's parameter rows [(name, expression)] (any order), or precomputed *flags* (parameter_unit_flags)."""
     s = str(expr)
     if "[" in s:
         return True
-    flags: dict = {}
-    for name, e in rows:
-        e = str(e)
-        try:
-            flags[name] = "[" in e or any(flags.get(t, False) for t in free_symbols(e))
-        except Exception:
-            flags[name] = "[" in e
+    if flags is None:
+        flags = parameter_unit_flags(rows or [])
     try:
         return any(flags.get(t, False) for t in free_symbols(s))
     except Exception:

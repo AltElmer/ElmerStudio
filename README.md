@@ -141,7 +141,8 @@ Added with it:
 | Derived values: Volume/Surface Integration, Average (2D axisymmetric: in the revolved geometry), Maximum, Minimum, Point Evaluation, Global (eigenfrequencies, operators, variables) → Tables | yes | — |
 | Export: Image, Data (CSV), VTU, HTML Report; Convergence Plot during solve | yes | — |
 | Undo/Redo, rename, duplicate, disable/enable, move, context menus, keyboard shortcuts | yes | — |
-| Model file with solutions (`.mph`) | `.esm` (zip of model JSON + solutions) | — |
+| Model file with solutions (`.mph`) | `.esm` (zip of model JSON + solutions + imported CAD files, with a SHA-256 manifest checked on open) | — |
+| Solver convergence (stop on non-convergence) | linear abort; Newton and coupling exhaustion stop the study or are kept, marked not converged | `Linear System Abort Not Converged` |
 | Method/Java shell | *Developer > Run Python Script* (scripting API, see below); *Show Elmer Input File*; *Export Elmer Case* | `.sif` |
 
 ### Physics interfaces

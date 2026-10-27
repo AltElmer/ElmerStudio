@@ -82,6 +82,7 @@ class DeformingRun:
         self.work = os.path.join(folder, "run")
         self.prev_restart = None
         self.nsolves = 0
+        self.diagnostics: list[str] = []
 
     # ------------------------------------------------------------------ helpers
     def _selections(self):
@@ -123,12 +124,19 @@ class DeformingRun:
         meta.update({"kind": "study.stationary", "selections": self._selections(), "sweep_param": self.sweep[0],
                      "sweep_value": self.sweep[1], "sweep_params": dict(self.combo)})
         write_solution_meta(self.work, meta)
-        if getattr(rs, "returncode", 0) != 0 or not result_files(self.work):
+        from .study_runner import StudyNotConverged, judge_run
+        status, diagnostics = judge_run(rs, sif.meta, self.work, f"{self.step.label} ({label})")
+        if status != "converged":
             with open(os.path.join(self.folder, "solver.log"), "w", errors="replace") as f:
                 f.write("\n".join(rs.lines))
-            said = [e for e in rs.errors if "ERROR::" in e]
-            err = (said or rs.errors or [f"ElmerSolver exited with code {getattr(rs, 'returncode', '?')}"])[-1]
-            raise RuntimeError(f"{self.step.label} ({label}): {err}")
+        if status == "failed":
+            raise RuntimeError(diagnostics[0])
+        if status == "not converged":
+            if self.study.get("nonconv", "stop") != "keep":
+                raise StudyNotConverged("; ".join(diagnostics))
+            self.diagnostics.extend(diagnostics)
+            for d in diagnostics:
+                r.emit("warning", f"NOT CONVERGED: {d}")
         keep = os.path.join(self.folder, "restart.result")
         src = os.path.join(self.work, "mesh", "restart.result")
         if os.path.exists(src):
@@ -315,8 +323,12 @@ class DeformingRun:
                 "moving_mesh": True, "frame_mesh": frame_mesh, "physics": list(self.setup["physics"]), "axi": self.axi,
                 "selections": self._selections(), "sweep_param": self.sweep[0], "sweep_value": self.sweep[1],
                 "sweep_params": dict(self.combo), "solves": self.nsolves, "steps": nsteps, "remeshes": self.remeshes,
-                "elapsed": time.time() - t_start, "integrator": "heun" if heun else "euler"}
+                "elapsed": time.time() - t_start, "integrator": "heun" if heun else "euler",
+                "status": "not converged" if self.diagnostics else "converged", "diagnostics": self.diagnostics,
+                "params": dict(self.model.parameters(self.overrides))}
         write_solution_meta(self.folder, meta)
+        with open(os.path.join(self.folder, "model.json"), "w") as f:
+            f.write(self.model.to_json())
         with open(os.path.join(self.folder, "solver.log"), "w", errors="replace") as f:
             f.write("\n".join(getattr(self, "lines", [])))
         shutil.rmtree(self.work, ignore_errors=True)

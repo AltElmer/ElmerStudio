@@ -7,7 +7,7 @@ The geometry is a *sequence* of features under *Geometry 1*, built from top to b
 
 Select *Geometry 1* to set:
 
-* _Length unit_ (m, mm, cm, µm, nm, km, in, ft). Numbers without a unit in geometry features are in this unit. A value with a unit (`+5[mm]+`, or a parameter defined with one) is converted.
+* _Length unit_ (m, mm, cm, µm, nm, km, in, ft). Numbers without a unit in geometry features are in this unit. A value with a unit (`+5[mm]+`, or a parameter defined with one, directly or through other parameters in any row order) is converted.
 * _Angular unit_ (degrees or radians) for rotation and revolution angles.
 * _Default repair tolerance_.
 

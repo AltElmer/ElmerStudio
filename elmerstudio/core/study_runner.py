@@ -58,6 +58,23 @@ class StudyCancelled(Exception):
     pass
 
 
+class StudyNotConverged(RuntimeError):
+    """Iterations reached their maximum without meeting the tolerance (the solution folder is kept, its meta.json
+    says status 'not converged' with the diagnostics)."""
+
+
+def judge_run(rs, sif_meta, folder, label) -> tuple[str, list[str]]:
+    """The status of one ElmerSolver run: ('failed', [message]) when Elmer stopped or wrote no result,
+    ('not converged', [problems]) when nonlinear or coupling iterations ran out, else ('converged', [])."""
+    from .elmer import convergence_problems
+    if getattr(rs, "returncode", 0) != 0 or not result_files(folder):
+        said = [e for e in rs.errors if "ERROR::" in e or "Numerical Error" in e]   # Elmer's message
+        err = (said or rs.errors or [f"ElmerSolver exited with code {getattr(rs, 'returncode', '?')}"])[-1]
+        return "failed", [f"{label}: {err}"]
+    problems = convergence_problems(rs.conv, sif_meta.get("convergence"))
+    return ("not converged", [f"{label}: {p}" for p in problems]) if problems else ("converged", [])
+
+
 class StudyRunner:
     def __init__(self, model: Model, study: Node, workdir: str, inst: ElmerInstall | None, on_event=None,
                  mesh_cache=None):
@@ -184,13 +201,25 @@ class StudyRunner:
                 if step.kind == "study.time":
                     tfac = units.unit_info(step.get("tunit", "s"))[0]
                     meta["times"] = [t / tfac for t in meta.get("times", [])]
+                status, diagnostics = judge_run(rs, sif.meta, folder, step.label)
+                meta.update({"status": status, "diagnostics": diagnostics,
+                             # provenance: the inputs this solution was computed from (results evaluate with these
+                             # parameter values, not later edits of the model)
+                             "params": dict(self.model.parameters(overrides))})
                 write_solution_meta(folder, meta)
+                with open(os.path.join(folder, "model.json"), "w") as f:
+                    f.write(self.model.to_json())
                 with open(os.path.join(folder, "solver.log"), "w", errors="replace") as f:
                     f.write("\n".join(rs.lines))
-                if getattr(rs, "returncode", 0) != 0 or not result_files(folder):
-                    said = [e for e in rs.errors if "ERROR::" in e]           # Elmer's message, not the backtrace
-                    err = (said or rs.errors or [f"ElmerSolver exited with code {getattr(rs, 'returncode', '?')}"])[-1]
-                    raise RuntimeError(f"{step.label}: {err}")
+                if status == "failed":
+                    raise RuntimeError(diagnostics[0])
+                if status == "not converged":
+                    if self.study.get("nonconv", "stop") != "keep":
+                        raise StudyNotConverged("; ".join(diagnostics) + ". Raise the maximum number of iterations "
+                                                "or the damping in the study's Solver Configurations, or choose to "
+                                                "keep unconverged solutions in the study settings.")
+                    for d in diagnostics:
+                        self.emit("warning", f"NOT CONVERGED: {d}")
                 self.folders.append(folder)
                 if cont:
                     previous[si] = (os.path.join(folder, "mesh", "restart.result"), np.array(mesh.nodes, float))

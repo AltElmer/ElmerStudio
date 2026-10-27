@@ -402,7 +402,7 @@ With _Elmer solver_ `+Automatic+`, Elmer Studio picks one:
 |===
 
 A FluxSolver then computes the current density `+cd.Il+` once, on the converged solution.
-Transport of Diluted Species runs on ModelPDE.
+Transport of Diluted Species runs on AdvectionDiffusion (streamline diffusion, the default), whose keywords carry the species' name, so it can share the electrolyte with the ModelPDE back end. Without streamline diffusion it also runs on ModelPDE, and the two would read each other's coefficients in the same domain: Elmer Studio then stops with an error naming both interfaces.
 
 IMPORTANT: Forcing `+StatCurrentSolve (no kinetics)+` on a model with electrode kinetics stops with an error: kinetics need the HeatSolve or ModelPDE back end.
 

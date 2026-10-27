@@ -34,6 +34,7 @@ class Scene:
 
 class GraphicsView(QWidget):
     entityClicked = Signal(str, int, bool)    # level, number, ctrl
+    entitiesSet = Signal(str, list)           # level, the whole selection (Select All, Clear Selection)
     status = Signal(str)
 
     def __init__(self, parent=None):
@@ -721,15 +722,12 @@ class GraphicsView(QWidget):
         self.plotter.render()
 
     def select_all(self):
-        if self.geo is not None and self.level:
-            for e in self.geo.numbers.get(self.level, []):
-                if e not in self.selected:
-                    self.entityClicked.emit(self.level, e, True)
+        if self.geo is not None and self.level:              # one edit (one undo step), not one per entity
+            self.entitiesSet.emit(self.level, sorted(int(e) for e in self.geo.numbers.get(self.level, [])))
 
     def clear_selection(self):
         if self.level:
-            for e in list(self.selected):
-                self.entityClicked.emit(self.level, e, True)
+            self.entitiesSet.emit(self.level, [])
 
     def set_transparency(self, on):
         self.transparent = on

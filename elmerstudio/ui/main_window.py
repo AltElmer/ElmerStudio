@@ -19,7 +19,7 @@ from ..core import builder as B
 from ..core import project, units
 from ..core.elmer import elmer_version, find_elmer, write_case
 from ..core.examples import EXAMPLES
-from ..core.geometry import (GeometryError, GeometryResult, apply_named_selections, build_geometry,
+from ..core.geometry import (WP_KINDS, GeometryError, GeometryResult, apply_named_selections, build_geometry,
                              object_names_before)
 from ..core.materials import MATPROPS
 from ..core.meshing import SIZE_CHOICES, build_mesh
@@ -52,6 +52,7 @@ class Job(QThread):
         super().__init__(parent)
         self.fn = fn
         self.runner = None
+        self.cancelled = False          # Stop: the result of a job that cannot be killed is discarded
 
     def run(self):
         try:
@@ -81,13 +82,17 @@ class MainWindow(QMainWindow):
         self.model: Model = B.new_model(None)
         self.workdir = project.new_workdir()
         self.file_path: str | None = None
-        self.dirty = False
+        # model revisions: every edit makes a new one, undo/redo return to the revision of the state they restore;
+        # the file is modified when the revision differs from the saved one, and a geometry/mesh job's result is
+        # current only if the model is still at the revision the job started from
+        self._revs = 0
+        self.rev = self._saved_rev = 0
         self.geo: GeometryResult | None = None
         self.geo_stale = True
         self.mesh = None
         self.mesh_stale = True
-        self.undo_stack: list[str] = []
-        self.redo_stack: list[str] = []
+        self.undo_stack: list[tuple[str, int]] = []      # (snapshot, revision)
+        self.redo_stack: list[tuple[str, int]] = []
         self.sol_cache: dict[str, Solution] = {}
         self.job: Job | None = None
         self.active_sel: Node | None = None
@@ -303,6 +308,7 @@ class MainWindow(QMainWindow):
             for k in kinds:
                 nt = REGISTRY[k]
                 act = self._a(k, nt.title, nt.icon, (lambda kk=k: self.add_geom(kk)))
+                act.setData(k)
                 store.append(act)
         for act in self.geo3d_actions[:3]:
             g.add_large(act)
@@ -329,6 +335,7 @@ class MainWindow(QMainWindow):
                            for k in ("geom.fillet3d", "geom.chamfer3d")]
         g.add_small(self.fc_actions)
         tos = self._a("geom.tosolid", "Convert\nto Solid", REGISTRY["geom.tosolid"].icon, lambda: self.add_geom("geom.tosolid"))
+        tos.setData("geom.tosolid")
         self.geo2d_actions.append(tos)
         g.add_large(tos)
         g = t.add_group("Selections")
@@ -476,6 +483,7 @@ class MainWindow(QMainWindow):
         self.gstack = QStackedWidget()
         self.graphics = GraphicsView(self)
         self.graphics.entityClicked.connect(self.on_entity_clicked)
+        self.graphics.entitiesSet.connect(self.on_entities_set)
         self.graphics.status.connect(lambda s: self.statusBar().showMessage(s, 3000))
         self.plot1d = MplCanvas(self)
         self.gstack.addWidget(self.graphics)
@@ -548,6 +556,7 @@ class MainWindow(QMainWindow):
         self.sol_cache.clear()
         self.undo_stack.clear()
         self.redo_stack.clear()
+        self.rev = self._new_rev()
         self.dirty = False
         self.current_plot = None
         self.active_sel = None
@@ -566,14 +575,35 @@ class MainWindow(QMainWindow):
     def _update_title(self):
         self.setWindowTitle(f"{self._file_name()}{' *' if self.dirty else ''} - {APP_NAME}")
 
-    def _update_geom_actions(self):
+    @property
+    def dirty(self) -> bool:
+        """Modified since the last save: the model is at another revision than the saved one."""
+        return self.rev != self._saved_rev
+
+    @dirty.setter
+    def dirty(self, value: bool):
+        if value:                   # a change outside the undo history (new solutions)
+            self.rev = self._new_rev()
+        else:
+            self._saved_rev = self.rev
+
+    def _new_rev(self) -> int:
+        self._revs += 1
+        return self._revs
+
+    def _update_geom_actions(self, node: Node | None = None):
         sd = self.sdim() if self.model.component else 3
+        tree = getattr(self, "tree", None)
+        cur = node if node is not None else (tree.current() if tree is not None else None)
+        # inside a work plane a 3D geometry takes the planar sketch primitives (add_geom puts them into the plane)
+        in_wp = sd == 3 and cur is not None and (cur.kind == "geom.workplane" or (
+            cur.parent is not None and cur.parent.kind == "geom.workplane"))
         for a in self.geo3d_actions + self.wp_actions:
             a.setEnabled(sd == 3)
         for a in self.fc_actions:                  # 3D: edges of a solid; 2D or inside a work plane: sketch vertices
             a.setEnabled(sd in (2, 3))
         for a in self.geo2d_actions:
-            a.setEnabled(sd == 2)
+            a.setEnabled(sd == 2 or (in_wp and a.data() in WP_KINDS))
         self.act["add_comp"].setEnabled(self.model.component is None)
 
     def _confirm_discard(self) -> bool:
@@ -637,36 +667,56 @@ class MainWindow(QMainWindow):
         self._set_model(m, fn, work)
         self._add_recent(fn)
         self.messages.add(f"Opened file: {fn}")
+        problems = getattr(m, "load_problems", [])
+        if problems:                                   # a damaged archive, not one saved without solutions
+            text = "\n".join(problems[:12]) + (f"\n... and {len(problems) - 12} more" if len(problems) > 12 else "")
+            self.messages.add(f"{fn}: {len(problems)} stored file(s) missing or damaged; affected solutions "
+                              "cannot be shown. Recompute them.", "error")
+            QMessageBox.warning(self, APP_NAME, f"Some stored solution files are missing or damaged:\n\n{text}")
+        elif getattr(m, "solutions_saved", "included") == "excluded":
+            self.messages.add("This file was saved without solutions; compute the studies to see results.")
         if m.component is not None:
             self.build_geometry()
 
     def file_save(self) -> bool:
         if not self.file_path:
             return self.file_save_as()
+        return self._save_to(self.file_path)
+
+    def _save_to(self, fn: str, relabel=False) -> bool:
+        """Write the model to *fn*; the window's file name, model label and saved revision change only once the
+        file is written (a failed Save As leaves the previous file current)."""
+        label = self.model.root.label
+        if relabel:
+            self.model.root.label = os.path.splitext(os.path.basename(fn))[0]
         try:
-            project.save(self.model, self.file_path, self.workdir, include_solutions=self.qs.value("save_solutions", True, bool))
+            project.save(self.model, fn, self.workdir, include_solutions=self.qs.value("save_solutions", True, bool))
         except Exception as exc:
-            QMessageBox.critical(self, APP_NAME, f"Save failed: {exc}")
+            self.model.root.label = label
+            self.messages.add(f"Save failed: {exc}", "error")
+            if not self.no_modal:
+                QMessageBox.critical(self, APP_NAME, f"Save failed: {exc}")
             return False
+        self.file_path = fn
         self.dirty = False
+        self.tree.file_name = self._file_name()
+        self.tree.refresh()
         self._update_title()
-        self.messages.add(f"Saved file: {self.file_path}")
-        self._add_recent(self.file_path)
+        self.messages.add(f"Saved file: {fn}")
+        self._add_recent(fn)
         return True
 
-    def file_save_as(self) -> bool:
-        fn, _ = QFileDialog.getSaveFileName(self, "Save As", os.path.join(self.qs.value("last_dir", ""), self._file_name()),
-                                            f"{APP_NAME} model (*{FILE_EXT})")
+    def file_save_as(self, fn: str | None = None) -> bool:
+        if fn is None:
+            fn, _ = QFileDialog.getSaveFileName(self, "Save As", os.path.join(self.qs.value("last_dir", ""),
+                                                                               self._file_name()),
+                                                f"{APP_NAME} model (*{FILE_EXT})")
         if not fn:
             return False
         if not fn.endswith(FILE_EXT):
             fn += FILE_EXT
-        self.file_path = fn
-        self.model.root.label = os.path.splitext(os.path.basename(fn))[0]
         self.qs.setValue("last_dir", os.path.dirname(fn))
-        self.tree.file_name = self._file_name()
-        self.tree.refresh()
-        return self.file_save()
+        return self._save_to(fn, relabel=True)
 
     def _add_recent(self, fn):
         rec = [r for r in (self.qs.value("recent", []) or []) if r != fn]
@@ -701,12 +751,13 @@ class MainWindow(QMainWindow):
             d.show()
 
     # ================================================================== undo / mutation
-    def _push_undo(self):
-        self.undo_stack.append(self.model.snapshot())
+    def _push_undo(self, snap: str | None = None):
+        """Record the state before an edit (*snap*, taken before it, or now) and move to a new revision."""
+        self.undo_stack.append((snap if snap is not None else self.model.snapshot(), self.rev))
         if len(self.undo_stack) > 100:
             self.undo_stack.pop(0)
         self.redo_stack.clear()
-        self.dirty = True
+        self.rev = self._new_rev()
         self._update_title()
 
     def _restore(self, snap):
@@ -722,13 +773,17 @@ class MainWindow(QMainWindow):
 
     def undo(self):
         if self.undo_stack:
-            self.redo_stack.append(self.model.snapshot())
-            self._restore(self.undo_stack.pop())
+            self.redo_stack.append((self.model.snapshot(), self.rev))
+            snap, self.rev = self.undo_stack.pop()
+            self._restore(snap)
+            self._update_title()
 
     def redo(self):
         if self.redo_stack:
-            self.undo_stack.append(self.model.snapshot())
-            self._restore(self.redo_stack.pop())
+            self.undo_stack.append((self.model.snapshot(), self.rev))
+            snap, self.rev = self.redo_stack.pop()
+            self._restore(snap)
+            self._update_title()
 
     def _mark(self, node: Node):
         if node.kind == "params" or node.kind.startswith("func.") or node.kind == "variables":
@@ -797,9 +852,6 @@ class MainWindow(QMainWindow):
             return
         self.set_selection(node, entities=[e for e in node.selection.entities if e not in ents])
 
-    def add_graphics_selection(self, node):
-        pass
-
     def highlight_entities(self, level, ents):
         if self.graphics.mode == "geometry" and self.active_sel is not None:
             self.graphics.set_selection_state(self.graphics.level, self.graphics.selected, ents)
@@ -840,6 +892,24 @@ class MainWindow(QMainWindow):
         node.selection.entities = ents
         node.selection.all = False
         node.selection.named = ""          # editing the list makes it a manual selection, as in COMSOL
+        self._mark(node)
+        self.graphics.set_selection_state(level, ents)
+        self.settings.refresh()
+
+    def on_entities_set(self, level, ents):
+        """Select All / Clear Selection in the graphics: the active selection becomes *ents* in one edit."""
+        node = self.active_sel
+        if node is None or node.selection is None or node.selection.level != level:
+            return
+        if REGISTRY[node.kind].single_select and len(ents) > 1:
+            return
+        ents = sorted(int(e) for e in ents)
+        if ents == sorted(node.selection.entities) and not node.selection.all and not node.selection.named:
+            return
+        self._push_undo()
+        node.selection.entities = ents
+        node.selection.all = False
+        node.selection.named = ""
         self._mark(node)
         self.graphics.set_selection_state(level, ents)
         self.settings.refresh()
@@ -1212,13 +1282,26 @@ class MainWindow(QMainWindow):
     def _load_solution(self, folder):
         if folder not in self.sol_cache:
             try:
-                self.sol_cache[folder] = Solution(folder)
+                sol = Solution(folder)
             except Exception as exc:
                 self.messages.add(f"Could not load solution {folder}: {exc}", "error")
                 return None
+            status = sol.meta.get("status", "converged")
+            if status == "failed":                     # kept on disk for its log, never shown as a result
+                return None
+            if status == "not converged":
+                self.messages.add("Solution NOT CONVERGED (kept by the study settings): "
+                                  + "; ".join(sol.meta.get("diagnostics", [])), "warning")
+            self.sol_cache[folder] = sol
         sol = self.sol_cache[folder]
         from ..core.nodes import bind_results
-        return bind_results(self.model, sol, self.geo if not self.geo_stale else None)
+        sol = bind_results(self.model, sol, self.geo if not self.geo_stale else None)
+        changed = getattr(sol, "params_changed", [])
+        if changed and folder not in self.__dict__.setdefault("_stale_noted", set()):
+            self._stale_noted.add(folder)
+            self.messages.add(f"The solution was computed with earlier values of {', '.join(changed)}; results use "
+                              "those values. Compute the study again to see the current model.", "warning")
+        return sol
 
     def sweep_info(self, dset: Node | None):
         """(parameter name, unit) of the dataset study's parametric sweep."""
@@ -1317,6 +1400,7 @@ class MainWindow(QMainWindow):
         self.active_sel = None
         self.settings.show_node(node)
         self._update_contextual(node)
+        self._update_geom_actions(node)
         k = node.kind
         if k.startswith("pg"):
             self.plot(node)
@@ -1577,10 +1661,15 @@ class MainWindow(QMainWindow):
         if self.model.component.get("sdim") not in pd.dims:
             QMessageBox.information(self, APP_NAME, f"{pd.name} is not available in this space dimension.")
             return
-        self._push_undo()
-        ph = B.add_physics(self.model, pid)
-        if not self.model.studies():
-            pass
+        snap = self.model.snapshot()
+        try:
+            ph = B.add_physics(self.model, pid)
+        except ValueError as e:                   # a second instance of an interface with a fixed variable
+            self.messages.add(str(e), "warning")
+            if not self.no_modal:
+                QMessageBox.information(self, APP_NAME, str(e))
+            return
+        self._push_undo(snap)
         self.tree.refresh(select=ph)
 
     def add_coupling(self, kind):
@@ -1798,7 +1887,10 @@ class MainWindow(QMainWindow):
         return True
 
     def _on_job_done(self, r):
-        self._job_done(r, self._job_cb[1])
+        if self.job is not None and self.job.cancelled:      # stopped while it ran: drop the result
+            self._job_failed(self._job_cb[0], "stopped by the user", "")
+        else:
+            self._job_done(r, self._job_cb[1])
         self._next_job()
 
     def _on_job_failed(self, msg, tb):
@@ -1844,8 +1936,17 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, APP_NAME, f"{title} failed:\n\n{msg}")
 
     def stop_job(self):
-        if self.job is not None and self.job.runner is not None:
-            self.job.runner.stop()
+        """Stop: drop the queued jobs and stop the running one (a solver is killed; a geometry or mesh build, which
+        cannot be interrupted, finishes in the background and its result is discarded)."""
+        dropped = len(getattr(self, "_queue", []))
+        self._queue = []
+        self._pending_after_geo = None
+        if self.job is not None:
+            self.job.cancelled = True
+            if self.job.runner is not None:
+                self.job.runner.stop()
+        if dropped:
+            self.messages.add(f"Stopped; {dropped} queued job(s) cancelled.")
 
     # -- geometry
     def build_geometry(self, upto: Node | None = None, silent=False, then=None):
@@ -1853,8 +1954,8 @@ class MainWindow(QMainWindow):
         if comp is None:
             return
         model_snapshot = Model.from_dict(json.loads(json.dumps(self.model.to_dict())))
-        geom_tag = comp.child("geometry").tag
         upto_tag = upto.tag if upto is not None else None
+        rev = self.rev
 
         def work(emit):
             g = model_snapshot.component.child("geometry")
@@ -1863,8 +1964,11 @@ class MainWindow(QMainWindow):
 
         def done(res: GeometryResult):
             self.geo = res
-            self.geo_stale = upto is not None
-            if upto is None:
+            current = self.rev == rev            # the model was not edited while the geometry was built
+            self.geo_stale = upto is not None or not current
+            if not current:
+                self.messages.add("The model changed while the geometry was built; build it again.", "warning")
+            elif upto is None:
                 apply_named_selections(self.model, res)
             for m in res.messages:
                 self.messages.add(m, "warning")
@@ -1918,16 +2022,18 @@ class MainWindow(QMainWindow):
         if self.model.component is None:
             return
         model_snapshot = Model.from_dict(json.loads(json.dumps(self.model.to_dict())))
+        rev = self.rev
 
         def work(emit):
             return build_mesh(model_snapshot)
 
         def done(res):
             self.mesh = res
-            self.mesh_stale = False
-            self.geo_stale = False
-            if self.geo is None or self.geo.count("domain") != res.geometry.count("domain"):
-                pass
+            if self.rev == rev:                  # else the model changed while it was meshed: the mesh is stale
+                self.mesh_stale = False
+                self.geo_stale = False
+            else:
+                self.messages.add("The model changed while the mesh was built; build it again.", "warning")
             st = res.stats
             self.messages.add(f"Complete mesh consists of {st['elements']} domain elements and {st['boundary_elements']} "
                               f"boundary elements ({st['nodes']} nodes, order {st['order']}). "
@@ -1972,6 +2078,7 @@ class MainWindow(QMainWindow):
             return
         self.dock_mat.hide()
         model_snapshot = Model.from_dict(json.loads(json.dumps(self.model.to_dict())))
+        rev = self.rev
         st_snap = model_snapshot.by_tag(study.tag)
         mesh_cache = self.mesh if (self.mesh is not None and not self.mesh_stale) else None
         self.conv.reset()
@@ -2011,7 +2118,7 @@ class MainWindow(QMainWindow):
                 self.messages.add(p, "error")
             elif kind == "mesh":
                 self.mesh = p
-                self.mesh_stale = False
+                self.mesh_stale = self.rev != rev        # meshed from the model as it was when Compute started
 
         def done(folders):
             self._flush_log()

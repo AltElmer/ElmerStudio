@@ -25,6 +25,9 @@ latexmath:[\frac{\partial c}{\partial t} + \nabla\cdot(-D\nabla c) + \mathbf{u}\
 |Setting |Symbol |Unit |Default |Choices / type
 5+h|Discretization
 |Element order | | |Quadratic |Linear, Quadratic
+5+h|Dependent Variables
+|Species (dependent variable name) +
+_Each Transport of Diluted Species interface solves one species; a second interface needs its own name, e.g. c2, and streamline diffusion (AdvectionDiffusion keeps the species' keywords apart)_ | | |`+c+` |Text
 5+h|Consistent Stabilization
 |Streamline diffusion +
 _Consistent stabilization of convection-dominated transport (element Péclet number > 1), which otherwise oscillates from node to node: streamline-upwind Petrov-Galerkin (SUPG). Consistent: it vanishes for the exact solution. Elmer AdvectionDiffusion; without it, Galerkin ModelPDE. A first-order rate constant (Reactions) needs the Galerkin form._ | | |On |Check box
