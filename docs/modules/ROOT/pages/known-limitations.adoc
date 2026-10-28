@@ -5,6 +5,7 @@ This list is deliberately explicit.
 
 == Not available yet
 
+* shells, plates and beams: Elmer has ShellSolver and the Smitc plate solver, but Solid Mechanics in Studio is continuum only;
 * 3D magnetic fields (A–V formulation);
 * turbulence;
 * contact, nonlinear materials and prestressed (harmonic perturbation) structural analysis;

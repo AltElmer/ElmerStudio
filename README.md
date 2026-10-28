@@ -240,29 +240,32 @@ tests/, tools/     regression suites, GUI smoke test, screenshot tours, icon con
 
 ## Known gaps compared with COMSOL
 
-These are deliberately listed, so nobody assumes they exist:
+These are deliberately listed, so nobody assumes they exist. The full list, including the ElmerGrid mesher and the OpenFOAM backend, is on the [Known limitations](https://altelmer.github.io/ElmerStudio/known-limitations.html) page.
 
 - **Not available yet:**
+  - shells, plates and beams (Elmer has ShellSolver and the Smitc plate solver; Studio's Solid Mechanics is continuum only);
   - 3D magnetic fields (A-V formulation);
   - turbulence;
-  - structural transient and frequency response;
-  - contact;
-  - Form Assembly with identity pairs;
-  - named selections other than Box Selections;
-  - probes;
-  - animations;
+  - contact, nonlinear materials and prestressed (harmonic perturbation) structural analysis;
+  - damped (complex) eigenfrequencies;
   - boundary elements (BEM) and perfectly matched layers: open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;
   - exterior field calculation in 2D planar models (needs Hankel functions);
   - result filters, data-set joins and Combined/Array datasets;
   - adaptive meshing;
   - LiveLink-style CAD sync;
-  - the Application Builder.
+  - the Application Builder;
+  - reading or writing COMSOL `.mph` files.
 - **Partly supported:**
-  - boundary-layer meshing is not exposed;
-  - materials are constant (20 °C) unless you enter an expression;
-  - the physics-controlled mesh does not refine automatically for physics, apart from the fluid and acoustics calibrations;
-  - with an incident plane wave the solution is the total field, so the exterior field is most accurate when integrated over the scatterer's surface (on the outer boundary the incident wave's dispersion error remains).
+  - boundary layers are meshed in 2D and 2D axisymmetric models only;
+  - Solid Mechanics in a Frequency Domain study: no stresses, zero-phase loads, and Roller/Symmetry only on boundaries perpendicular to a coordinate axis;
+  - damping is Rayleigh damping only; a Time Dependent structural study starts at rest;
+  - probes are evaluated at the saved output steps; animations are GIF or PNG sequences;
+  - identity pairs (Form Assembly) give continuity for heat, electrostatics, electric currents and the coefficient-form PDE, not yet for solid mechanics, flow or transport;
+  - electrochemistry: no solid-phase electrode domain or double-layer capacitance; a total-current electrode works in Stationary studies, one per component;
+  - library materials are constant (20 °C) unless you enter an expression;
+  - the physics-controlled mesh refines automatically only for laminar flow and acoustics;
+  - with an incident plane wave the solution is the total field, so the exterior field is most accurate when integrated over the scatterer's surface.
 - **Approximations:**
-  - integrals over quadratic elements use VTK's linearized cells (≈0.1 % on smooth fields);
-  - unit expressions are converted to SI, but dimensional consistency is not checked.
+  - integrals over quadratic elements use VTK's linearized cells (≈0.1 % on smooth fields); fluxes from reaction loads (electrode currents, heat flows) are exact;
+  - units are checked and reported, but a value with the wrong unit is still used (its SI number), as in COMSOL.
 - **Parallel:** MPI runs need an MPI-enabled Elmer. The Windows `-nompi` build runs serially.
