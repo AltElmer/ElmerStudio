@@ -161,6 +161,10 @@ register(NodeType("variables", "Variables", "var", "variables", props=[
 STEP_KINDS = ["study.stationary", "study.time", "study.eigen", "study.freq"]
 register(NodeType("study", "Study", "std", "study", deletable=True, can_disable=False,
                   children=STEP_KINDS + ["study.sweep"], props=[
+                      Prop("backend", "Solver backend:", "choice", "elmer",
+                           choices=[("elmer", "Elmer"), ("openfoam", "OpenFOAM (blockMesh)")], section="Study Settings",
+                           tip="OpenFOAM solves Laminar Flow and Heat Transfer in Solids on unions of axis-aligned "
+                               "rectangles or blocks, meshed by blockMesh; anything else is refused at Compute."),
                       Prop("plots", "Generate default plots", "bool", True, section="Study Settings"),
                       Prop("convplot", "Generate convergence plots", "bool", True, section="Study Settings"),
                       Prop("np", "Number of MPI processes:", "int", 1, section="Parallel Computing",
