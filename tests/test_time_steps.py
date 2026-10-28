@@ -20,7 +20,8 @@ TIMES = "range(0,0.01,0.1) range(0.2,0.1,1)"
 
 
 def test_time_groups():
-    assert time_groups([0, 0.01, 0.02, 0.03, 0.13, 0.23]) == pytest.approx([(0.01, 3), (0.1, 2)])
+    g = time_groups([0, 0.01, 0.02, 0.03, 0.13, 0.23])
+    assert [n for _dt, n in g] == [3, 2] and [dt for dt, _n in g] == pytest.approx([0.01, 0.1])
     g = time_groups([0, 0.5, 1.0, 1.0, 2.0, 3.0])                 # a time repeated where two ranges meet
     assert [n for _dt, n in g] == [2, 2] and g[1][0] == pytest.approx(1.0)
     with pytest.raises(SifError):
