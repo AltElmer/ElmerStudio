@@ -46,3 +46,16 @@ This list is deliberately explicit.
 == Parallel computing
 
 MPI runs need an MPI-enabled Elmer. The Windows `-nompi` builds of Elmer run serially.
+
+== OpenFOAM backend
+
+The OpenFOAM backend (see xref:user-guide:openfoam.adoc[OpenFOAM backend]) is deliberately narrow:
+
+* Laminar Flow and Heat Transfer in Solids only, one physics per study step, stationary or time dependent;
+* blockMesh only: unions of axis-aligned rectangles (2D) or blocks (3D). No `gmshToFoam` or `snappyHexMesh` for other shapes, and no 2D axisymmetric wedge;
+* no turbulence, multiphase, conjugate heat transfer between regions, or parallel decomposition;
+* one constant density and viscosity (or k, ρ, C~p~) for all domains;
+* the outlet sets p = p~0~ with a zero normal velocity gradient. It equals Studio's traction outlet only where the flow leaves parallel;
+* no conductive heat flux (`ht.tflux`) in the results;
+* equally spaced output times with a fixed time step;
+* verified with OpenFOAM v2606 under WSL. The Windows (msys) launcher for the ESI v2106 tree and a native Linux install are implemented but not verified.

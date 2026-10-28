@@ -16,6 +16,7 @@ import time
 import numpy as np
 
 from . import units
+from .backends import study_backend
 from .builder import step_components, study_steps, study_sweep
 from .elmer import ElmerInstall, RunState, partition_command, result_files, solver_command, write_case
 from .meshing import build_mesh
@@ -244,6 +245,7 @@ class StudyRunner:
         self._stop = threading.Event()
         self.mesh_cache = mesh_cache
         self.folders: list[str] = []
+        self._killer = None                # a backend's own process-tree kill (OpenFOAM runs under bash)
 
     def emit(self, kind, payload=None):
         try:
@@ -253,6 +255,11 @@ class StudyRunner:
 
     def stop(self):
         self._stop.set()
+        if self._killer is not None:
+            try:
+                self._killer()
+            except Exception:
+                pass
         p = self._proc
         if p is not None and p.poll() is None:
             try:
@@ -285,6 +292,9 @@ class StudyRunner:
         return component_dir(self.model, self.study_dir(), comp.tag)
 
     def _run(self) -> list[str]:
+        if study_backend(self.study) == "openfoam":
+            from .backends.openfoam.runner import FoamStudy
+            return FoamStudy(self).run()
         if self.inst is None:
             raise RuntimeError("Elmer was not found. Set the Elmer installation folder in Preferences.")
         steps = study_steps(self.study)

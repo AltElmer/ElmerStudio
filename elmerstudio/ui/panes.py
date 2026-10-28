@@ -252,7 +252,7 @@ class ConvergencePlot(MplCanvas):
 
     def add(self, point):
         idx, eq, kind, relc, it = point
-        key = f"{eq} ({'nonlinear' if kind == 'NS' else 'coupling'})"
+        key = f"{eq} ({ {'NS': 'nonlinear', 'SS': 'coupling', 'residual': 'initial residual'}.get(kind, kind)})"
         self.series.setdefault(key, []).append((idx, max(relc, 1e-16)))
 
     def redraw(self):

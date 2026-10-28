@@ -31,6 +31,15 @@ def _solver_scratch(request):
 
 
 @pytest.fixture(scope="session")
+def openfoam():
+    from elmerstudio.core.backends.openfoam.install import find_openfoam
+    inst = find_openfoam()
+    if inst is None:
+        pytest.skip("OpenFOAM not installed (set OPENFOAM_ROOT)")
+    return inst
+
+
+@pytest.fixture(scope="session")
 def elmer():
     from elmerstudio.core.elmer import find_elmer
     inst = find_elmer()

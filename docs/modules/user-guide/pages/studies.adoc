@@ -85,6 +85,10 @@ During the run:
 
 When the study finishes, default plot groups are created for the solved physics (turn off _Generate default plots_ on the Study to skip that).
 
+== Solver backend
+
+_Solver backend_ on the *Study* node chooses who solves the study: *Elmer* (the default) or *OpenFOAM (blockMesh)*. OpenFOAM solves Laminar Flow and Heat Transfer in Solids on unions of axis-aligned rectangles or blocks, and refuses everything else before it runs, saying why. Its results come back as an ordinary solution with the same variable names and units, and the convergence statuses and the _When ... do not converge_ setting work the same way. See xref:openfoam.adoc[OpenFOAM backend].
+
 == Parallel computing
 
 Set _Number of MPI processes_ on the *Study* node to run Elmer on several cores. It needs an MPI-enabled Elmer (`ElmerSolver_mpi` and `mpiexec`). Elmer Studio partitions the mesh with ElmerGrid, runs `mpiexec -n N ElmerSolver_mpi`, and reads the partitioned results back as one solution. Without an MPI-enabled Elmer it warns and runs serially.

@@ -1,0 +1,125 @@
+= OpenFOAM backend
+:description: Solving Laminar Flow and Heat Transfer in Solids with OpenFOAM and blockMesh instead of ElmerSolver, what is supported, what is refused and why.
+
+A study can be solved by *OpenFOAM* (finite volumes, with a *blockMesh* hexahedral mesh) instead of ElmerSolver. You build the model exactly as for Elmer: geometry, materials, physics features, mesh settings, study. Only the study's *Solver backend* setting changes. The results come back into the same Results machinery, with the same variable names and SI units as an Elmer solution, so plots, derived values, selections and export work unchanged.
+
+OpenFOAM covers a narrow, exact subset. Anything it cannot represent faithfully is refused before anything runs, with a sentence saying why and what to use instead. Elmer Studio never falls back to Elmer silently.
+
+== Choosing the backend
+
+Select the study node and set *Solver backend* (section _Study Settings_) to *OpenFOAM (blockMesh)*. The default is *Elmer*, and models saved before this setting existed open with Elmer.
+
+Choosing OpenFOAM implies blockMesh meshing of the component: the *Mesher* choice on the Mesh node (Gmsh or ElmerGrid) applies to Elmer studies only. The element sizes of the Mesh node and its Size and Distribution children still set the mesh density (see <<mesh>>).
+
+When the model cannot be solved by OpenFOAM, *Compute* is unavailable and its tooltip says why ("Unavailable: ..."), and the study node carries an error mark with the same sentence. Reasons that need the geometry (a circle, a rotated rectangle) are reported when you click *Compute*, before anything runs.
+
+OpenFOAM is found through `OPENFOAM_ROOT`, then `WM_PROJECT_DIR`, then the usual install locations, and on Windows finally an OpenFOAM inside WSL (`/usr/lib/openfoam/openfoamNNNN`). `OPENFOAM_ROOT` may be:
+
+* the folder of an ESI Windows tree with its bundled `msys64` (v2106), whose own bash sources `etc/bashrc` with `HOME=/home/ofuser`;
+* a Linux OpenFOAM project folder (the one holding `etc/bashrc`);
+* `wsl:/usr/lib/openfoam/openfoam2606`, a Linux OpenFOAM in the default WSL distribution.
+
+With the OpenFOAM study selected, menu:Study[Show OpenFOAM Input Files] lists the generated dictionaries without running anything: `system/`, `constant/`, and a per-patch summary of the boundary conditions that go into `0/` once blockMesh has made the mesh.
+
+== What is supported
+
+[cols="1,3",options="header"]
+|===
+|Model |OpenFOAM
+|*Laminar Flow*, stationary |`simpleFoam`, laminar, SIMPLEC, until the initial residuals of `U` and `p` fall below the tolerance
+|*Laminar Flow*, time dependent |`pimpleFoam`, laminar, fixed time step (output step / solver steps per output step), Euler (BDF order 1) or `backward` (BDF order 2)
+|*Heat Transfer in Solids*, stationary |`laplacianFoam` with the `steadyState` time derivative: one solve of the linear conduction equation
+|*Heat Transfer in Solids*, time dependent |`laplacianFoam`, fixed time step, Euler or `backward`
+|2D geometry |Rectangles and unions of axis-aligned rectangles; one cell thick in z with `empty` front and back
+|3D geometry |Blocks and unions of axis-aligned blocks
+|Parametric sweeps |One OpenFOAM case per parameter value
+|===
+
+=== Feature mapping
+
+OpenFOAM's incompressible solvers work with the *kinematic* pressure p/ρ and the kinematic viscosity ν = μ/ρ. Elmer Studio converts both ways: pressures you enter (in Pa) are divided by ρ in the case files, and the pressure result is multiplied by ρ, so `p` is in Pa as in an Elmer solution.
+
+[cols="2,2,3",options="header"]
+|===
+|Studio feature |`U` |`p` (kinematic)
+|Fluid Properties (ρ, μ from the material or user defined) 2+|`constant/transportProperties`: `nu` = μ/ρ. ρ must be one constant for all fluid domains.
+|Initial Values (u, p) |`internalField` u |`internalField` p/ρ
+|Wall, no slip |`noSlip` |`zeroGradient`
+|Wall, slip |`slip` |`zeroGradient`
+|Inlet, normal inflow velocity U~0~ |`fixedValue` −U~0~**n** per face |`zeroGradient`
+|Inlet, velocity field (u~0~) |`fixedValue` u~0~ per face |`zeroGradient`
+|Inlet, pressure p~0~ |`zeroGradient` |`fixedValue` p~0~/ρ
+|Outlet, pressure p~0~ |`zeroGradient` |`fixedValue` p~0~/ρ
+|Outlet, normal flow |`directionMixed`: tangential components 0, normal component zero gradient |`fixedValue` p~0~/ρ
+|Symmetry |`symmetryPlane` patch |`symmetryPlane` patch
+|===
+
+The Outlet and the pressure Inlet set the pressure on the boundary and a zero normal gradient of the velocity. Studio's (and COMSOL's) outlet condition is a traction condition, [−p**I** + **K**]**n** = −p~0~**n**. The two agree where the flow crosses the boundary parallel, as in a fully developed outflow, and differ by the viscous normal stress elsewhere.
+
+[cols="2,3",options="header"]
+|===
+|Studio feature |`T`
+|Solid (k, ρ, C~p~) |`constant/transportProperties`: `DT` = k/(ρC~p~). k, ρ and C~p~ must be constants, equal in all domains.
+|Initial Values T~0~ |`internalField`
+|Heat Source Q~0~ |`system/fvOptions`: `scalarSemiImplicitSource`, specific, `Su` = Q~0~/(ρC~p~)
+|Temperature T~0~ |`fixedValue`
+|Thermal Insulation, Symmetry |`zeroGradient`
+|Heat Flux, general inward q~0~ |`fixedGradient` q~0~/k
+|Heat Flux, convective (h, T~ext~) |`mixed`: `refValue` T~ext~, `refGradient` 0, `valueFraction` h/(h + k/d) per face, d the distance from the cell centre to the face. This is the exact discrete Robin condition: the face flux k(T~f~ − T~c~)/d equals h(T~ext~ − T~f~).
+|===
+
+Values may depend on x, y and z (they are evaluated at the face or cell centres), on parameters and on functions. A boundary value that depends on time or on the solution is refused.
+
+[[mesh]]
+=== Mesh
+
+The geometry is cut into blocks by every x, y (and z) coordinate of its vertices. Each block that lies inside a domain becomes a blockMesh block, in a cell zone named after the domain number (`dom1`, `dom2`, ...). Each boundary becomes a patch named after its number (`bnd1`, `bnd2`, ...). Selections, boundary integrals and plots therefore use the same numbers as the geometry.
+
+Cell counts come from the mesh settings: an interval of length ℓ gets ⌈ℓ/h⌉ cells, where h is the element size of the Mesh node (with the same fluid-flow calibration as Gmsh) or of a Size node, limited by the resolution of narrow regions. A *Distribution* on a boundary (2D) or an edge (3D) that spans exactly one interval sets its number of cells and its grading (element ratio, symmetric, reverse). The counts are per interval, so they are the same in every block the interval crosses.
+
+=== Results
+
+Each solution folder holds the OpenFOAM case (`foam/`), the logs, and the same files as an Elmer run: `meta.json`, `model.json`, `mesh.npz` and `results/case_t*.vtu`. The mesh topology is the blockMesh mesh: quadrilaterals in 2D (the front plane), hexahedra in 3D, with the boundary elements of every Studio boundary.
+
+OpenFOAM stores cell averages; Studio's plots and integrals work on node values. They are made as follows:
+
+* on a boundary with a fixed value (wall, velocity inlet, fixed temperature, fixed pressure) the node takes the boundary value. Where a no-slip wall meets another boundary the wall wins, as at Elmer's corner nodes;
+* every other node gets a linear least-squares fit to the cells around it, plus the next layer of cells inward at a boundary, plus the boundary faces whose value is a physical condition (heat flux, convective flux, symmetry, slip). The fit is exact for a linear field and second order otherwise;
+* on symmetry and slip boundaries the normal velocity is zero at the nodes, and on a normal-flow outlet the tangential velocity is.
+
+An integral of a node field differs from OpenFOAM's own face fluxes by O(h²). In a channel with 20 cells across, the flow through the outlet integrated by Derived Values is 0.75 % below the inflow while the face fluxes balance to 1e-10; with 40 cells it is 0.19 %.
+
+Variables: `u`, `v`, `w`, `spf.U`, `p` (Pa) for Laminar Flow; `T` (K) for heat transfer. The conductive heat flux (`ht.tflux`) is not provided by this backend.
+
+=== Convergence
+
+The log is judged with the same statuses as Elmer runs:
+
+* *converged*: `simpleFoam` reported `SIMPLE solution converged` (every initial residual below the tolerance), or it reached its maximum number of iterations and one more iteration changed U and p by less than the tolerance (see below); a transient or `laplacianFoam` run ended with every final linear-solver residual at or below its tolerance;
+* *not converged*: `simpleFoam` reached its maximum number of iterations and the solution was still changing by more than the tolerance; a linear solve ended above its tolerance; a time step's continuity error (`sum local`) exceeded 1e-4;
+* *failed*: OpenFOAM exited with an error (`FOAM FATAL ERROR`, a floating point exception), did not finish within the time limit (1 hour per command, `ELMERSTUDIO_FOAM_TIMEOUT`), or wrote no result.
+
+OpenFOAM normalizes each residual by the variation of the field itself. For a field that is uniform or zero, such as the pressure between slip walls or the cross-flow velocity in a straight channel, that normalization is noise and the residual stalls however good the solution is. So when SIMPLE stops at its limit, Elmer Studio runs one more iteration and measures the relative change: of U against max|U|, and of p against max(|p|, |U|²). This is the measure Elmer's own nonlinear tolerance uses. The study's Messages report both numbers.
+
+The tolerance and the maximum number of iterations come from the study's *Solver Configurations* node: _Nonlinear tolerance_ and _Maximum nonlinear iterations_, where 0 means 2000 SIMPLE iterations. The linear tolerance and maximum iterations set OpenFOAM's linear solvers (PCG for T; GAMG for p; smoothSolver for U). The study's _When nonlinear or coupling iterations do not converge_ setting decides whether a not converged run stops the study or is kept. The Convergence Plot shows the initial residual of every equation per iteration or time step.
+
+== What is refused
+
+Each of these stops *Compute* before any file is written, with the reason:
+
+* physics other than Laminar Flow and Heat Transfer in Solids, and more than one physics interface in a study step;
+* multiphysics couplings;
+* eigenfrequency and frequency-domain studies;
+* 2D axisymmetric components;
+* geometry that is not a union of axis-aligned rectangles or blocks (circles, arcs, rotated or imported shapes, curved faces);
+* Laminar Flow: Volume Force, Gravity, Open Boundary, Stokes flow, density or viscosity that is not constant or differs between domains;
+* Heat Transfer: Fluid (convection), Surface-to-Ambient Radiation, properties that are not constant or differ between domains;
+* a boundary condition on an interior boundary (it would need a baffle);
+* a physics interface that does not cover every domain of the component;
+* boundary values that depend on time or on the solution; output times that are not equally spaced;
+* mesh Size nodes on boundaries, edges or points; a Distribution spanning more than one block interval, or two that conflict;
+* a study that solves several components with different backends.
+
+== Out of scope
+
+Unstructured meshes (`gmshToFoam`, `snappyHexMesh`), turbulence models, multiphase flow, conjugate heat transfer between regions, and parallel decomposition. Use Elmer for these, or run the exported case by hand.

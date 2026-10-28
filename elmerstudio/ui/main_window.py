@@ -30,6 +30,7 @@ from ..core.model import REGISTRY, Model, Node, is_axisymmetric, level_plural, s
 from ..core.physics import COUPLINGS, PHYSICS, STUDY_TYPES, physics_def
 from ..core.results import Solution, compatible_units
 from ..core.sif import SifError, build_sif
+from ..core.backends import study_backend
 from ..core.study_runner import StudyCancelled, StudyRunner
 from . import icons, theme
 from .graphics import GraphicsView
@@ -816,6 +817,24 @@ class MainWindow(QMainWindow):
                                           "to the plane's sketch"))
         self._set_avail(self.act["add_comp"], None)
 
+    @property
+    def foam(self):
+        """The OpenFOAM installation (looked up once; None when there is none)."""
+        if not hasattr(self, "_foam"):
+            from ..core.backends.openfoam.install import find_openfoam
+            self._foam = find_openfoam()
+        return self._foam
+
+    def foam_unavailable(self, study: Node) -> str | None:
+        """Why *study* cannot be computed with OpenFOAM, from what is known without building the geometry."""
+        from ..core.backends.openfoam.case import check_model
+        if self.model.component is None:
+            return None
+        why = check_model(self.model, study)
+        if why is None and self.foam is None:
+            why = "OpenFOAM was not found: set OPENFOAM_ROOT to its installation"
+        return why
+
     @staticmethod
     def _set_avail(a: QAction, reason: str | None):
         """Enable *a*, or disable it and say why in its tooltip and status tip."""
@@ -884,6 +903,10 @@ class MainWindow(QMainWindow):
             out.append(("stale", "Edited since it was built: build it again (F8)."))
         if k == "mesh" and self.mesh is not None and self.mesh_stale:
             out.append(("stale", "The model changed since the mesh was built."))
+        if k == "study" and study_backend(node) == "openfoam":
+            why = self.foam_unavailable(node)
+            if why:
+                out.append(("error", f"OpenFOAM backend: {why}"))
         if k == "study" and self.model.component is not None:
             text, state, tip = self._solution_state(node)
             if state == "stale":
@@ -981,8 +1004,17 @@ class MainWindow(QMainWindow):
         has_study = bool(self.model.studies())
         nostudy = None if has_study else "Add a study first (Home > Add Study)"
         noelmer = None if self.inst is not None else "Elmer was not found: set its folder in File > Preferences"
+        st = self._study_of(cur) if cur is not None else None
+        st = st or (self.model.studies()[0] if has_study else None)
+        if st is not None and study_backend(st) == "openfoam":
+            noelmer = self.foam_unavailable(st)
         for name in ("compute", "compute2"):
             sa(a[name], nostudy or noelmer)
+        foam_st = st is not None and study_backend(st) == "openfoam"
+        for name in ("show_sif", "show_sif2"):
+            text = "Show OpenFOAM\nInput Files" if foam_st else "Show Elmer\nInput File"
+            if a[name].text() != text:
+                a[name].setText(text)
         for name in ("show_sif", "show_sif2", "export_case", "export_case2", "sweep", "show_solver", "clear_sol"):
             sa(a[name], nocomp or nostudy)
         sa(a["stop"], None if self.busy() else "Nothing is running")
@@ -2266,7 +2298,8 @@ class MainWindow(QMainWindow):
         if k == "study" or k.startswith("study."):
             m.addSeparator()
             m.addAction(icons.icon("compute"), "Compute", lambda: self.compute(self._study_of(node)))
-            m.addAction(icons.icon("sif"), "Show Elmer Input File", lambda: self.show_sif(self._study_of(node)))
+            m.addAction(icons.icon("sif"), "Show OpenFOAM Input Files" if study_backend(self._study_of(node)) == "openfoam"
+                        else "Show Elmer Input File", lambda: self.show_sif(self._study_of(node)))
             if k == "study":
                 m.addAction(icons.icon("solver_config"), "Show Default Solver", self.show_default_solver)
         if k.startswith("pg"):
@@ -2818,7 +2851,13 @@ class MainWindow(QMainWindow):
         if study is None:
             QMessageBox.information(self, APP_NAME, "There is no study to compute. Add one from the Study tab.")
             return
-        if self.inst is None:
+        if study_backend(study) == "openfoam":
+            why = self.foam_unavailable(study)
+            if why:
+                self.messages.add(f"{study.label}: OpenFOAM backend: {why}", "error")
+                QMessageBox.warning(self, APP_NAME, f"{study.label} cannot be computed with OpenFOAM:\n\n{why}")
+                return
+        elif self.inst is None:
             QMessageBox.warning(self, APP_NAME, "Elmer was not found. Set its installation folder in File > Preferences.")
             return
         self.dock_mat.hide()
@@ -3090,6 +3129,9 @@ class MainWindow(QMainWindow):
         study = study if isinstance(study, Node) else self._study_of(self.tree.current())
         if study is None:
             return
+        if study_backend(study) == "openfoam":
+            self.show_foam_inputs(study)
+            return
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             mesh, sif = self._sif_for(study)
@@ -3113,6 +3155,38 @@ class MainWindow(QMainWindow):
         bb.rejected.connect(dlg.reject)
         v.addWidget(bb)
         self._last_sif = sif.text
+        if self.no_modal:
+            return
+        dlg.exec()
+
+    def show_foam_inputs(self, study: Node):
+        """The OpenFOAM dictionaries of a study (a dry run: nothing is meshed or solved)."""
+        from ..core.backends.openfoam.runner import preview_files
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            files = preview_files(self.model, study)
+        except Exception as exc:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self, APP_NAME, str(exc))
+            return
+        QApplication.restoreOverrideCursor()
+        text = "\n".join(f"// ===== {rel} =====\n{body}" for rel, body in files)
+        self._last_sif = text
+        self._last_foam_files = [rel for rel, _b in files]
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"OpenFOAM Input Files - {study.label}")
+        dlg.resize(760, 680)
+        v = QVBoxLayout(dlg)
+        te = QPlainTextEdit(text)
+        te.setReadOnly(True)
+        te.setObjectName("MessagesView")
+        te.setLineWrapMode(QPlainTextEdit.NoWrap)
+        v.addWidget(te)
+        bb = QDialogButtonBox(QDialogButtonBox.Close)
+        save = bb.addButton("Save As...", QDialogButtonBox.ActionRole)
+        save.clicked.connect(lambda: self._save_text(text, "openfoam_inputs.txt"))
+        bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
         if self.no_modal:
             return
         dlg.exec()

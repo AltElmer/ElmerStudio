@@ -11,3 +11,4 @@
 ** xref:studies.adoc[Studies and solving]
 ** xref:results.adoc[Results]
 ** xref:elmer.adoc[Elmer under the hood]
+** xref:openfoam.adoc[OpenFOAM backend]
