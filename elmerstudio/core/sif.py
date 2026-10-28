@@ -23,6 +23,10 @@ from .physics import COUPLINGS, FEATURES, instance_variable, physics_def
 SIGMA_SB = 5.670374419e-08
 
 
+# physics whose fields an identity pair keeps continuous (mortar projection of a scalar field)
+MORTAR_PHYSICS = {"ht", "es", "ec", "pde"}
+
+
 class SifError(ValueError):
     pass
 
@@ -161,6 +165,11 @@ class SifContext:
         self.sdim = space_dim(self.comp)
         self.axi = is_axisymmetric(self.comp)
         self.params = model.parameters(overrides)
+        # other components' coupling operators (comp1.aveop1(T)), evaluated on their solutions by the runner
+        self.xrefs: dict[str, str] = {}
+        for i, (text, v) in enumerate(((overrides or {}).get("__xrefs__") or {}).items()):
+            self.xrefs[text] = f"xref{i}_"
+            self.params[f"xref{i}_"] = float(v)
         self.n_nodes = n_nodes
         self.equation_extra: dict = {}
         self.nonlinear: set[str] = set()
@@ -255,8 +264,19 @@ class SifContext:
                         out[nm] = str(r.get("expr", "0"))
         return out
 
+    def _xsub(self, s: str) -> str:
+        for text, sym in self.xrefs.items():
+            s = s.replace(text, sym)
+        if self.comp is not None:                       # its own component's prefix is allowed (comp1.T in comp1)
+            s = re.sub(rf"(?<![\w.]){re.escape(self.comp.tag)}\.(?=[A-Za-z_])", "", s)
+        if re.search(r"(?<![\w.])comp\w*\.\w", s) and any(re.search(rf"(?<![\w.]){c.tag}\.\w", s)
+                                                         for c in self.model.components()):
+            raise SifError(f"'{s}' uses another component: only its coupling operators can be used, and only when "
+                           "that component is solved in the same study")
+        return s
+
     def _expand(self, expr: str) -> str:
-        s = str(expr)
+        s = self._xsub(str(expr))
         for _ in range(8):
             changed = False
             for nm, ex in self.variables.items():
@@ -364,7 +384,7 @@ class SifContext:
         label = MATPROPS[key][0]
         src = node.get(src_key or f"{key}_src", "mat")
         if src == "user":
-            return str(node.get(key, "0"))
+            return self._xsub(str(node.get(key, "0")))
         if domain is None:
             raise SifError(f"{node.label}: cannot resolve material property '{label}'")
         mat = self.material_for(domain)
@@ -375,7 +395,7 @@ class SifContext:
         if str(expr).strip() == "":
             raise SifError(f"Undefined material property '{label}' required by {node.label} "
                            f"(material '{mat.label}', domain {domain}).")
-        return str(expr)
+        return self._xsub(str(expr))
 
     def matval(self, node: Node, key: str, domain: int) -> SifValue:
         return self.value(self._mat_expr(node, key, domain))
@@ -546,7 +566,7 @@ def _check_solvers(solvers, phys_domains):
 
 def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, overrides=None,
               output_name="case", continuation: str | None = None, quasi_static_time: float | None = None,
-              skip_post: bool = False) -> SifResult:
+              skip_post: bool = False, save_restart: bool = False, initial_restart: bool = False) -> SifResult:
     """*continuation*: for a stationary step, "save" writes the solution as an Elmer restart file
     (mesh/restart.result); "reuse" also starts from mesh/previous.result (the previous sweep step's).
 
@@ -616,6 +636,27 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                 _merge(bc[b], kws, owners.setdefault(("bc", b), {}), ph, f"boundary {b}")
     ctx._current_physics = None
 
+    # ---- identity pairs of an assembly: the field is continuous across the two sides (Elmer: the source side's
+    # boundary condition names the destination's as its mortar boundary; the solver applies the projection)
+    from .geometry import active_pairs
+    mortar = set()
+    pair_names: list[tuple[str, list, list]] = []
+    for tag, src, dst in active_pairs(model, geo):
+        users = [ph for ph in ctx.active if physics_def(ph.kind).id in MORTAR_PHYSICS
+                 and set(src) & phys_bnds[ph.tag] and set(dst) & phys_bnds[ph.tag]]
+        if not users:
+            continue
+        mortar |= {ph.tag for ph in users}
+        for b in dst:
+            if b in bc:
+                bc[b]["Name"] = f"{tag} destination"
+        for b in src:
+            if b in bc:
+                bc[b]["Name"] = f"{tag} source"
+                bc[b]["Mortar BC"] = ("__pair__", tag)
+        pair_names.append((tag, src, dst))
+    meta_pairs = [{"pair": t, "source": s_, "destination": d_} for t, s_, d_ in pair_names]
+
     # ---- solvers (species transport last: it reads the flow velocity and the electrolyte potential's gradient)
     solvers: list[SolverEntry] = []
     for ph in sorted(ctx.active, key=lambda p: physics_def(p.kind).id == "tds"):
@@ -625,6 +666,9 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             post = bool(s.pop("__post__", False))
             solvers.append(SolverEntry(ph, s, post))
     ctx._current_physics = None
+    for s in solvers:
+        if s.physics is not None and s.physics.tag in mortar and not s.post:
+            s.keywords["Apply Mortar BCs"] = True
     _check_solvers(solvers, phys_domains)
     if skip_post:                  # an intermediate solve (e.g. a deforming-electrode predictor): no derived fields
         for s in solvers:
@@ -660,6 +704,7 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
         for nm in (n.strip().lower() for n in names if n.strip()):
             var_domains[nm] = sorted(int(d) for d in phys_domains[s.physics.tag])
     meta["var_domains"] = var_domains
+    meta["pairs"] = meta_pairs
     if eigen:
         neig = int(step.get("neig", 6))
         meta["neig"] = neig
@@ -795,6 +840,10 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             sim["Output File"] = "restart.result"
             if continuation == "reuse":
                 sim.update({"Restart File": "previous.result", "Restart Position": 0})
+    if save_restart and not eigen and not freq and "Output File" not in sim:
+        sim["Output File"] = "restart.result"          # another study may start from this solution
+    if initial_restart and "Restart File" not in sim:
+        sim.update({"Restart File": "initial.result", "Restart Position": 0})    # (the runner copies it in)
     sim["Solver Input File"] = "case.sif"
     # what the runner needs to judge convergence from Elmer's ComputeChange lines (nonlinear and coupling)
     def _num(v, default):
@@ -894,6 +943,12 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             groups[key] = (bc[b], [])
             order.append(key)
         groups[key][1].append(b)
+    dest_index = {kw.get("Name"): i for i, (kw, _bl) in ((i, groups[k]) for i, k in enumerate(order, 1))}
+    for key in order:
+        kw = groups[key][0]
+        v = kw.get("Mortar BC")
+        if isinstance(v, tuple) and v[0] == "__pair__":
+            kw["Mortar BC"] = SifValue(f"Integer {dest_index[f'{v[1]} destination']}")
     for i, key in enumerate(order, 1):
         kw, bl = groups[key]
         w(f"Boundary Condition {i}")

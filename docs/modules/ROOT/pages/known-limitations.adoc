@@ -9,7 +9,6 @@ This list is deliberately explicit.
 * turbulence;
 * structural transient and frequency-response analysis;
 * contact;
-* Form Assembly with identity pairs;
 * probes;
 * animations;
 * acoustic boundary elements (BEM) and perfectly matched layers. Open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;
@@ -40,7 +39,9 @@ This list is deliberately explicit.
 == Approximations
 
 * Integrals over quadratic elements use linearized cells (about 0.1 % on smooth fields). Boundary fluxes from reaction loads, such as electrode currents and heat flows, are exact.
-* Expressions with units are converted to SI, but their dimensions aren't checked.
+* Units are checked and reported, but a value of the wrong unit is still used (its SI number), as in COMSOL.
+* A component uses another component's results only through coupling operators (scalars), one way, evaluated once per study step.
+* Identity pairs give continuity for scalar fields (heat transfer, electrostatics, electric currents, coefficient-form PDE); solid mechanics, flow and transport do not use them yet.
 
 == Parallel computing
 

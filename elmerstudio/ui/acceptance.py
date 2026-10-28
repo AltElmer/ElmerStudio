@@ -6,7 +6,7 @@ window after the event loop has settled.
 """
 from __future__ import annotations
 
-from PySide6.QtWidgets import (QAbstractButton, QCheckBox, QLabel, QLineEdit, QPushButton, QToolButton, QWidget)
+from PySide6.QtWidgets import QAbstractButton, QLabel, QLineEdit, QToolButton, QWidget
 
 
 def _visible(w: QWidget) -> bool:

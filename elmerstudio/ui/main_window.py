@@ -83,6 +83,8 @@ def _inputs(model: Model, solvers=True) -> str:
     its copy when the study has none, which is not an edit."""
     def strip(d):
         out = {k: v for k, v in d.items() if k not in ("label", "meta", "children")}
+        if isinstance(out.get("selection"), dict):                # entity signatures are bookkeeping
+            out["selection"] = {k: v for k, v in out["selection"].items() if k != "sig"}
         kids = [strip(c) for c in d.get("children", []) if c.get("kind") != "results"
                 and (solvers or c.get("kind") != "study.solvers")]
         if kids:
@@ -104,10 +106,7 @@ class MainWindow(QMainWindow):
         # current only if the model is still at the revision the job started from
         self._revs = 0
         self.rev = self._saved_rev = 0
-        self.geo: GeometryResult | None = None
-        self.geo_stale = True
-        self.mesh = None
-        self.mesh_stale = True
+        self._slots: dict = {}          # component tag -> its geometry and mesh (geo, mesh, ... are the active one's)
         self.undo_stack: list[tuple[str, int]] = []      # (snapshot, revision)
         self.redo_stack: list[tuple[str, int]] = []
         self.sol_cache: dict[str, Solution] = {}
@@ -732,10 +731,8 @@ class MainWindow(QMainWindow):
             if getattr(self, "workdir", None) and os.path.abspath(self.workdir) != os.path.abspath(workdir):
                 project.discard_workdir(self.workdir)      # the previous model's solutions are no longer shown
             self.workdir = workdir
-        self.geo = None
-        self.geo_stale = True
-        self.mesh = None
-        self.mesh_stale = True
+        self._slots = {}
+        model.set_active(None)
         self.sol_cache.clear()
         self.undo_stack.clear()
         self.redo_stack.clear()
@@ -752,6 +749,30 @@ class MainWindow(QMainWindow):
         self.recovery.discard()                          # a new, opened or recovered model: nothing unsaved yet
         self._checkpoint_rev = None
         self.schedule_update()
+
+    # -- per-component state: self.geo, self.mesh, self.geo_stale and self.mesh_stale are the active component's
+    def _slot(self, comp: Node | None = None) -> dict:
+        comp = comp if comp is not None else (self.model.component if getattr(self, "model", None) else None)
+        return self._slots.setdefault(comp.tag if comp is not None else "",
+                                      {"geo": None, "geo_stale": True, "mesh": None, "mesh_stale": True})
+
+    geo = property(lambda self: self._slot()["geo"], lambda self, v: self._slot().__setitem__("geo", v))
+    geo_stale = property(lambda self: self._slot()["geo_stale"],
+                         lambda self, v: self._slot().__setitem__("geo_stale", v))
+    mesh = property(lambda self: self._slot()["mesh"], lambda self, v: self._slot().__setitem__("mesh", v))
+    mesh_stale = property(lambda self: self._slot()["mesh_stale"],
+                          lambda self, v: self._slot().__setitem__("mesh_stale", v))
+
+    def _all_stale(self):
+        """Something every component reads changed (a parameter, a function): all geometries and meshes."""
+        for sl in self._slots.values():
+            sl["geo_stale"] = sl["mesh_stale"] = True
+
+    def _snapshot(self) -> Model:
+        """A copy of the model for a worker thread, with the same active component."""
+        m = Model.from_dict(json.loads(json.dumps(self.model.to_dict())))
+        m._active = getattr(self.model, "_active", None)
+        return m
 
     def _file_name(self):
         if self.file_path:
@@ -793,8 +814,7 @@ class MainWindow(QMainWindow):
             self._set_avail(a, nocomp or (None if sd == 2 or (in_wp and a.data() in WP_KINDS) else
                                           "A planar primitive: select a Work Plane (or a node inside one) to add it "
                                           "to the plane's sketch"))
-        self._set_avail(self.act["add_comp"], None if self.model.component is None else
-                        "The model already has its component (one component per model)")
+        self._set_avail(self.act["add_comp"], None)
 
     @staticmethod
     def _set_avail(a: QAction, reason: str | None):
@@ -823,9 +843,21 @@ class MainWindow(QMainWindow):
         except RuntimeError:            # the window is being destroyed
             pass
 
+    def _units(self) -> dict:
+        """Unit messages of the whole model (COMSOL's orange), recomputed once per model revision."""
+        key = (self.rev, id(self.model))
+        if getattr(self, "_units_key", None) != key:
+            from ..core.diagnostics import unit_report
+            try:
+                self._units_report = unit_report(self.model)
+            except Exception:  # noqa: BLE001 - a check must never break the window
+                self._units_report = {}
+            self._units_key = key
+        return self._units_report
+
     def node_issues(self, node: Node) -> list[tuple[str, str]]:
         """What is wrong with or out of date in a node, for the Model Builder's marks and tooltips."""
-        out = []
+        out = [("warning", f"Unit: {w}") for w in self._units().get(node.tag, [])]
         k = node.kind
         par = node.parent
         nt = REGISTRY.get(k)
@@ -840,6 +872,9 @@ class MainWindow(QMainWindow):
                 shown = True
             if shown:
                 out.append(("warning", f"No {level_plural(sel.level)} selected: it applies nowhere."))
+        if node.meta.get("lost"):
+            out.append(("error", f"{sel.level.capitalize() if sel else 'Entity'} {', '.join(map(str, node.meta['lost']))} "
+                                 "no longer exist after the geometry changed: check the selection."))
         if k == "material" and node.enabled and self.model.component is not None:
             vals = node.props.get("values") or {}
             missing = [MATPROPS[p][0] for p in self.required_matprops(node) if not str(vals.get(p, "")).strip()]
@@ -855,7 +890,29 @@ class MainWindow(QMainWindow):
                 out.append(("stale", tip))
             elif state == "error":
                 out.append(("error", f"{text}. {tip}"))
+            src = self.model.by_tag(str(next((s.get("initsol") for s in node.children if s.get("initsol")), "")))
+            if src is not None and self._computed_at(src) > self._computed_at(node) > 0:
+                out.append(("stale", f"Starts from {src.label}, which was computed again since: compute "
+                                     f"{node.label} again"))
+        if k.startswith(("pg", "plot.", "eval.", "dset.", "export.")):
+            for st in self._results_studies().get(node.tag, []):
+                if self._solution_state(st)[1] == "stale":
+                    out.append(("stale", f"Shows {st.label}, which is out of date: compute it again"))
         return out
+
+    def _computed_at(self, st: Node) -> float:
+        metas = glob.glob(os.path.join(self.workdir, st.tag, "**", "meta.json"), recursive=True)
+        return max((os.path.getmtime(f) for f in metas), default=0.0)
+
+    def _results_studies(self) -> dict:
+        """Results node tag -> the studies it shows (dependency graph), once per model revision."""
+        key = (self.rev, id(self.model))
+        if getattr(self, "_rs_key", None) != key:
+            from ..core import deps
+            res = self.model.results
+            self._rs = {n.tag: deps.studies_of(self.model, n) for n in (res.walk() if res else [])}
+            self._rs_key = key
+        return self._rs
 
     def update_actions(self):
         """One availability rule per command; the ribbon, the shortcut, the menus and the context menu share the
@@ -986,6 +1043,9 @@ class MainWindow(QMainWindow):
             else:
                 mesh = (f"Mesh: {self.mesh.stats['elements']} elements", "ok", "Built and up to date")
             sol = self._solution_state(st)
+            if len(self.model.components()) > 1:           # whose geometry and mesh: the active component's
+                geo = (f"{comp.tag} {geo[0][0].lower()}{geo[0][1:]}",) + geo[1:]
+                mesh = (f"{comp.tag} {mesh[0][0].lower()}{mesh[0][1:]}",) + mesh[1:]
             items = [(self.st_geo, *geo), (self.st_mesh, *mesh), (self.st_sol, *sol)]
         narrow = self.width() < 1100              # short forms; the tooltip keeps the whole sentence
         self.mem.setVisible(not narrow)
@@ -1003,7 +1063,8 @@ class MainWindow(QMainWindow):
     def _solution_state(self, st: Node | None):
         if st is None:
             return ("Study: none", "", "Add a study: Home > Add Study")
-        folders = sorted(glob.glob(os.path.join(self.workdir, st.tag, "sol_*_*", "meta.json")))
+        folders = sorted(glob.glob(os.path.join(self.workdir, st.tag, "**", "sol_*_*", "meta.json"), recursive=True),
+                         key=os.path.getmtime)
         if not folders:
             return (f"{st.label}: not computed", "", "Compute it: Ctrl+= or Study > Compute")
         try:
@@ -1373,9 +1434,10 @@ class MainWindow(QMainWindow):
     def _restore(self, snap):
         cur = self.tree.current()
         tag = cur.tag if cur else None
+        active = getattr(self.model, "_active", None)
         self.model.restore(snap)
-        self.geo_stale = True
-        self.mesh_stale = True
+        self.model._active = active
+        self._all_stale()
         self.tree.set_model(self.model, self._file_name())
         n = self.model.by_tag(tag) if tag else None
         self.tree.refresh(select=n or self.model.root)
@@ -1398,9 +1460,16 @@ class MainWindow(QMainWindow):
 
     def _mark(self, node: Node):
         if node.kind == "params" or node.kind.startswith("func.") or node.kind == "variables":
-            self.geo_stale = True
-            self.mesh_stale = True
+            self._all_stale()
             return
+        comp = self.model.component_of(node)
+        if comp is not None and comp is not self.model.component:
+            with self.model.scoped(comp):
+                self._mark_in(node)
+            return
+        self._mark_in(node)
+
+    def _mark_in(self, node: Node):
         if node.kind == "geometry" or node.kind.startswith("geom.") or node.ancestor("geom") is not None:
             self.geo_stale = True
             self.mesh_stale = True
@@ -1455,8 +1524,19 @@ class MainWindow(QMainWindow):
             hit = self.geo.named.get(named) if self.geo is not None else None
             if hit is not None and hit[0] == sel.level:
                 sel.entities = list(hit[1])
+        self._sign(node)
         self._mark(node)
         self.settings.refresh()
+
+    def _sign(self, node: Node):
+        """A selection edited on the current geometry: remember what its entities are (so they are found again after
+        the geometry changes), and forget entities it had lost."""
+        sel = node.selection
+        node.meta.pop("lost", None)
+        geo = self.geo if not self.geo_stale else None
+        if sel is None or geo is None or sel.all or sel.named:
+            return
+        sel.sig = {str(e): geo.signature(sel.level, e) for e in sel.entities if geo.signature(sel.level, e)}
 
     def remove_entities(self, node, ents):
         if node.selection is None or not ents:
@@ -1503,6 +1583,7 @@ class MainWindow(QMainWindow):
         node.selection.entities = ents
         node.selection.all = False
         node.selection.named = ""          # editing the list makes it a manual selection, as in COMSOL
+        self._sign(node)
         self._mark(node)
         self.graphics.set_selection_state(level, ents)
         self.settings.refresh()
@@ -1521,6 +1602,7 @@ class MainWindow(QMainWindow):
         node.selection.entities = ents
         node.selection.all = False
         node.selection.named = ""
+        self._sign(node)
         self._mark(node)
         self.graphics.set_selection_state(level, ents)
         self.settings.refresh()
@@ -1638,7 +1720,7 @@ class MainWindow(QMainWindow):
             n.props.update({"x0": f"{b[0]:.6g}", "y0": f"{(b[1] + b[4]) / 2:.6g}", "z0": f"{(b[2] + b[5]) / 2:.6g}",
                             "x1": f"{b[3]:.6g}", "y1": f"{(b[1] + b[4]) / 2:.6g}", "z1": f"{(b[2] + b[5]) / 2:.6g}"})
         if kind.startswith("study.") and "physics" in n.props:
-            n.props["physics"] = {ph.tag: True for ph in B.physics_nodes(self.model)}
+            n.props["physics"] = {ph.tag: True for ph in B.all_physics(self.model)}
         if kind in ("study.stationary", "study.time", "study.eigen", "study.freq"):
             steps = [c for c in parent.children if c.kind.startswith("study.") and c.kind not in ("study.sweep", "study.solvers")]
             n.label = f"Step {len(steps)}: {nt.title}"
@@ -1654,10 +1736,16 @@ class MainWindow(QMainWindow):
         if nt is not None and not nt.deletable or node.meta.get("default"):
             self.statusBar().showMessage(f"'{node.label}' cannot be deleted", 4000)
             return
+        from ..core import deps
+        users = [u for u in deps.used_by(self.model, node) if node not in u.path()]
         self._push_undo()
         parent = node.parent
         idx = parent.children.index(node)
         parent.remove(node)
+        if users:
+            self.messages.add(f"Deleted '{node.label}', which " + ", ".join(f"'{u.label}'" for u in users[:6])
+                              + (" and more" if len(users) > 6 else "") + " used: check them (Undo restores it)",
+                              "warning", node=users[0])
         if node.kind.startswith("physics."):
             for st in self.model.studies():
                 for s in st.children:
@@ -1753,7 +1841,8 @@ class MainWindow(QMainWindow):
         return object_names_before(g, node)
 
     def physics_nodes(self):
-        return B.physics_nodes(self.model)
+        """Every component's physics interfaces (the study steps' Physics and Variables Selection)."""
+        return B.all_physics(self.model)
 
     def step_kind_name(self, step):
         return {"study.stationary": "Stationary", "study.time": "Time dependent", "study.eigen": "Eigenfrequency",
@@ -1877,7 +1966,8 @@ class MainWindow(QMainWindow):
         st = self.model.by_tag(dset.get("study", ""))
         if st is None:
             return None
-        folders = sorted((f for f in glob.glob(os.path.join(self.workdir, st.tag, "sol_*_*"))
+        comp = B.dataset_component(self.model, dset)
+        folders = sorted((f for f in glob.glob(os.path.join(self._comp_dir(st, comp), "sol_*_*"))
                           if os.path.isfile(os.path.join(f, "meta.json"))),      # skip solutions still being computed
                          key=lambda p: tuple(int(x) for x in re.findall(r"\d+", os.path.basename(p))))
         if not folders:
@@ -1887,7 +1977,13 @@ class MainWindow(QMainWindow):
             sweep = max(int(re.findall(r"\d+", os.path.basename(f))[-2]) for f in folders)
         chosen = [f for f in folders if os.path.basename(f).startswith(f"sol_{sweep}_")] or folders
         folder = chosen[-1]
-        return self._load_solution(folder)
+        with self.model.scoped(comp):
+            return self._load_solution(folder)
+
+    def _comp_dir(self, st: Node, comp: Node | None) -> str:
+        from ..core.study_runner import component_dir
+        sd = os.path.join(self.workdir, st.tag)
+        return component_dir(self.model, sd, comp.tag) if comp is not None else sd
 
     def _load_solution(self, folder):
         if folder not in self.sol_cache:
@@ -1933,8 +2029,9 @@ class MainWindow(QMainWindow):
         st = self.model.by_tag(dset.get("study", ""))
         if st is None:
             return []
+        comp = B.dataset_component(self.model, dset)
         out = []
-        for f in glob.glob(os.path.join(self.workdir, st.tag, "sol_*_*")):
+        for f in glob.glob(os.path.join(self._comp_dir(st, comp), "sol_*_*")):
             if not os.path.isfile(os.path.join(f, "meta.json")):
                 continue
             vi, si = (int(x) for x in re.findall(r"\d+", os.path.basename(f))[-2:])
@@ -1946,7 +2043,8 @@ class MainWindow(QMainWindow):
         for vi, si, f in sorted(out):
             if si != last:
                 continue
-            sol = self._load_solution(f)
+            with self.model.scoped(comp):
+                sol = self._load_solution(f)
             if sol is not None and sol.meta.get("sweep_param"):
                 res.append((sol.meta.get("sweep_value"), sol))
         return res
@@ -2002,10 +2100,22 @@ class MainWindow(QMainWindow):
                    f"Bounding box: [{g.bbox[0]:.4g}, {g.bbox[3]:.4g}] x [{g.bbox[1]:.4g}, {g.bbox[4]:.4g}]"
                    + (f" x [{g.bbox[2]:.4g}, {g.bbox[5]:.4g}]" if g.sdim == 3 else "") + f" {g.unit}")
             out.append(("Geometry Statistics", QLabel(txt)))
+        from ..core import deps
+        users = deps.used_by(self.model, node) if node.parent is not None else []
+        if users and node.kind not in ("component", "geometry", "materials", "definitions", "mesh"):
+            lab = QLabel(", ".join(f'<a href="{u.tag}">{u.label}</a>' for u in users[:30])
+                         + (f" and {len(users) - 30} more" if len(users) > 30 else ""))
+            lab.setWordWrap(True)
+            lab.linkActivated.connect(self.goto_tag)
+            lab.setToolTip("The nodes that use this one (its parameters, functions, operators, objects, solution...)")
+            out.append(("Used By", lab))
         return out
 
     # ================================================================== selection / graphics updates
     def on_node_selected(self, node: Node):
+        comp = self.model.component_of(node)            # the active component: the selected node's (COMSOL)
+        if comp is not None and comp is not self.model.component:
+            self.model.set_active(comp)
         self.active_sel = None
         self.settings.show_node(node)
         self._update_geom_actions(node)
@@ -2100,7 +2210,7 @@ class MainWindow(QMainWindow):
             for s, lbl in (("3D", "3D"), ("2Daxi", "2D Axisymmetric"), ("2D", "2D")):
                 a = sub.addAction(lbl)
                 a.triggered.connect(lambda _=False, ss=s: self.add_component(ss))
-                a.setEnabled(self.model.component is None)
+                a.setEnabled(True)
             sub = m.addMenu(icons.icon("study"), "Add Study")
             for key, (t, ic) in STUDY_TYPES.items():
                 a = sub.addAction(icons.icon(ic), t)
@@ -2251,10 +2361,11 @@ class MainWindow(QMainWindow):
             self.create_node(kind, p)
 
     def add_component(self, sdim):
-        if self.model.component is not None:
-            return
+        """Add a component (a model may have several, each with its own geometry, physics and mesh); it becomes
+        the active one."""
         self._push_undo()
         comp = B.add_component(self.model, sdim)
+        self.model.set_active(comp)
         self.tree.refresh(select=comp.child("geometry"))
         self._update_geom_actions()
 
@@ -2576,7 +2687,7 @@ class MainWindow(QMainWindow):
         comp = self.model.component
         if comp is None:
             return
-        model_snapshot = Model.from_dict(json.loads(json.dumps(self.model.to_dict())))
+        model_snapshot = self._snapshot()
         upto_tag = upto.tag if upto is not None else None
         rev = self.rev
 
@@ -2586,29 +2697,35 @@ class MainWindow(QMainWindow):
             return build_geometry(model_snapshot, g, upto=u)
 
         def done(res: GeometryResult):
-            self.geo = res
-            current = self.rev == rev            # the model was not edited while the geometry was built
-            self.geo_stale = upto is not None or not current
-            if not current:
-                self.messages.add("The model changed while the geometry was built; build it again.", "warning")
-            elif upto is None:
-                apply_named_selections(self.model, res)
-            for m in res.messages:
-                self.messages.add(m, "warning")
-            if not silent:
-                self.messages.add(f"Geometry: {res.count('domain')} domains, {res.count('boundary')} boundaries"
-                                  + (f", {res.count('edge')} edges" if res.sdim == 3 else "")
-                                  + f", {res.count('point')} points.")
-            cur = self.tree.current()
-            if then is not None:
-                then()
-            elif cur is not None:
-                self._show_geometry_for(cur)
-            else:
-                self.graphics.show_geometry(res)
-            if cur is not None and cur.kind in ("geometry", "geom.finalize"):
-                self.settings.refresh()
+            with self.model.scoped(comp):         # the component it was built for, whichever is selected now
+                self._geo_done(res, comp, rev, upto, silent, then)
         self._start_job(work, "Building geometry", done, node=comp.child("geometry"))
+
+    def _geo_done(self, res, comp, rev, upto, silent, then):
+        self.geo = res
+        current = self.rev == rev            # the model was not edited while the geometry was built
+        self.geo_stale = upto is not None or not current
+        if not current:
+            self.messages.add("The model changed while the geometry was built; build it again.", "warning")
+        elif upto is None:
+            with self.model.scoped(comp):         # the same remapping the build did on its copy (its messages
+                apply_named_selections(self.model, res)   # are in res.messages)
+            self.tree.update_marks()
+        for m in res.messages:
+            self.messages.add(m, "warning")
+        if not silent:
+            self.messages.add(f"Geometry: {res.count('domain')} domains, {res.count('boundary')} boundaries"
+                              + (f", {res.count('edge')} edges" if res.sdim == 3 else "")
+                              + f", {res.count('point')} points.")
+        cur = self.tree.current()
+        if then is not None:
+            then()
+        elif cur is not None:
+            self._show_geometry_for(cur)
+        else:
+            self.graphics.show_geometry(res)
+        if cur is not None and cur.kind in ("geometry", "geom.finalize"):
+            self.settings.refresh()
 
     def build_selected(self):
         cur = self.tree.current()
@@ -2644,31 +2761,36 @@ class MainWindow(QMainWindow):
     def build_mesh(self, then=None):
         if self.model.component is None:
             return
-        model_snapshot = Model.from_dict(json.loads(json.dumps(self.model.to_dict())))
+        model_snapshot = self._snapshot()
         rev = self.rev
+        comp = self.model.component
 
         def work(emit):
             return build_mesh(model_snapshot)
 
         def done(res):
-            self.mesh = res
-            if self.rev == rev:                  # else the model changed while it was meshed: the mesh is stale
-                self.mesh_stale = False
-                self.geo_stale = False
-            else:
-                self.messages.add("The model changed while the mesh was built; build it again.", "warning")
-            st = res.stats
-            self.messages.add(f"Complete mesh consists of {st['elements']} domain elements and {st['boundary_elements']} "
-                              f"boundary elements ({st['nodes']} nodes, order {st['order']}). "
-                              f"Minimum element quality: {st['min_quality']:.4g}. Time: {st['time']:.2f} s.")
-            if then is not None:
-                then()
-            else:
-                self.show_mesh()
-            cur = self.tree.current()
-            if cur is not None and cur.kind == "mesh":
-                self.settings.refresh()
-        self._start_job(work, "Building mesh", done, node=self.model.component.child("mesh"))
+            with self.model.scoped(comp):
+                self._mesh_done(res, rev, then)
+        self._start_job(work, "Building mesh", done, node=comp.child("mesh"))
+
+    def _mesh_done(self, res, rev, then):
+        self.mesh = res
+        if self.rev == rev:                  # else the model changed while it was meshed: the mesh is stale
+            self.mesh_stale = False
+            self.geo_stale = False
+        else:
+            self.messages.add("The model changed while the mesh was built; build it again.", "warning")
+        st = res.stats
+        self.messages.add(f"Complete mesh consists of {st['elements']} domain elements and {st['boundary_elements']} "
+                          f"boundary elements ({st['nodes']} nodes, order {st['order']}). "
+                          f"Minimum element quality: {st['min_quality']:.4g}. Time: {st['time']:.2f} s.")
+        if then is not None:
+            then()
+        else:
+            self.show_mesh()
+        cur = self.tree.current()
+        if cur is not None and cur.kind == "mesh":
+            self.settings.refresh()
 
     def clear_mesh(self):
         self.mesh = None
@@ -2703,7 +2825,7 @@ class MainWindow(QMainWindow):
         model_snapshot = Model.from_dict(json.loads(json.dumps(self.model.to_dict())))
         rev = self.rev
         st_snap = model_snapshot.by_tag(study.tag)
-        mesh_cache = self.mesh if (self.mesh is not None and not self.mesh_stale) else None
+        mesh_cache = {t: sl["mesh"] for t, sl in self._slots.items() if sl["mesh"] is not None and not sl["mesh_stale"]}
         self.conv.reset()
         if study.get("convplot", True) and self.central.indexOf(self.conv) < 0:
             self.central.addTab(self.conv, icons.icon("convergence"), "Convergence Plot 1")
@@ -2745,8 +2867,10 @@ class MainWindow(QMainWindow):
             elif kind == "error_line":
                 self.messages.add(p, "error")
             elif kind == "mesh":
-                self.mesh = p
-                self.mesh_stale = self.rev != rev        # meshed from the model as it was when Compute started
+                c = self.model.by_tag(getattr(p, "comp_tag", "")) or self.model.component
+                with self.model.scoped(c):
+                    self.mesh = p
+                    self.mesh_stale = self.rev != rev    # meshed from the model as it was when Compute started
 
         def done(folders):
             self._flush_log()

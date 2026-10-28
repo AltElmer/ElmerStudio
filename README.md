@@ -131,7 +131,11 @@ Added with it:
 | Model Builder / Settings / Graphics / Messages, Progress, Log, Table | same windows, dockable; Widescreen and Regular Screen layouts, *Reset Desktop*, maximize Graphics | — |
 | Ribbon: Home, Definitions, Geometry, Materials, Physics, Mesh, Study, Results, Developer | same tabs and groups, Quick Access Toolbar, File menu; groups fold into menus in a narrow window, *Minimize the Ribbon*, contextual plot group tab; unavailable commands say why | — |
 | Model Wizard (space dimension → physics → study), Blank Model, Application Libraries | yes; 9 example models | — |
-| Parameters with units (`10[mm]`, `20[degC]`), Variables, Analytic and Interpolation functions | yes, unit-aware evaluation, parameter table Load/Save | MATC expressions, tables |
+| Parameters with units (`10[mm]`, `20[degC]`), Variables, Analytic and Interpolation functions | yes, unit-aware evaluation, deduced units checked against each setting (COMSOL's orange warnings), parameter table Load/Save | MATC expressions, tables |
+| Several components (`comp1`, `comp2`; `comp1.T`), one-way couplings through operators (`comp1.aveop1(T)`) | yes: own geometry, mesh, physics, solution and dataset each | one Elmer run per component |
+| Form an Assembly with identity pairs (continuity) | yes, for heat, electrostatics, currents and the coefficient-form PDE | mortar BCs |
+| Selections that follow geometry edits; geometry object selections | yes (associative renumbering, lost entities flagged) | — |
+| Study initial values from another study; dependency graph (Used By, out-of-date results) | yes | restart files |
 | Geometry: Block, Sphere, Cylinder, Cone, Torus, Ellipsoid, Rectangle, Circle, Ellipse, Polygon, Work Plane + Extrude/Revolve, Union/Difference/Intersection, Move/Copy/Rotate/Scale/Mirror/Array, Fillet/Chamfer, STEP/IGES/BREP import, Form Union | yes, with length units, Build Selected (F7) / Build All (F8) | gmsh / OpenCASCADE |
 | Domain/boundary/edge/point numbering and click-selection with hover highlight | yes (position-based numbering, blue selection, red hover) | — |
 | Materials, Material Contents table with required-property status, material library | yes, 20 materials, user materials | Material sections |

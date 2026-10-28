@@ -19,6 +19,13 @@ Every step has a _Physics and Variables Selection_ table, to leave an interface 
 Add a study with menu:Home[Add Study]. Add steps with menu:Study[Study Steps], and a sweep with menu:Study[Parametric Sweep].
 
 [#sweep]
+[#initial-values]
+=== Starting from another study's solution
+
+A Stationary or Time Dependent step can start from another study's last solution: set *Values of Dependent Variables › Initial values from the solution of* to that study. It is the initial state of a time-dependent study, or the initial guess of a nonlinear stationary one, as COMSOL's *Solution* option does. The other study must be computed first, and on the same mesh. Otherwise Compute stops and says which. When the other study is computed again later, this study is marked out of date.
+
+With several components, a step solves each component that has a ticked physics interface. A component whose settings use another component's coupling operator (`+comp1.aveop1(T)+`) is solved after it. See xref:models-and-files.adoc#components[Several components].
+
 == Parametric Sweep
 
 A sweep solves the study once for each parameter value:

@@ -22,6 +22,17 @@
 
 The full syntax (operators, functions, constants and units) is in xref:reference:expressions.adoc[Expressions and units].
 
+[#units]
+=== Units are checked
+
+Elmer Studio works out the unit of every expression from the units in brackets, the parameters, the variables, the dependent variables (`+T+` is in K, `+V+` in V) and the coordinates. It warns, as COMSOL does, when:
+
+* two terms of a sum or a comparison have different units: `+1[m]+1[s]+`;
+* a function such as `+sin+` or `+exp+` gets a quantity with a unit: `+sin(2[m])+`;
+* a setting gets a quantity of another unit than its own, for example `+2930[K]+` for a density in kg/m³.
+
+The value is still used, as its SI number (as in COMSOL). The field shows the message in orange under it, with the unit it deduced and the one it expected, and the node gets an orange triangle in the Model Builder. A plain number has no unit and is taken in the setting's unit. A unit belongs to the number or name in front of it: `+x/2[mm]+` is x divided by 2 mm.
+
 == Variables
 
 *Component 1 › Definitions › Variables* (menu:Home[Variables]) defines named expressions that may depend on space, time and the solution. For example:

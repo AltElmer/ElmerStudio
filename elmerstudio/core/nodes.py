@@ -36,6 +36,16 @@ register(NodeType("definitions", "Definitions", "defs", "definitions", label="De
                   deletable=False, can_disable=False,
                   children=["variables", "cpl.average", "cpl.integration", "cpl.maximum", "cpl.minimum",
                             "dg.ddom", "dg.pnmv"]))
+# Identity pairs (COMSOL: Definitions > Pairs): made by Form an Assembly where two objects touch; the physics
+# interfaces keep their fields continuous across them (Elmer: mortar projection between the two sides)
+register(NodeType("pair.identity", "Identity Boundary Pair", "ap", "selection_node", deletable=False,
+                  description="Coinciding boundaries of two objects of an assembly. The physics fields (temperature, "
+                              "electric potential, a PDE's variable) are continuous across them, as across an interior "
+                              "boundary of a union; disable the pair to leave the two sides unconnected. The two "
+                              "sides may have different meshes.",
+                  props=[Prop("objects", "Objects:", "info", "", section="Pair"),
+                         Prop("source", "Source boundaries:", "info", "", section="Source Boundaries"),
+                         Prop("destination", "Destination boundaries:", "info", "", section="Destination Boundaries")]))
 # Deformed geometry (COMSOL: Definitions > Deforming Domain, Prescribed Normal Mesh Velocity): in a Time Dependent
 # study the physics are solved on the present shape at every step and moving boundaries carry the mesh along
 register(NodeType("dg.ddom", "Deforming Domain", "dd", "feature_domain", selection="domain", selection_all=True,
@@ -116,6 +126,8 @@ def bind_results(model, sol, geo=None):
     params.update(sol.meta.get("sweep_params") or {})          # every swept parameter of this run
     sol.params = params
     comp = model.component
+    sol.comp_tag = comp.tag if comp is not None else ""
+    sol.comp_tags = tuple(c.tag for c in model.components())
     defs = comp.child("definitions") if comp else None
     sol.variables = {str(r["name"]).strip(): r.get("expr", "0") for n in (defs.children if defs else [])
                      if n.kind == "variables" and n.enabled for r in (n.props.get("table") or [])
@@ -162,6 +174,10 @@ register(NodeType("study", "Study", "std", "study", deletable=True, can_disable=
                                "tolerance stop it too, unless kept: then the solution is shown, marked not converged."),
                   ]))
 _phys_tbl = Prop("physics", "", "physics_table", {}, section="Physics and Variables Selection")
+# COMSOL: Values of Dependent Variables > Initial values of variables solved for: Solution of another study
+_initsol = Prop("initsol", "Initial values from the solution of:", "study_ref", "", section="Values of Dependent Variables",
+                tip="Start from another study's last solution (same mesh): the initial state of a time-dependent "
+                    "study, or the initial guess of a nonlinear stationary one. The other study is computed first.")
 register(NodeType("study.stationary", "Stationary", "stat", "stationary", props=[
     Prop("coupling", "Max coupling iterations:", "int", 30, section="Study Settings",
          tip="Steady State Max Iterations when several physics are solved together"),
@@ -170,7 +186,7 @@ register(NodeType("study.stationary", "Stationary", "stat", "stationary", props=
     Prop("coupling_relax", "Coupling damping factor:", "string", "1", section="Study Settings",
          tip="Under-relaxation of every coupled physics between segregated iterations; lower it (e.g. 0.5, 0.25) "
              "when the coupled iteration oscillates and grows (a loop gain G > 1 needs a factor below 2/(1+G))"),
-    _phys_tbl]))
+    _phys_tbl, _initsol]))
 register(NodeType("study.time", "Time Dependent", "time", "time_dependent", props=[
     Prop("tunit", "Time unit:", "choice", "s", choices=[("s", "s"), ("ms", "ms"), ("min", "min"), ("h", "h"), ("d", "d")],
          section="Study Settings"),
@@ -180,7 +196,7 @@ register(NodeType("study.time", "Time Dependent", "time", "time_dependent", prop
     Prop("substeps", "Solver steps per output step:", "int", 1, section="Study Settings"),
     Prop("bdf", "BDF order:", "choice", "2", choices=[("1", "1 (backward Euler)"), ("2", "2")], section="Study Settings"),
     Prop("coupling", "Max coupling iterations per step:", "int", 10, section="Study Settings"),
-    _phys_tbl]))
+    _phys_tbl, _initsol]))
 register(NodeType("study.eigen", "Eigenfrequency", "eig", "eigenfrequency", props=[
     Prop("neig", "Desired number of eigenfrequencies:", "int", 6, section="Study Settings"),
     Prop("shift", "Search for eigenfrequencies around:", default="0", unit="Hz", section="Study Settings"),

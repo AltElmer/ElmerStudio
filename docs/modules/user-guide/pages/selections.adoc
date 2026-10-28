@@ -40,6 +40,13 @@ NOTE: *All boundaries* means every boundary, including interior ones between two
 When two features of the same physics interface select the same boundary, the one lower in the Model Builder wins. A default feature covers whatever no other feature claims.
 
 [#box]
+[#associative]
+== Selections that follow geometry edits
+
+A selection of entity numbers remembers what each selected entity is: its geometry object and its position and size within that object. When the geometry changes (a dimension, a new object, a deleted one) and its numbers shift, the next build finds each selected entity again and renumbers the selection. Messages says what changed, for example _Temperature 1: boundary 6 renumbered to 7 (the geometry changed)_. COMSOL calls this associative geometry. An entity that no longer exists is removed from the selection, the node gets a red mark, and its tooltip says _Boundary 6 no longer exist after the geometry changed: check the selection_. Picking entities again clears the mark.
+
+The selections of geometry objects (`+Block 1 (blk1)+` in the Selection list), Box Selections and *All* follow the geometry by construction. Use them where you can.
+
 == Box Selections: selections that follow the geometry
 
 Entity numbers depend on position. If a parameter changes the geometry, for example a sweep over an amplitude or a width, the numbers can change, and a manual selection may then point at the wrong face. A *Box Selection* avoids that:

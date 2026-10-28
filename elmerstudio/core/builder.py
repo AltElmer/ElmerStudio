@@ -44,14 +44,15 @@ def new_model(sdim: str | None = "3D", physics: list[str] | None = None, study: 
 
 
 def add_component(m: Model, sdim: str) -> Node:
-    idx = 1 if m.global_defs is not None else 0
+    kids = m.root.children                              # after Global Definitions and the existing components
+    idx = max([i + 1 for i, c in enumerate(kids) if c.kind in ("global", "component")] or [0])
     comp = m.create("component", m.root, index=idx, tag=m.new_tag("comp"), label=None)
     comp.props["sdim"] = sdim
     comp.label = f"Component {comp.tag[4:]}"
     m.create("definitions", comp, tag=m.new_tag("defs") if m.by_tag("defs") else "defs")
     geom = m.create("geometry", comp, tag=m.new_tag("geom"))
     geom.label = f"Geometry {geom.tag[4:]}"
-    m.create("geom.finalize", geom, tag="fin")
+    m.create("geom.finalize", geom, tag="fin" if not m.by_tag("fin") else m.new_tag("fin", 2))
     m.create("materials", comp, tag=m.new_tag("matlnk") if m.by_tag("materials") else "materials")
     mesh = m.create("mesh", comp, tag=m.new_tag("mesh"))
     mesh.label = f"Mesh {mesh.tag[4:]}"
@@ -74,8 +75,10 @@ def add_physics(m: Model, pid: str, comp: Node | None = None) -> Node:
         # its Elmer variable is fixed: a second interface would solve (and overwrite) the same field
         raise ValueError(f"{existing[0].label} is already in {comp.label}. One interface covers several domains: "
                          "select them in its Domain Selection.")
-    tag = pd.id if not existing and not m.by_tag(pd.id) else m.new_tag(pd.id)
-    label = pd.name if not existing else f"{pd.name} {len(existing) + 1}"
+    # tags are unique in the model (ht, ht2, ... as in COMSOL), so result names stay unambiguous across components
+    tag = pd.id if not m.by_tag(pd.id) else m.new_tag(pd.id, 2)
+    others = [n for n in m.root.walk() if n.kind == pd.kind]
+    label = pd.name if not others else f"{pd.name} {len(others) + 1}"
     ph = m.create(pd.kind, comp, index=_insert_index(comp), tag=tag, label=label)
     if existing:                                     # its own dependent variable: c2, u2, ...
         prop, base = pd.instance_var
@@ -130,10 +133,22 @@ def add_bundle(m: Model, key: str):
 
 
 def physics_nodes(m: Model, comp: Node | None = None) -> list[Node]:
+    """The physics interfaces of *comp* (default: the active component)."""
     comp = comp or m.component
     if comp is None:
         return []
     return [c for c in comp.children if c.kind.startswith("physics.")]
+
+
+def all_physics(m: Model) -> list[Node]:
+    """The physics interfaces of every component, in tree order."""
+    return [ph for c in m.components() for ph in physics_nodes(m, c)]
+
+
+def step_components(m: Model, step: Node) -> list[Node]:
+    """Components with a physics interface that *step* solves."""
+    sel = step.props.get("physics", {}) or {}
+    return [c for c in m.components() if any(ph.enabled and sel.get(ph.tag, True) for ph in physics_nodes(m, c))]
 
 
 def add_study(m: Model, step_kind: str = "stationary", label: str | None = None) -> Node:
@@ -149,7 +164,7 @@ def add_step(m: Model, st: Node, step_kind: str) -> Node:
     idx = next((i for i, c in enumerate(st.children) if c.kind == "study.solvers"), len(st.children))
     step = m.create(kind, st, index=idx)
     step.label = f"Step {sum(1 for c in st.children if c.kind in ('study.stationary', 'study.time', 'study.eigen', 'study.freq'))}: {node_type(kind).title}"
-    step.props["physics"] = {ph.tag: True for ph in physics_nodes(m)}
+    step.props["physics"] = {ph.tag: True for ph in all_physics(m)}
     return step
 
 
@@ -169,7 +184,7 @@ def ensure_solver_configs(m: Model, st: Node) -> Node:
     if sols is None:
         sols = m.create("study.solvers", st, tag=m.new_tag("sols"))
     have = {c.props.get("physics") for c in sols.children}
-    for ph in physics_nodes(m):
+    for ph in all_physics(m):
         if ph.tag not in have:
             s = m.create("study.solver", sols)
             s.props["physics"] = ph.tag
@@ -184,21 +199,40 @@ def add_material(m: Model, name: str, domains=None, all_domains=False) -> Node:
     return _materials.make_material(m, m.component.child("materials"), name, domains, all_domains)
 
 
-def solution_dataset(m: Model, st: Node, create=True) -> Node | None:
+def dataset_component(m: Model, d: Node) -> Node | None:
+    """The component a solution dataset shows (older files: the first one)."""
+    comps = m.components()
+    return next((c for c in comps if c.tag == d.props.get("comp")), comps[0] if comps else None)
+
+
+def solution_dataset(m: Model, st: Node, create=True, comp: Node | None = None) -> Node | None:
+    """The Solution dataset of study *st* on component *comp* (default: the active component)."""
+    comp = comp or m.component
     dsets = m.results.child("results.datasets")
     for d in dsets.children:
-        if d.kind == "dset.solution" and d.props.get("study") == st.tag:
+        if d.kind == "dset.solution" and d.props.get("study") == st.tag and dataset_component(m, d) is comp:
             return d
     if not create:
         return None
     d = m.create("dset.solution", dsets, tag=m.new_tag("dset"))
     d.props["study"] = st.tag
-    d.label = f"{st.label}/Solution {d.tag[4:]}"
+    if comp is not None:
+        d.props["comp"] = comp.tag
+    d.label = f"{st.label}/Solution {d.tag[4:]}" + (f" ({comp.tag})" if len(m.components()) > 1 and comp else "")
     return d
 
 
 def default_plots(m: Model, st: Node, step_kind: str) -> list[Node]:
-    """Create COMSOL-style default plot groups for the solved physics (if not present)."""
+    """Create COMSOL-style default plot groups for the solved physics of every component (if not present)."""
+    made = []
+    steps = study_steps(st)
+    for comp in (step_components(m, steps[0]) if steps else []):
+        with m.scoped(comp):
+            made += _default_plots(m, st, step_kind)
+    return made
+
+
+def _default_plots(m: Model, st: Node, step_kind: str) -> list[Node]:
     comp = m.component
     from .model import space_dim
     sd = space_dim(comp)

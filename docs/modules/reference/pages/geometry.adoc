@@ -611,7 +611,9 @@ Geometry ribbon
 |===
 |Setting |Symbol |Unit |Default |Choices / type
 5+h|Finalize
-|Action | | |Form a union |Form a union, Keep objects separate (no fragment)
+|Action +
+_An assembly keeps the objects separate (their meshes need not match) and connects touching objects with identity pairs_ | | |Form a union |Form a union, Form an assembly
+|Create pairs | | |On |Check box
 |Repair tolerance (relative) | | |`+1e-6+` |Expression
 |===
 

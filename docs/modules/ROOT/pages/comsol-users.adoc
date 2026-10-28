@@ -41,10 +41,10 @@ Result variables use COMSOL's scoped names where possible: `+T+`, `+ht.tfluxMag+
 [cols="1,3",options="header"]
 |===
 |Topic |In Elmer Studio
-|Units in expressions |Converted to SI, but dimensional consistency isn't checked. `+1[m] + 1[s]+` isn't an error.
 |Materials |Library values are constants at 20 °C. Use expressions or Interpolation functions for temperature dependence.
 |Coupling operators |Evaluated on results. They can't appear inside the equations.
-|Form Assembly |Not available; geometries are a union (or separate objects without identity pairs).
+|Identity pairs |Continuity only (no contact, thin layers or other pair conditions); for Heat Transfer, Electrostatics, Electric Currents and the Coefficient Form PDE.
+|Several components |Each solves on its own mesh; one component can use another's coupling operators (one way), not its fields.
 |Boundary-layer meshes |Not exposed.
 |Adaptive mesh refinement |Not available.
 |Magnetic fields |2D and 2D axisymmetric only; no 3D A–V formulation.

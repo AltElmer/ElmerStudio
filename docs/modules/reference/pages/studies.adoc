@@ -41,6 +41,9 @@ _Relative change at which the segregated (physics-by-physics) iteration stops_ |
 _Under-relaxation of every coupled physics between segregated iterations; lower it (e.g. 0.5, 0.25) when the coupled iteration oscillates and grows (a loop gain G > 1 needs a factor below 2/(1+G))_ | | |`+1+` |Text
 5+h|Physics and Variables Selection
 |Physics and Variables Selection | | | |Table
+5+h|Values of Dependent Variables
+|Initial values from the solution of +
+_Start from another study's last solution (same mesh): the initial state of a time-dependent study, or the initial guess of a nonlinear stationary one. The other study is computed first._ | | | |Study
 |===
 
 [#study-time]
@@ -60,6 +63,9 @@ _range(start,step,stop), a list of times, or several ranges with growing steps, 
 |Max coupling iterations per step | | |`+10+` |Integer
 5+h|Physics and Variables Selection
 |Physics and Variables Selection | | | |Table
+5+h|Values of Dependent Variables
+|Initial values from the solution of +
+_Start from another study's last solution (same mesh): the initial state of a time-dependent study, or the initial guess of a nonlinear stationary one. The other study is computed first._ | | | |Study
 |===
 
 [#study-eigen]

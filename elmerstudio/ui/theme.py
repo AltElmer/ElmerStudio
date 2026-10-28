@@ -155,6 +155,7 @@ QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
 QLineEdit:focus, QPlainTextEdit:focus, QSpinBox:focus, QComboBox:focus {{ border-color: #3d8ee6; }}
 QLineEdit[error="true"] {{ background: {ERROR_BG}; border-color: #e0605a; }}
 QLineEdit[draft="true"] {{ border-style: dashed; border-color: #3d8ee6; }}
+QLineEdit[warn="true"] {{ border-color: #e09a2a; }}
 QLineEdit:read-only {{ background: #f3f4f6; color: #555; }}
 QComboBox::drop-down {{ border-left: 1px solid #d0d4d9; width: 16px; }}
 QPushButton {{ background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #ffffff, stop:1 #eceef1); border: 1px solid #b4b9c0;

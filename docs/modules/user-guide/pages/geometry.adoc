@@ -70,9 +70,24 @@ Extrude and Revolve pick the last work plane as input by themselves.
 
 menu:Geometry[Import] reads STEP (`.step`, `.stp`), IGES (`.iges`, `.igs`) and BREP (`.brep`) files, with optional repair. Imported parts take part in Booleans and selections like any other object.
 
+[#assembly]
+== Form Union or Form an Assembly
+
+The last node of every geometry, *Form Union/Assembly*, decides how the objects become domains:
+
+* *Form a union* (the default) fragments everything into one conforming geometry. Where objects touch or overlap they share boundaries, and the fields are continuous across them.
+* *Form an assembly* keeps the objects separate. Each object is meshed on its own, so the meshes on the two sides of a contact need not match. Where two objects touch, Elmer Studio makes an *Identity Boundary Pair* under the component's *Definitions* (`+ap1+`, `+ap2+`, …), listing the source boundaries of the first object and the destination boundaries of the second. With *Create pairs* turned off, no pairs are made.
+
+The physics keep their field continuous across every enabled pair, as across an interior boundary of a union, as in COMSOL. This applies to Heat Transfer, Electrostatics, Electric Currents and the Coefficient Form PDE. Elmer applies a mortar projection between the two sides. Disable a pair to leave the two sides unconnected (each then behaves like an insulated wall). A contact is found where a boundary's middle point lies on the other object's boundary, so touching faces, edges and curved surfaces (a shaft in a hole) are all found. Objects with a gap between them get no pair.
+
 == Box Selections
 
 A *Box Selection* (menu:Geometry[Box Selection]) is a named geometry selection: all domains, boundaries, edges or points inside (or intersecting) a box. Leave a limit blank for no limit. Physics, mesh and results features can use it instead of a list of numbers. It stays right when a parameter change renumbers the geometry. See xref:selections.adoc#box[Selections].
+
+[#object-selections]
+== Selections of geometry objects
+
+Every geometry object that is still there at the end of the sequence offers its own selection, as COMSOL's *Resulting objects selection* does. Its domains, and the boundaries of those domains, appear in every selection list as `+Block 1 (blk1)+`. Such a selection follows the object through the union: if another object cuts it in two, the selection has both pieces.
 
 == How entities are numbered
 
@@ -81,6 +96,6 @@ Domains, boundaries, edges and points are numbered by *position*, in the order o
 == Limits
 
 * Fillets and chamfers in sketches work on corners between straight edges.
-* Form Assembly with identity pairs is not available: the geometry is always a union, or separate objects.
+* Identity pairs keep the field continuous; there is no contact, gap conductance or other pair condition yet.
 
 Every geometry feature and its settings is listed in xref:reference:geometry.adoc[Reference › Geometry features].

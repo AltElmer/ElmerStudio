@@ -724,10 +724,24 @@ class Solution:
         mask[np.asarray(sub.point_data["vtkOriginalPointIds"])] = True
         return mask
 
+    comp_tag: str = ""
+    comp_tags: tuple = ()
+
+    def _own(self, expr) -> str:
+        """Results of this component may carry its prefix (comp1.T); another component's are refused by name."""
+        s = str(expr)
+        if self.comp_tag:
+            s = re.sub(rf"(?<![\w.]){re.escape(self.comp_tag)}\.(?=[A-Za-z_])", "", s)
+        for m in re.finditer(r"(?<![\w.])(comp\w*)\.(?=[A-Za-z_])", s):
+            if m.group(1) in self.comp_tags:
+                raise units.ExprError(f"'{expr}' refers to {m.group(1)}, another component: use a dataset of "
+                                      f"{m.group(1)} (its Solution dataset)")
+        return s
+
     def evaluate(self, expr: str, i: int | None = None) -> np.ndarray:
         i = self.frame_index(i)
         names = {**self.params, **self.names(i)}
-        e = _dotted(self._expand(str(expr)))
+        e = _dotted(self._expand(self._own(expr)))
         v = units.evaluate(e, names, self._operator_funcs())
         v = np.asarray(np.real(v), dtype=float)
         if v.ndim == 0:
@@ -737,7 +751,7 @@ class Solution:
     def evaluate_vector(self, expr: str, i: int | None = None) -> np.ndarray:
         i = self.frame_index(i)
         names = self.names(i)
-        e = _dotted(str(expr).strip())
+        e = _dotted(self._own(expr).strip())
         # allow "u,v,w" component lists or a vector alias
         parts = [p for p in re.split(r"\s*,\s*", e) if p]
         if len(parts) >= 2:

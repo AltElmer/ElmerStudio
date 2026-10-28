@@ -76,6 +76,9 @@ Parameters in result expressions take the values the solution was computed with.
 
 == Datasets
 
+With several components, every component has its own *Solution* dataset per study, and a plot or evaluation sees the component of its dataset. See xref:models-and-files.adoc#components[Several components]. A plot group, plot or evaluation whose study is out of date gets the asterisk mark too, with _Shows Study 1, which is out of date_ in its tooltip.
+
+
 [cols="1,3",options="header"]
 |===
 |Dataset |Gives

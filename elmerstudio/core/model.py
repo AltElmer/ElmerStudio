@@ -104,6 +104,8 @@ class Selection:
     entities: list[int] = field(default_factory=list)
     all: bool = False
     named: str = ""                 # tag of a geometry selection (Box Selection); building the geometry sets entities
+    # entity -> its signature in the build it was selected on (geometry.remap_selections follows it to the next one)
+    sig: dict = field(default_factory=dict, compare=False)
 
     def resolve(self, available: Iterable[int]) -> list[int]:
         avail = sorted(set(available))
@@ -116,12 +118,14 @@ class Selection:
         d = {"level": self.level, "entities": list(self.entities), "all": self.all}
         if self.named:
             d["named"] = self.named
+        if self.sig and not self.all and not self.named:
+            d["sig"] = {str(k): v for k, v in self.sig.items()}
         return d
 
     @classmethod
     def from_dict(cls, d):
         return cls(d.get("level", "domain"), [int(x) for x in d.get("entities", [])], bool(d.get("all", False)),
-                   str(d.get("named", "") or ""))
+                   str(d.get("named", "") or ""), dict(d.get("sig") or {}))
 
 
 def selection_entities(node, meta: dict | None = None) -> list[int]:
@@ -264,9 +268,9 @@ class Model:
     def _used_tags(self) -> set[str]:
         return {n.tag for n in self.root.walk()}
 
-    def new_tag(self, prefix: str) -> str:
+    def new_tag(self, prefix: str, start: int = 1) -> str:
         used = self._used_tags()
-        i = 1
+        i = start
         while f"{prefix}{i}" in used:
             i += 1
         return f"{prefix}{i}"
@@ -308,8 +312,40 @@ class Model:
 
     @property
     def component(self) -> Node | None:
+        """The active component: the one being built, meshed, solved or edited (scoped(), or the GUI's choice:
+        the component of the selected node); the first one when none is active."""
         comps = self.components()
+        tag = getattr(self, "_active", None)
+        if tag:
+            hit = next((c for c in comps if c.tag == tag), None)
+            if hit is not None:
+                return hit
         return comps[0] if comps else None
+
+    def set_active(self, comp: Node | None):
+        self._active = comp.tag if comp is not None else None
+
+    def scoped(self, comp: Node | None):
+        """``with model.scoped(comp):`` makes *comp* the active component for the block."""
+        model = self
+
+        class _Scope:
+            def __enter__(self):
+                self.prev = getattr(model, "_active", None)
+                model._active = comp.tag if comp is not None else self.prev
+                return comp
+
+            def __exit__(self, *exc):
+                model._active = self.prev
+                return False
+        return _Scope()
+
+    def component_of(self, node: Node | None) -> Node | None:
+        """The component a node belongs to (None for global nodes, studies and results)."""
+        n = node
+        while n is not None and n.kind != "component":
+            n = n.parent
+        return n
 
     def studies(self) -> list[Node]:
         return [c for c in self.root.children if c.kind == "study"]

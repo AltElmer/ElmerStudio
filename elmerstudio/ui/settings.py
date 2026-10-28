@@ -176,11 +176,18 @@ class ExprEdit(FieldEdit):
         # a syntax or unit error is not applied (the draft stays, marked); an unknown name is, as in COMSOL (it may
         # be defined later), only marked
         unknown = str(tip).startswith(("Unknown symbol", "Unknown function"))
+        unit = ok and str(tip).startswith("Unit:")         # COMSOL's orange: used as it is, but said
         self.blocking = not ok and not unknown
         self.setProperty("error", not ok)
+        self.setProperty("warn", bool(unit))
         self.setToolTip(tip)
         _repolish(self)
-        if ok:
+        if unit:
+            self.note.setObjectName("FieldNote")
+            self.note.setText(str(tip).splitlines()[0])
+            _repolish(self.note)
+            self.note.show()
+        elif ok:
             self.note.hide()
         else:
             first = str(tip).splitlines()[0] if tip else "Invalid expression"
@@ -684,18 +691,28 @@ class SettingsWindow(QWidget):
                 names.setdefault(s, 1.0)
             try:
                 units.evaluate(t, names)
+                warn = self._unit_warnings(node, p, t)
+                head = ("Unit: " + "; ".join(warn) + "\n") if warn else ""
                 try:
                     pure = complex(units.evaluate(t, dict(self.ctx.parameters()))).real
                     unit = "m" if p.unit == "LEN" else pretty_unit(p.unit)
-                    return True, f"{t}\n= {pure:.6g} {unit} (SI)"
+                    return True, f"{head}{t}\n= {pure:.6g} {unit} (SI)"
                 except Exception:
-                    return True, f"{t}\n(depends on field variables)"
+                    return True, f"{head}{t}\n(depends on field variables)"
             except Exception as exc:
                 fn = re.findall(r"(\w+)\(", t)
                 if fn and all(f in self.ctx.function_names() or f in units.MATH_FUNCS for f in fn):
                     return True, t
                 return False, str(exc)
         return check
+
+    def _unit_warnings(self, node, p, text) -> list[str]:
+        from ..core import diagnostics
+        if getattr(self, "_dims_cache", None) is None or self._dims_cache[0] is not node:
+            comp = node.ancestor("component")
+            self._dims_cache = (node, diagnostics.symbol_dims(self.ctx.model, comp), diagnostics._operator_dims(comp))
+        _n, dims, ops = self._dims_cache
+        return units.unit_warnings(text, p.unit or None, dims, ops)
 
     def _commit_expr(self, e: ExprEdit, p: Prop, commit):
         if not e.blocking:
@@ -817,7 +834,14 @@ class SettingsWindow(QWidget):
             sec.add_full(self._physics_table(node))
         elif k == "study_ref":
             cb = QComboBox()
+            cb.setProperty("prop_key", p.key)
+            cb.setAccessibleName(p.label.rstrip(": ") or p.key)
+            own = node if node.kind == "study" else node.ancestor("study")
+            if p.default == "":                      # optional: e.g. initial values (none: the Initial Values nodes)
+                cb.addItem("Physics controlled (Initial Values nodes)", "")
             for st in self.ctx.model.studies():
+                if p.default == "" and st is own:
+                    continue
                 cb.addItem(st.label, st.tag)
             cb.setCurrentIndex(max(0, cb.findData(val)))
             cb.currentIndexChanged.connect(lambda i: commit(cb.itemData(i), rebuild=True))

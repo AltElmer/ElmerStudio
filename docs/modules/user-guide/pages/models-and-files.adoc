@@ -19,7 +19,9 @@ image::ROOT:screenshots/ui_wizard_3_study.png[Select study]
 
 == Components and space dimensions
 
-A model has one *Component* with a fixed space dimension:
+A model has one or more *Components*. Each has its own space dimension, definitions, geometry, materials, physics and mesh, and its tag (`+comp1+`, `+comp2+`, …) is its namespace. Add one with menu:Home[Add Component] or by right-clicking the root node. The ribbon acts on the *active component*, the one the selected node belongs to, as in COMSOL. The status bar names it (`+comp2 geometry: 3 domains+`).
+
+A component's space dimension is fixed when you add it:
 
 [cols="1,3",options="header"]
 |===
@@ -28,6 +30,17 @@ A model has one *Component* with a fixed space dimension:
 |2D |Planar problems: cross-sections of long objects (plane strain), thin plates (plane stress), planar fields and flows.
 |2D Axisymmetric |Bodies of revolution about the z axis, with coordinates r (x) and z (y). Integrals over the model are taken in the revolved geometry (×2πr) unless you turn that off.
 |===
+
+[#components]
+=== Several components
+
+Components are separate models that one study can solve together, each with its own mesh and solution:
+
+* A study step solves the physics interfaces ticked in its *Physics and Variables Selection*, in every component that has them.
+* Each component's solution gets its own *Solution* dataset (`+Study 1/Solution 1 (comp2)+`); plots and evaluations of that dataset see that component.
+* In results, `+T+` is the dataset's own component's temperature. Writing `+comp1.T+` is the same thing in comp1. A name of another component (`+comp2.T+` in a comp1 dataset) is refused with a message, so a result can't silently show the wrong field.
+* One component may use another's result through a coupling operator: `+comp1.aveop1(T)+` in a setting of comp2 is the average temperature of comp1 (Definitions › Component Couplings of comp1). The study solves comp1 first, evaluates the operator on its solution, and uses the value in comp2. Messages lists the value. Couplings go one way: a circle (comp1 uses comp2 and comp2 uses comp1) is refused before anything runs. A field such as `+comp1.T+` cannot enter another component's equations, because the meshes are different.
+* Physics interfaces have unique tags across the model: the second Heat Transfer is `+ht2+` wherever it is, so its result names (`+ht2.tfluxMag+`) are unambiguous.
 
 == Saving and opening
 

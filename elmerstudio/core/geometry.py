@@ -272,8 +272,12 @@ register(NodeType("geom.import", "Import", "imp", "import", props=[
 register(NodeType("geom.finalize", "Form Union/Assembly", "fin", "form_union", label="Form Union",
                   numbered=False, deletable=False, can_disable=False, props=[
                       Prop("action", "Action:", "choice", "union",
-                           choices=[("union", "Form a union"), ("none", "Keep objects separate (no fragment)")],
-                           section="Finalize"),
+                           choices=[("union", "Form a union"), ("none", "Form an assembly")],
+                           section="Finalize",
+                           tip="An assembly keeps the objects separate (their meshes need not match) and connects "
+                               "touching objects with identity pairs"),
+                      Prop("pairs", "Create pairs", "bool", True, section="Finalize",
+                           visible=lambda p: p.get("action") == "none"),
                       Prop("tol", "Repair tolerance (relative):", default="1e-6", section="Finalize")]))
 
 
@@ -294,6 +298,8 @@ class GeometryResult:
     measure: dict = field(default_factory=dict)       # level -> {number: length/area/volume in SI}
     objects: list = field(default_factory=list)       # object names alive before finalize
     named: dict = field(default_factory=dict)         # selection tag -> (level, [numbers])
+    object_domains: dict = field(default_factory=dict)  # geometry object name -> its domains (after the union)
+    pairs: list = field(default_factory=list)          # assembly contacts: (object a|object b, [a's], [b's] boundaries)
     messages: list = field(default_factory=list)
     built_upto: str = ""
 
@@ -327,6 +333,73 @@ class GeometryResult:
             if ok:
                 out.append(num)
         return out
+
+    def _domains_of(self, level, num) -> set:
+        if level == "domain":
+            return {num}
+        order = list(levels_for(self.sdim))
+        ents, lvl = {num}, level
+        while lvl != "domain":
+            up = order[order.index(lvl) - 1]
+            ents = {u for e in ents for u in self.adj_up.get(lvl, {}).get(e, [])}
+            lvl = up
+        return ents
+
+    def _owner(self, level, num):
+        """(owning object names, their bounding box) of an entity: the geometry objects whose domains it touches."""
+        doms = self._domains_of(level, num)
+        names = sorted(nm for nm, ds in self.object_domains.items() if doms & set(ds))
+        if not names:
+            return "", None
+        boxes = [self.bbox_of["domain"][d] for nm in names for d in self.object_domains[nm] if d in self.bbox_of["domain"]]
+        return "+".join(names), [min(b[i] for b in boxes) for i in range(3)] + [max(b[i + 3] for b in boxes)
+                                                                                 for i in range(3)]
+
+    def signature(self, level, num):
+        """What identifies an entity across rebuilds: its bounding-box centre and extents (geometry unit), its
+        length/area/volume (SI), the geometry objects it belongs to, and its centre and extents relative to those
+        objects' box (which a resize or a move of the object leaves unchanged)."""
+        b = self.bbox_of.get(level, {}).get(num)
+        if b is None:
+            return None
+        c = [(b[i] + b[i + 3]) / 2 for i in range(3)]
+        e = [b[i + 3] - b[i] for i in range(3)]
+        owner, ob = self._owner(level, num)
+        rel = [0.0] * 6
+        if ob is not None:
+            for i in range(3):
+                size = ob[i + 3] - ob[i]
+                rel[i] = (c[i] - ob[i]) / size if size > 1e-12 * self.diag else 0.5
+                rel[i + 3] = e[i] / size if size > 1e-12 * self.diag else 0.0
+        r = lambda v: round(v, 12)  # noqa: E731
+        return [r(v) for v in c + e] + [float(self.measure.get(level, {}).get(num, 0.0) or 0.0), owner] \
+            + [r(v) for v in rel]
+
+    def match(self, level, sig, exclude=()):
+        """The entity at *level* that is *sig* (a signature from another build), with its score (0: the same;
+        below about 0.15: the same entity moved or resized), or (None, inf). Entities of the same geometry object
+        are compared by their place in the object; others (or older signatures) by absolute position."""
+        best, score = None, float("inf")
+        d = self.diag
+        owner = sig[7] if len(sig) > 7 else ""
+        flat0 = [i for i in range(3) if abs(sig[3 + i]) <= 1e-9 * d]
+        for num in self.numbers.get(level, []):
+            if num in exclude:
+                continue
+            t = self.signature(level, num)
+            flat = [i for i in range(3) if abs(t[3 + i]) <= 1e-9 * d] != flat0
+            if owner and t[7] == owner:
+                sc = math.dist(t[8:11], sig[8:11]) + 0.5 * math.dist(t[11:14], sig[11:14])
+            else:
+                dc = math.dist(t[:3], sig[:3]) / d
+                de = math.dist(t[3:6], sig[3:6]) / d
+                m0, m1 = abs(sig[6]), abs(t[6])
+                dm = abs(math.log((m1 + 1e-300) / (m0 + 1e-300))) if m0 > 0 and m1 > 0 else (0.0 if m0 == m1 else 1.0)
+                sc = dc + 0.5 * de + 0.1 * dm + (0.5 if owner else 0.0)
+            sc += 1.0 if flat else 0.0                       # a face that turned around is another face
+            if sc < score:
+                best, score = num, sc
+        return best, score
 
     def exterior_boundaries(self):
         up = self.adj_up.get("boundary", {})
@@ -508,18 +581,37 @@ class GeometryBuilder:
                 break
         occ.synchronize()
         object_names = list(self.objects.keys())
+        # which entities each object became: its "Resulting objects" selection (COMSOL), which follows the object
+        # through the union however its faces are split
+        self.result_of = {nm: list(dts) for nm, dts in self.objects.items()}
         if finalize and fin_node is not None and fin_node.get("action", "union") == "union":
             all_dt = [dt for v in self.objects.values() for dt in v]
+            owner = [nm for nm, v in self.objects.items() for _dt in v]
             top = max((d for d, _ in all_dt), default=0)
             if len(all_dt) > 1:
                 try:
-                    occ.fragment(all_dt, [])
+                    _out, outmap = occ.fragment(all_dt, [])
                 except Exception as exc:
                     raise GeometryError(f"Form Union failed: {exc}") from exc
+                self.result_of = {nm: [] for nm in self.objects}
+                for nm, got in zip(owner, outmap):
+                    self.result_of[nm] += [tuple(dt) for dt in got]
                 occ.removeAllDuplicates()
             occ.synchronize()
             built_upto = fin_node.tag
+        elif finalize and fin_node is not None:
+            built_upto = fin_node.tag
+            self._assembly = bool(fin_node.get("pairs", True))
         res = self._number(object_names)
+        top = self.sdim
+        for nm, dts in self.result_of.items():
+            doms = sorted({res.num_of["domain"][t] for d, t in dts if d == top and t in res.num_of["domain"]})
+            if doms:
+                res.object_domains[nm] = doms
+                res.named[f"{nm}:domain"] = ("domain", doms)
+                res.named[f"{nm}:boundary"] = ("boundary", res.boundaries_of_domains(doms))
+        if getattr(self, "_assembly", False):
+            res.pairs = self._contacts(res)
         res.built_upto = built_upto
         for s in self.selections:
             res.named[s.tag] = (s.get("level", "boundary"), self._box_entities(res, s))
@@ -1212,6 +1304,67 @@ class GeometryBuilder:
         res.objects = object_names
         return res
 
+    def _contacts(self, res: GeometryResult) -> list:
+        """Where objects of an assembly touch: per pair of objects, the coinciding boundaries of each (a boundary
+        coincides with another when its middle point lies on the other one, and the other's on it)."""
+        import gmsh
+        bdim = self.sdim - 1
+        tol = max(res.diag * 1e-7, 1e-12)
+        owner = {}
+        for nm, doms in res.object_domains.items():
+            for b in res.boundaries_of_domains(doms):
+                owner.setdefault(b, nm)
+
+        def samples(b):
+            """Points spread over a boundary: its parametric middle and four points around it."""
+            t = res.tag_of["boundary"][b]
+            lo, hi = gmsh.model.getParametrizationBounds(bdim, t)
+            pts = []
+            for f in ((0.5, 0.5), (0.25, 0.25), (0.75, 0.75), (0.25, 0.75), (0.75, 0.25)):
+                par = [a + (c - a) * f[i % 2] for i, (a, c) in enumerate(zip(lo, hi))]
+                try:                                 # a parameter point in a hole is not on the boundary
+                    if gmsh.model.isInside(bdim, t, par, True) <= 0:
+                        continue
+                except Exception:  # noqa: BLE001
+                    pass
+                pts.append(gmsh.model.getValue(bdim, t, par))
+            return pts
+
+        def on(b, x):
+            # on the boundary's (unbounded) surface, within its box, and inside the face itself (not in a hole)
+            t = res.tag_of["boundary"][b]
+            p = gmsh.model.getClosestPoint(bdim, t, list(x))[0]
+            bb = res.bbox_of["boundary"][b]
+            if not all(bb[i] - tol * 10 <= x[i] <= bb[i + 3] + tol * 10 for i in range(3)):
+                return False
+            if math.dist(p[:3], x[:3]) > tol * 10:
+                return False
+            try:
+                return gmsh.model.isInside(bdim, t, list(x[:3])) > 0
+            except Exception:  # noqa: BLE001 - older gmsh: the projection test only
+                return True
+
+        def overlap(a, b):
+            ba, bb = res.bbox_of["boundary"][a], res.bbox_of["boundary"][b]
+            return all(ba[i] <= bb[i + 3] + tol and bb[i] <= ba[i + 3] + tol for i in range(3))
+        found: dict = {}
+        bnds = sorted(owner)
+        for i, a in enumerate(bnds):
+            for b in bnds[i + 1:]:
+                oa, ob = owner[a], owner[b]
+                if oa == ob or not overlap(a, b):
+                    continue
+                try:
+                    hit = any(on(b, x) for x in samples(a)) or any(on(a, x) for x in samples(b))
+                except Exception:  # noqa: BLE001 - an entity gmsh cannot parametrize
+                    hit = False
+                if hit:
+                    first, second = sorted((oa, ob), key=lambda n: list(res.object_domains).index(n))
+                    src, dst = found.setdefault(f"{first}|{second}", (set(), set()))
+                    (src if owner[a] == first else dst).add(a)
+                    (src if owner[b] == first else dst).add(b)
+        return [(k, sorted(s), sorted(d)) for k, (s, d) in found.items()]
+
     # ---- display tessellation
     def _tessellate(self, res: GeometryResult):
         import gmsh
@@ -1284,12 +1437,14 @@ def build_geometry(model: Model, geom: Node | None = None, upto: Node | None = N
     with session("geometry"):
         res = GeometryBuilder(model, geom, overrides).build(upto=upto, display=display)
     if upto is None:
-        apply_named_selections(model, res)
+        res.messages = list(res.messages) + apply_named_selections(model, res)
     return res
 
 
-def apply_named_selections(model: Model, res: GeometryResult) -> None:
-    """Point every feature that uses a named selection at that selection's entities in *res*."""
+def apply_named_selections(model: Model, res: GeometryResult) -> list[str]:
+    """Point every feature that uses a named selection at that selection's entities in *res*; then carry the
+    typed entity numbers of the component's other selections over to the new geometry (associative selections).
+    Returns messages about selections that changed or lost entities."""
     for n in model.root.walk():
         sel = n.selection
         if sel is not None and sel.named and sel.named in res.named:
@@ -1297,15 +1452,116 @@ def apply_named_selections(model: Model, res: GeometryResult) -> None:
             if level == sel.level:
                 sel.entities = list(ents)
                 sel.all = False
+    msgs = remap_selections(model, res)
+    sync_pairs(model, res)
+    return msgs
+
+
+def sync_pairs(model: Model, res: GeometryResult) -> None:
+    """Identity pair nodes of the active component follow the assembly's contacts (created, updated, removed;
+    a pair the user disabled stays disabled)."""
+    comp = model.component
+    defs = comp.child("definitions") if comp is not None else None
+    if defs is None:
+        return
+    have = {n.meta.get("pair_key"): n for n in defs.children if n.kind == "pair.identity"}
+    keep = set()
+    for key, src, dst in res.pairs:
+        n = have.get(key)
+        if n is None:
+            n = model.create("pair.identity", defs)
+            n.meta["pair_key"] = key
+        a, b = key.split("|")
+        n.props.update({"objects": f"{a} and {b}", "source": ", ".join(map(str, src)),
+                        "destination": ", ".join(map(str, dst))})
+        n.meta["src"], n.meta["dst"] = list(src), list(dst)
+        keep.add(key)
+    for key, n in have.items():
+        if key not in keep:
+            defs.remove(n)
+
+
+def active_pairs(model: Model, geo: GeometryResult) -> list:
+    """(pair tag, source boundaries, destination boundaries) of the enabled identity pairs on this geometry."""
+    comp = model.component
+    defs = comp.child("definitions") if comp is not None else None
+    nodes = {n.meta.get("pair_key"): n for n in (defs.children if defs else []) if n.kind == "pair.identity"}
+    out = []
+    for key, src, dst in getattr(geo, "pairs", []) or []:
+        n = nodes.get(key)
+        if n is None or n.enabled:
+            out.append((n.tag if n is not None else key, list(src), list(dst)))
+    return out
+
+
+MATCH_LIMIT = 0.15
+
+
+def remap_selections(model: Model, res: GeometryResult) -> list[str]:
+    """Manual selections of the active component's features follow the geometry: each selected entity is found
+    again in the new build by its signature (position, extent, size) and renumbered; one that has no counterpart is
+    dropped and recorded in the node's meta ``lost`` (the Model Builder marks it). Signatures are then refreshed."""
+    comp = model.component
+    if comp is None:
+        return []
+    msgs = []
+    lv = levels_for(res.sdim)
+    for n in comp.walk():
+        sel = n.selection
+        if sel is None or sel.all or sel.named or sel.level not in lv:
+            continue
+        sig = getattr(sel, "sig", None) or {}
+        if sig and sel.entities:
+            new, lost, used = [], [], set()
+            for e in sel.entities:
+                old = sig.get(str(e)) or sig.get(e)
+                if old is None:                     # selected before the last build: keep its number
+                    new.append(e)
+                    continue
+                if res.signature(sel.level, e) == old:
+                    new.append(e)
+                    used.add(e)
+                    continue
+                hit, score = res.match(sel.level, old, exclude=used)
+                if hit is not None and score < MATCH_LIMIT:
+                    new.append(hit)
+                    used.add(hit)
+                else:
+                    lost.append(e)
+            new = sorted(set(new))
+            if new != sorted(sel.entities):
+                moved = sorted(set(sel.entities) - set(new) - set(lost))
+                if moved:
+                    msgs.append(f"{n.label}: {sel.level} {', '.join(map(str, moved))} renumbered to "
+                                f"{', '.join(map(str, sorted(set(new) - set(sel.entities))))} (the geometry changed)")
+                sel.entities = new
+            if lost:
+                n.meta["lost"] = sorted(set(n.meta.get("lost", [])) | set(lost))
+                msgs.append(f"{n.label}: {sel.level} {', '.join(map(str, lost))} no longer exist in the geometry; "
+                            "check the selection")
+            elif n.meta.get("lost") and not lost:
+                n.meta.pop("lost", None)
+        sel.sig = {str(e): res.signature(sel.level, e) for e in sel.entities
+                   if res.signature(sel.level, e) is not None}
+    return msgs
 
 
 def named_selections(model: Model, level: str) -> list[tuple[str, str]]:
-    """(tag, label) of the geometry's selections at *level*, for the Selection combo boxes."""
+    """(tag, label) of the geometry's selections at *level*, for the Selection combo boxes: Box Selections, and
+    at the domain and boundary levels each geometry object's resulting entities ("Block 1 (blk1)")."""
     geom = model.component.child("geometry") if model.component is not None else None
     if geom is None:
         return []
-    return [(f.tag, f.label) for f in geom.children if f.kind == "geom.boxsel" and f.enabled
-            and f.get("level", "boundary") == level]
+    out = [(f.tag, f.label) for f in geom.children if f.kind == "geom.boxsel" and f.enabled
+           and f.get("level", "boundary") == level]
+    if level in ("domain", "boundary"):
+        fin = next((f for f in geom.children if f.kind == "geom.finalize"), None)
+        names = object_names_before(geom, fin) if fin is not None else []
+        for nm in names:
+            node = next((f for f in geom.walk() if f.tag == nm), None)
+            if node is not None and node.kind not in ("geom.boxsel",):
+                out.append((f"{nm}:{level}", f"{node.label} ({nm})"))
+    return out
 
 
 def build_context_geometry(model: Model, node: Node, overrides=None) -> GeometryResult:

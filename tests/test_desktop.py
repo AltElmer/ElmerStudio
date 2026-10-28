@@ -388,8 +388,19 @@ def test_completion_lists_parameters_with_values(win):
     QTest.keyClick(e, Qt.Key_Escape)                     # closes the list (or restores the field)
 
 
-def test_pasting_parameter_rows_is_one_undo_step(win):
+def test_pasting_parameter_rows_is_one_undo_step(win, monkeypatch):
     w = win
+
+    class Clip:                      # the desktop's clipboard may be held by another program: a stand-in
+        text_ = ""
+
+        def setText(self, t):
+            self.text_ = t
+
+        def text(self):
+            return self.text_
+    clip = Clip()
+    monkeypatch.setattr(QApplication, "clipboard", staticmethod(lambda: clip))
     m = _model(w)
     params = m.global_defs.child("params")
     w.tree.select(params)
