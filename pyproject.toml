@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "elmerstudio"
-version = "1.1.0"
+version = "1.1.1"
 description = "Model-builder desktop (geometry, physics, mesh, study, results) for the Elmer FEM multiphysics solver"
 readme = "README.md"
 requires-python = ">=3.10"
