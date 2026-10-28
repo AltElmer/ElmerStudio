@@ -70,10 +70,11 @@ class Job(QThread):
 
 def _caps_text(inst) -> str:
     """One line on the optional Elmer features this installation has."""
-    from ..core.elmer import capabilities
+    from ..core.elmer import capabilities, parallel_problem
     c = capabilities(inst)
     parts = [("diffusion current (multi-ion electrolytes)", c.get("diffusion_current")),
-             ("user solvers (Fortran compiler found)", c.get("user_solvers"))]
+             ("user solvers (Fortran compiler found)", c.get("user_solvers")),
+             ("parallel runs (ElmerSolver_mpi and mpiexec)", inst is not None and parallel_problem(inst, 2) is None)]
     return "Features: " + ", ".join(f"{n}: {'yes' if v else 'no'}" for n, v in parts) + (
         "  [from-source build tree]" if getattr(inst, "build_tree", False) else "")
 

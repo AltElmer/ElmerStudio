@@ -47,6 +47,10 @@ Attributes you can add under a plot:
 * *Selection*: restricts the plot to some domains or boundaries.
 * *Color Expression*: colors a plot (arrows, streamlines, lines) by another expression.
 
+The color range is the minimum and maximum of the plotted values, unless you set _Manual color range_.
+A field that is constant to within 1e-9 of its value is drawn in a single color. Examples are a uniform current density and a fixed temperature. Its nodal values differ only by round-off, and stretching the color table over that tiny range would show the noise as a gradient.
+The legend's ▲ and ▼ markers then show the value.
+
 === Plots for 1D and polar groups
 
 [cols="1,3",options="header"]

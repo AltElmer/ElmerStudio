@@ -11,6 +11,7 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 
 EXE = ".exe" if os.name == "nt" else ""
@@ -28,7 +29,9 @@ class ElmerInstall:
     build_tree: bool = False          # a CMake build directory of elmerfem (from-source Elmer)
 
     def env(self) -> dict:
-        env = dict(os.environ)
+        env = _host_environ()
+        if self.mpiexec:                  # MPI launchers start helpers (smpd, orted, hydra_pmi_proxy) from their folder
+            env["PATH"] = os.pathsep.join([os.path.dirname(self.mpiexec), env.get("PATH", "")])
         if self.build_tree:
             # an elmerfem build tree: the solver, its modules and three runtime libraries live in five places
             h = self.home
@@ -61,6 +64,66 @@ class ElmerInstall:
             env["DYLD_LIBRARY_PATH"] = sep.join([lib, os.path.join(lib, "elmersolver"), env.get("DYLD_LIBRARY_PATH", "")])
         env.setdefault("OMP_NUM_THREADS", "1")
         return env
+
+
+def _host_environ() -> dict:
+    """The environment Elmer runs in.  A frozen (PyInstaller) Linux build puts its own library folder first on
+    LD_LIBRARY_PATH and keeps the user's value in LD_LIBRARY_PATH_ORIG; Elmer, mpiexec and the MPI libraries must
+    not load the bundle's copies of shared libraries (libstdc++, libz, ...), so the user's value comes back."""
+    env = dict(os.environ)
+    if getattr(sys, "frozen", False) and platform.system() == "Linux":
+        orig = env.pop("LD_LIBRARY_PATH_ORIG", None)
+        if orig is not None:
+            env["LD_LIBRARY_PATH"] = orig
+        else:
+            env.pop("LD_LIBRARY_PATH", None)
+    return env
+
+
+# where MPI distributions put mpiexec when it is not on PATH (an app started from the Finder or a desktop launcher
+# gets a short PATH: /usr/bin:/bin:/usr/sbin:/sbin on macOS, without Homebrew's or MacPorts' folders)
+MPI_DIRS = {
+    "Windows": [r"C:\Program Files\Microsoft MPI\Bin"],
+    "Darwin": ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", "/opt/homebrew/opt/open-mpi/bin",
+               "/usr/local/opt/open-mpi/bin", "/opt/homebrew/opt/mpich/bin", "/usr/local/opt/mpich/bin"],
+    "Linux": ["/usr/bin", "/usr/local/bin", "/usr/lib64/openmpi/bin", "/usr/lib64/mpich/bin",
+              "/usr/lib/x86_64-linux-gnu/openmpi/bin", "/opt/openmpi/bin"],
+}
+
+
+def find_mpiexec(elmer_bin: str = "") -> str | None:
+    """mpiexec (or mpirun) for an MPI Elmer: next to ElmerSolver_mpi first (an Elmer bundled with its MPI), then
+    PATH, then the usual MPI install folders of the platform."""
+    names = [n + EXE for n in ("mpiexec", "mpirun")]
+    for d in [elmer_bin] if elmer_bin else []:
+        for n in names:
+            if os.path.isfile(os.path.join(d, n)):
+                return os.path.join(d, n)
+    for n in ("mpiexec", "mpirun"):
+        w = shutil.which(n)
+        if w:
+            return w
+    for d in [os.environ.get("MSMPI_BIN", "")] + MPI_DIRS.get(platform.system(), []):
+        for n in names:
+            if d and os.path.isfile(os.path.join(d, n)):
+                return os.path.join(d, n)
+    return None
+
+
+def parallel_problem(inst: ElmerInstall | None, nproc: int) -> str | None:
+    """Why *nproc* > 1 MPI processes cannot run with this Elmer (None: they can)."""
+    if nproc <= 1 or inst is None:
+        return None
+    if not inst.solver_mpi:
+        return (f"this Elmer ({inst.bin}) has no ElmerSolver_mpi: it is a serial build (for example a '-nompi' "
+                f"package). Install an MPI build of Elmer for parallel runs")
+    if not inst.mpiexec:
+        where = ", ".join(d for d in MPI_DIRS.get(platform.system(), []) if d)
+        return (f"ElmerSolver_mpi was found but no mpiexec or mpirun: not next to it, not on PATH and not in {where}. "
+                f"Install the MPI it was built with (Open MPI, MPICH or MS-MPI)")
+    if not inst.grid:
+        return "ElmerGrid, which partitions the mesh for the MPI processes, was not found next to ElmerSolver"
+    return None
 
 
 def _candidate_homes() -> list[str]:
@@ -115,8 +178,7 @@ def find_elmer(preferred: str | None = None) -> ElmerInstall | None:
                 home = h if b != h else os.path.dirname(h)
                 inst = ElmerInstall(home, b, solver if os.path.isfile(solver) else solver_mpi,
                                     grid if os.path.isfile(grid) else None,
-                                    solver_mpi if os.path.isfile(solver_mpi) else None,
-                                    shutil.which("mpiexec") or shutil.which("mpirun"))
+                                    solver_mpi if os.path.isfile(solver_mpi) else None, find_mpiexec(b))
                 return inst
     return None
 

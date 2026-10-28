@@ -48,8 +48,11 @@ jobs:
 
       - name: Engine and solver tests (Linux, with Elmer)
         if: runner.os == 'Linux'
+        env:
+          ELMERSTUDIO_TEST_MPI_HOME: /usr      # the PPA's Elmer is an MPI build: one study also runs on 2 processes
         run: |
           ElmerSolver -v 2>&1 | head -n 8 || true
+          command -v mpiexec || echo "no mpiexec: the MPI test will fail with the reason"
           xvfb-run -a pytest tests -v -rs
 
       - name: Keep failed solver cases (SIF, mesh, solver.log)

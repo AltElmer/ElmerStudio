@@ -12,7 +12,7 @@ import time
 import pytest
 
 pytest.importorskip("PySide6")
-from PySide6.QtCore import QPoint, QSettings, Qt  # noqa: E402
+from PySide6.QtCore import QEvent, QPoint, QSettings, Qt  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QInputDialog, QLabel,  # noqa: E402
                                QMessageBox)
@@ -65,6 +65,8 @@ def _settle(n=15):
     for _ in range(n):
         QApplication.processEvents()
         time.sleep(0.005)
+    # deleteLater runs from the application's event loop; these tests have none, processEvents alone never does it
+    QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
 
 
 def _wait(w, cond, timeout=90):
@@ -454,6 +456,62 @@ def test_a_refresh_keeps_the_field_you_are_in(win):
     assert fw is not None and fw.property("prop_key") == "T0"
 
 
+def _pick(cb, text):
+    """Choose *text* in a combo box as a user does: open the popup and click the item.  True when the combo box
+    still exists right after the click, before the event loop runs again."""
+    import shiboken6
+    i = cb.findText(text)
+    assert i >= 0, (text, [cb.itemText(j) for j in range(cb.count())])
+    cb.showPopup()
+    _settle()
+    view = cb.view()
+    idx = view.model().index(i, cb.modelColumn())
+    view.scrollTo(idx)
+    QTest.mouseClick(view.viewport(), Qt.LeftButton, Qt.NoModifier, view.visualRect(idx).center())
+    alive = shiboken6.isValid(cb)
+    _settle()
+    return alive
+
+
+def test_a_field_that_rebuilds_the_form_outlives_its_own_signal(win):
+    """Issue #1: choosing User defined conductivity, a plot's coloring, or pressing Enter in a 1D plot's y-axis
+    expression rebuilt the Settings form from inside that field's own signal and deleted the field there; Qt then
+    used the deleted widget (an access violation: the application closed)."""
+    import shiboken6
+    w = win
+    _wait(w, lambda: not w.busy())
+    m = B.new_model("2D", ["cd"], "stationary")
+    m.create("geom.rectangle", m.component.child("geometry"), index=0, w="1e-4", h="2e-4")
+    w._set_model(m, None, project.new_workdir())
+    w.build_geometry()
+    _wait(w, lambda: not w.busy() and w.geo is not None)
+    ely = m.component.child("physics.cd").child("cd.elyte")
+    w.tree.select(ely)
+    _settle()
+    old = w.settings.editor("sigma_src")
+    assert _pick(old, "User defined") and ely.props["sigma_src"] == "user"
+    assert w.settings.editor("sigma") is not None                # the form was rebuilt: the value field is shown
+    _settle()
+    assert not shiboken6.isValid(old)                            # and the old form is gone once the loop has run
+    w.add_plot_group("pg1d")
+    pg = w.tree.current()
+    lg = next((c for c in pg.children if c.kind == "plot.linegraph"), None) or w.create_node("plot.linegraph", pg)
+    w.tree.select(lg)
+    _settle()
+    e = w.settings.editor("expr")
+    e.setFocus()
+    QTest.keyClicks(e, "x+1")
+    QTest.keyClick(e, Qt.Key_Return)
+    assert shiboken6.isValid(e) and lg.props["expr"] == "x+1"
+    _settle()
+    w.add_plot_group("pg2d")
+    surf = w.tree.current().children[0]
+    w.tree.select(surf)
+    _settle()
+    assert _pick(w.settings.editor("coloring"), "Uniform") and surf.props["coloring"] == "uniform"
+    assert _pick(w.settings.editor("coloring"), "Color table") and surf.props["coloring"] == "table"
+
+
 # ---------------------------------------------------------------- Model Builder
 def test_filter_hides_non_matching_nodes_and_escape_clears_it(win):
     w = win
@@ -776,6 +834,25 @@ def test_a_constant_field_is_labelled_with_its_value():
     assert c[0] < 350 < c[1] and c.data == (350.0, 350.0)
     c = _clim(Node("plot.surface"), np.array([1.0, 2.0]))
     assert tuple(c) == (1.0, 2.0) == c.data                    # control: an ordinary range is unchanged
+    c = _clim(Node("plot.surface"), np.array([300.0, 300.0 + 3e-6]))
+    assert tuple(c) == c.data                                  # control: a real variation of 1e-8 is still colored
+
+
+def test_a_uniform_current_density_plots_as_one_color(elmer):
+    """Issue #1: the current density of the tutorial's 1D cell is uniform, but its nodal values differ by round-off
+    (about 1e-13 relative); the color range was that spread, so the plot showed a full rainbow of noise."""
+    import numpy as np
+    from elmerstudio.core.model import Node
+    from elmerstudio.ui.plots import _clim
+    from test_electrochemistry import _solve, strip
+    m, geo, _an = strip("bv")
+    sol = _solve(m, geo, "es_uniform_")[-1]
+    v = np.asarray(sol.evaluate("cd.IlMag", sol.frame_index("last")), float)
+    assert np.ptp(v) > 0                                       # not bit-identical: the case this test is about
+    c = _clim(Node("plot.surface"), v)
+    lo, hi = c
+    assert hi - lo > 0.01 * v.mean() and lo < v.min() and v.max() < hi    # a band: every node gets the middle color
+    assert c.data == (v.min(), v.max())                        # the legend's max/min markers show the value
 
 
 def test_solution_status_follows_the_inputs(win, elmer):

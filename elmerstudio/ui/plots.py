@@ -184,6 +184,13 @@ def directivity_map(f, view, model):
     return np.array(freqs), np.degrees(th), np.array(cols).T, label, unit
 
 
+# A field whose values agree to this relative tolerance is plotted as constant (one color).  A uniform field from a
+# solve differs by round-off, about 1e-13 relative (the current density of a 1D cell); stretching the color table
+# over that range painted the noise as a gradient (issue #1).  The iterative solvers stop at a relative residual of
+# 1e-10, so a smaller variation is not a result one can trust anyway.
+CONSTANT_RTOL = 1e-9
+
+
 def _clim(node, v):
     if node.get("manual", False):
         try:
@@ -197,7 +204,7 @@ def _clim(node, v):
     if node.get("__symmetric") or node.get("symmetric", False):
         m = max(abs(lo), abs(hi))
         return Clim((-m, m), (lo, hi))
-    if hi - lo < 1e-14 * max(abs(hi), 1e-300):
+    if hi - lo <= CONSTANT_RTOL * max(abs(lo), abs(hi), 1e-300):
         # a constant field: a band around the value; the legend's max/min markers show the value itself
         d = abs(lo) * 0.01 if lo else 1.0
         return Clim((lo - d, hi + d), (lo, hi))

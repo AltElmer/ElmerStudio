@@ -592,11 +592,43 @@ def _check_solvers(solvers, phys_domains):
         by_proc.setdefault(proc, []).append(s.physics)
 
 
+def _parallel_solvers(solvers, ctx, nproc):
+    """Settings that work on MPI processes.  Elmer's parallel direct solve is MUMPS only: a UMFPACK or banded
+    solve is switched to MUMPS, which many builds lack (the run then stops), so they become BiCGStab with ILU(0).
+    The Newton line search (CheckStepSize) fails in parallel runs (Elmer 26.2: 'Maximum number of linesearch steps
+    taken without success' on a cell that converges in three full steps), so it is left out."""
+    swapped, nols = [], []
+    for s in solvers:
+        kw = s.keywords
+        name = str(kw.get("Equation", ""))
+        if kw.pop("Nonlinear System Linesearch", None):
+            nols.append(name)
+        if kw.get("Eigen Analysis") or kw.get("Linear System Solver") != "Direct" \
+                or str(kw.get("Linear System Direct Method", "")).lower() == "mumps":
+            continue
+        kw.pop("Linear System Direct Method", None)
+        kw.update({"Linear System Solver": "Iterative", "Linear System Iterative Method": "BiCGStab",
+                   "Linear System Preconditioning": "ILU0", "Linear System Max Iterations": 5000,
+                   "Linear System Convergence Tolerance": 1e-10, "Linear System Abort Not Converged": True})
+        swapped.append(name)
+    if swapped:
+        ctx.warnings.append(f"Parallel run on {nproc} MPI processes: {', '.join(swapped)} solved with BiCGStab and "
+                            f"ILU(0) instead of a direct solver (UMFPACK runs serially only; choose MUMPS in the "
+                            f"Solver Configurations if this Elmer has it)")
+    if nols:
+        ctx.warnings.append(f"Parallel run on {nproc} MPI processes: Newton line search off for {', '.join(nols)} "
+                            f"(it fails in Elmer's parallel runs); lower the Newton damping factor if the "
+                            f"iteration does not converge")
+
+
 def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, overrides=None,
               output_name="case", continuation: str | None = None, quasi_static_time: float | None = None,
-              skip_post: bool = False, save_restart: bool = False, initial_restart: bool = False) -> SifResult:
+              skip_post: bool = False, save_restart: bool = False, initial_restart: bool = False,
+              nproc: int = 1) -> SifResult:
     """*continuation*: for a stationary step, "save" writes the solution as an Elmer restart file
     (mesh/restart.result); "reuse" also starts from mesh/previous.result (the previous sweep step's).
+
+    *nproc*: the MPI processes ElmerSolver_mpi runs on; above 1 the solvers get settings that work in parallel.
 
     *quasi_static_time*: one time step of a Time Dependent study whose geometry moves (deforming electrodes): the
     physics are solved as stationary on the present shape, with the time `t` in expressions fixed to this value (s)."""
@@ -752,6 +784,8 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                 for k in [k for k in s.keywords if k.startswith("Linear System Iterative") or k.startswith("Linear System Precond")]:
                     del s.keywords[k]
                 s.keywords["Calculate Stresses"] = False
+    if nproc > 1:
+        _parallel_solvers(solvers, ctx, nproc)
 
     out_solver = {"Equation": "Result Output", "Procedure": ("ResultOutputSolve", "ResultOutputSolver"),
                   "Output File Name": output_name, "Output Format": "vtu", "Vtu Format": True,

@@ -18,7 +18,8 @@ import numpy as np
 from . import units
 from .backends import study_backend
 from .builder import step_components, study_steps, study_sweep
-from .elmer import ElmerInstall, RunState, partition_command, result_files, solver_command, write_case
+from .elmer import (ElmerInstall, RunState, parallel_problem, partition_command, result_files, solver_command,
+                    write_case)
 from .meshing import build_mesh
 from .model import Model, Node
 from .results import topology_to_npz, write_solution_meta
@@ -430,7 +431,8 @@ class StudyRunner:
                                 step_overrides = ctrl.overrides(step_overrides)
                             init = initial_solution(self.model, self.workdir, step, comp, mesh)
                             sif = build_sif(self.model, self.study, step, mesh.geometry, len(mesh.nodes), step_overrides,
-                                            continuation=cont, save_restart=True, initial_restart=init is not None)
+                                            continuation=cont, save_restart=True, initial_restart=init is not None,
+                                            nproc=self.nproc)
                             for w in sif.meta.get("warnings", []):
                                 self.emit("warning", w)
                             write_case(folder, mesh.to_elmer(), sif.text)
@@ -506,15 +508,31 @@ class StudyRunner:
         self.emit("message", f"Solution time: {time.time() - t_start:.1f} s")
         return self.folders
 
+    @property
+    def nproc(self) -> int:
+        """MPI processes of this study's Elmer runs: the study's Number of MPI processes when this Elmer can run
+        them, else 1, with a warning (once) that says what is missing."""
+        if getattr(self, "_nproc", None) is None:
+            n = max(1, int(self.study.get("np", 1) or 1))
+            why = parallel_problem(self.inst, n)
+            if why:
+                self.emit("warning", f"{self.study.label}: running serially instead of on {n} MPI processes: {why}.")
+                n = 1
+            self._nproc = n
+        return self._nproc
+
     def _run_elmer(self, folder, step, job, total) -> RunState:
-        nproc = int(self.study.get("np", 1) or 1)
-        if nproc > 1 and not (self.inst.solver_mpi and self.inst.mpiexec):
-            self.emit("warning", "MPI-enabled Elmer not found; running serially.")
-            nproc = 1
+        nproc = self.nproc
         pc = partition_command(self.inst, nproc)
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         if pc:
-            subprocess.run(pc, cwd=folder, env=self.inst.env(), capture_output=True, creationflags=flags)
+            r = subprocess.run(pc, cwd=folder, env=self.inst.env(), capture_output=True, text=True, errors="replace",
+                               creationflags=flags)
+            if not os.path.isdir(os.path.join(folder, "mesh", f"partitioning.{nproc}")):
+                tail = "\n".join((r.stdout + r.stderr).strip().splitlines()[-5:])
+                self.emit("warning", f"{step.label}: ElmerGrid did not partition the mesh into {nproc} parts "
+                                     f"(exit code {r.returncode}); running serially.\n{tail}")
+                nproc = 1
         rs = RunState()
         self._proc = subprocess.Popen(solver_command(self.inst, nproc), cwd=folder, env=self.inst.env(),
                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace",

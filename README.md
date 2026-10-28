@@ -268,4 +268,4 @@ These are deliberately listed, so nobody assumes they exist. The full list, incl
 - **Approximations:**
   - integrals over quadratic elements use VTK's linearized cells (≈0.1 % on smooth fields); fluxes from reaction loads (electrode currents, heat flows) are exact;
   - units are checked and reported, but a value with the wrong unit is still used (its SI number), as in COMSOL.
-- **Parallel:** MPI runs need an MPI-enabled Elmer. The Windows `-nompi` build runs serially.
+- **Parallel:** MPI runs need an MPI-enabled Elmer. The Windows `-nompi` build runs serially, and the Messages window says why a study ran serially. On more than one process, UMFPACK solves become BiCGStab + ILU(0) and the Newton line search is off; an eigenfrequency study needs an Elmer with MUMPS.

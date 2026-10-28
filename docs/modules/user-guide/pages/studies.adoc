@@ -91,7 +91,18 @@ _Solver backend_ on the *Study* node chooses who solves the study: *Elmer* (the 
 
 == Parallel computing
 
-Set _Number of MPI processes_ on the *Study* node to run Elmer on several cores. It needs an MPI-enabled Elmer (`ElmerSolver_mpi` and `mpiexec`). Elmer Studio partitions the mesh with ElmerGrid, runs `mpiexec -n N ElmerSolver_mpi`, and reads the partitioned results back as one solution. Without an MPI-enabled Elmer it warns and runs serially.
+Set _Number of MPI processes_ on the *Study* node to run Elmer on several cores. It needs an MPI-enabled Elmer (`ElmerSolver_mpi` and `mpiexec`). Elmer Studio partitions the mesh with ElmerGrid, runs `mpiexec -n N ElmerSolver_mpi`, and reads the partitioned results back as one solution.
+
+When the study cannot run in parallel, it runs serially, and the Messages window says why:
+
+* the Elmer has no `ElmerSolver_mpi`: it is a serial build, such as the Windows `-nompi` packages;
+* no `mpiexec` or `mpirun` was found next to `ElmerSolver_mpi`, on `PATH`, or in the usual MPI folders (`/opt/homebrew/bin`, `/usr/local/bin` and `/opt/local/bin` on macOS; `/usr/bin`, `/usr/lib64/openmpi/bin` and `/usr/lib64/mpich/bin` on Linux; MS-MPI's folder on Windows). An application started from the Finder or a desktop launcher does not see the folders your shell adds to `PATH`;
+* no ElmerGrid was found to partition the mesh, or ElmerGrid did not partition it.
+
+On more than one process, two solver settings change, because they do not work in Elmer's parallel runs; the Messages window lists both:
+
+* a direct linear solve with UMFPACK becomes BiCGStab with ILU(0). Elmer's only parallel direct solver is MUMPS, and many MPI builds of Elmer do not include it. If yours does, choose _Direct solver_ `+MUMPS+` in the study's *Solver Configurations*;
+* the Newton line search of nonlinear electrode kinetics is turned off. If the Newton iteration then does not converge, lower the interface's _Newton damping factor_.
 
 == Looking at the Elmer files
 

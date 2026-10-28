@@ -114,7 +114,7 @@ class DeformingRun:
         self.mesh.nodes = nodes
         cont = "reuse" if self.prev_restart else "save"
         sif = build_sif(self.model, self.study, self.step, self.geo, len(nodes), self.overrides, continuation=cont,
-                        quasi_static_time=t, skip_post=not full)
+                        quasi_static_time=t, skip_post=not full, nproc=r.nproc)
         write_case(self.work, self.mesh.to_elmer(), sif.text)
         if self.prev_restart:
             shutil.copyfile(self.prev_restart, os.path.join(self.work, "mesh", "previous.result"))

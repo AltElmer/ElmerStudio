@@ -64,6 +64,9 @@ Partitioning for MPI runs is done by ElmerGrid (Metis) for both meshers, as befo
 
 MPI runs need an MPI-enabled Elmer. The Windows `-nompi` builds of Elmer run serially.
 
+* On more than one process, UMFPACK direct solves become BiCGStab with ILU(0), and the Newton line search is off. An eigenfrequency study keeps its direct solver, so in parallel it needs an Elmer with MUMPS.
+* Parallel runs of the tutorial cell were checked against the serial result with an MPI Elmer on Windows (MS-MPI) and Linux (Open MPI). On macOS only the search for `mpiexec` is tested; no macOS MPI run has been made.
+
 == OpenFOAM backend
 
 The OpenFOAM backend (see xref:user-guide:openfoam.adoc[OpenFOAM backend]) is deliberately narrow:

@@ -401,7 +401,7 @@ class SettingsWindow(QWidget):
         if node is None:
             self.h_title.setText("")
             self.h_icon.clear()
-            self.scroll.setWidget(body)
+            self._swap_body(body)
             return
         nt = REGISTRY.get(node.kind)
         self.h_icon.setPixmap(icons.pixmap(nt.icon if nt else "info", 20))
@@ -415,13 +415,25 @@ class SettingsWindow(QWidget):
         self.h_buttons.addStretch(1)
         self._build(node, nt)
         self.form.addStretch(1)
-        self.scroll.setWidget(body)
+        self._swap_body(body)
         if keep_scroll:
             QTimer.singleShot(0, lambda: self.scroll.verticalScrollBar().setValue(pos))
         if focus_key is not None:
             w = self.editor(focus_key)
             if w is not None:
                 w.setFocus(Qt.OtherFocusReason)
+
+    def _swap_body(self, body: QWidget):
+        """Show *body* and delete the previous form later, from the event loop.  A change in a field rebuilds the
+        form from inside that field's own signal (a combo box's currentIndexChanged, a line edit's editingFinished);
+        QScrollArea.setWidget would delete the field there and then, and Qt goes on using it when the handler
+        returns: an access violation that closes the application (issue #1)."""
+        old = self.scroll.takeWidget()
+        if old is not None:
+            old.hide()
+            old.setParent(self)               # owned by Qt again (takeWidget hands it to Python) until deleteLater
+            old.deleteLater()
+        self.scroll.setWidget(body)
 
     def refresh(self):
         self.show_node(self.node, keep_scroll=True)
@@ -890,6 +902,8 @@ class SettingsWindow(QWidget):
         elif k in ("rexpr", "rvexpr"):
             row = QHBoxLayout()
             e = QLineEdit(str(val))
+            e.setProperty("prop_key", p.key)
+            e.setAccessibleName(p.label.rstrip(": ") or p.key)
             btn = QToolButton()
             btn.setIcon(icons.icon("variables"))
             btn.setToolTip("Replace Expression")

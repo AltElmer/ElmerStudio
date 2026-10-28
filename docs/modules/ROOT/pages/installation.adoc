@@ -86,13 +86,19 @@ The *Messages* pane then reports `Elmer found: …` with the solver's version. I
 * click *Browse...* and choose the Elmer installation folder (the one that contains `bin/ElmerSolver`), then click *Detect*;
 * or point it at a CMake build directory of elmerfem. Elmer Studio recognises a build tree and sets up the solver, its modules and libraries from it.
 
-*Detect* shows the solver version and a one-line report on what this Elmer can do beyond the 9.0 release. It reports whether StatCurrentSolve has the diffusion-current term (multi-ion electrolytes) and whether a Fortran compiler is available for user solvers. It also says when the selection is a from-source build tree. Elmer Studio adapts to the build it finds: a feature that needs one of these is used only where it is present.
+*Detect* shows the solver version and a one-line report on what this Elmer can do beyond the 9.0 release. It reports whether StatCurrentSolve has the diffusion-current term (multi-ion electrolytes), whether a Fortran compiler is available for user solvers, and whether parallel runs are possible (`ElmerSolver_mpi`, `mpiexec` and ElmerGrid found). It also says when the selection is a from-source build tree. Elmer Studio adapts to the build it finds: a feature that needs one of these is used only where it is present.
 
 NOTE: menu:Developer[Elmer Installation] opens the same dialog.
 
 === Parallel runs (optional)
 
 To solve on several cores, set _Number of MPI processes_ on a *Study* node. This needs an MPI build of Elmer (`ElmerSolver_mpi` plus `mpiexec`). Elmer Studio partitions the mesh with ElmerGrid by itself. The Windows `-nompi` builds of Elmer run serially.
+
+* Windows: the `-mpi` Elmer package with Microsoft MPI (MS-MPI) installed.
+* Linux: an MPI build of Elmer, for example the Ubuntu PPA's `elmerfem-csc`, with the MPI it was built with (Open MPI).
+* macOS: Elmer built with MPI, and Open MPI or MPICH from Homebrew or MacPorts.
+
+If a study runs serially although you asked for several processes, the Messages window says what was missing. See xref:user-guide:studies.adoc#_parallel_computing[Parallel computing].
 
 == 3. Check that everything works
 
