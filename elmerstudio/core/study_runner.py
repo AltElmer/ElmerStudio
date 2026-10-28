@@ -216,6 +216,60 @@ class StudyCancelled(Exception):
     pass
 
 
+class CurrentControl:
+    """An Electrode Surface with a total current (COMSOL: Electrode phase potential condition, Total current): the
+    study adjusts the electrode's potential phis_<tag> by secant steps until the current entering the electrolyte
+    through it, cd.<tag>.Itot (the sum of the nodal reactions), is the set one.  The current rises with the potential
+    (anodic positive).  One such electrode per component, in stationary studies."""
+    MAXIT, STEP, MAXSTEP = 40, 0.05, 0.5
+
+    def __init__(self, model, comp, step, overrides):
+        es = [f for ph in comp.children if ph.kind == "physics.cd" and ph.enabled for f in ph.children
+              if f.kind == "cd.es" and f.enabled and f.get("control", "potential") == "current"]
+        self.node = es[0] if es else None
+        if self.node is None:
+            return
+        if len(es) > 1:
+            raise RuntimeError(f"{es[1].label}: one electrode per component can have a total current; give the "
+                               "others an electric potential")
+        if step.kind != "study.stationary":
+            raise RuntimeError(f"{self.node.label}: a total-current electrode needs a Stationary study step")
+        params = model.parameters({k: v for k, v in (overrides or {}).items() if not isinstance(v, dict)})
+        ev = lambda e: float(np.real(units.evaluate(str(e), params)))  # noqa: E731
+        self.target = ev(self.node.get("Iset", "0[A]"))
+        self.phi = ev(self.node.get("phis", "0[V]"))
+        self.param = f"phis_{self.node.tag}"
+        self.tried: list[tuple[float, float]] = []
+        self.model = model
+
+    def overrides(self, base):
+        return {**(base or {}), self.param: self.phi}
+
+    def measure(self, folder, mesh) -> float:
+        from .nodes import bind_results
+        from .results import Solution
+        sol = bind_results(self.model, Solution(folder), mesh.geometry)
+        return float(np.nanmean(sol.evaluate(f"cd.{self.node.tag}.Itot", sol.frame_index("last"))))
+
+    def update(self, current: float) -> bool:
+        """Record the current at the present potential; True when it is the set one, else take the next step."""
+        self.tried.append((self.phi, current))
+        f = current - self.target
+        if abs(f) <= max(1e-6 * abs(self.target), 1e-12 * max(abs(current), 1.0)):
+            return True
+        if len(self.tried) >= self.MAXIT:
+            raise RuntimeError(f"{self.node.label}: the total current {self.target:.6g} A was not reached in "
+                               f"{self.MAXIT} solves (last {current:.6g} A at {self.phi:.6g} V)")
+        step = -self.STEP if f > 0 else self.STEP
+        if len(self.tried) > 1:
+            (p0, i0), (p1, i1) = self.tried[-2], self.tried[-1]
+            slope = (i1 - i0) / (p1 - p0) if p1 != p0 else 0.0
+            if slope > 0 and np.isfinite(slope):
+                step = -f / slope
+        self.phi += float(np.clip(step, -self.MAXSTEP, self.MAXSTEP))
+        return False
+
+
 class StudyNotConverged(RuntimeError):
     """Iterations reached their maximum without meeting the tolerance (the solution folder is kept, its meta.json
     says status 'not converged' with the diagnostics)."""
@@ -370,57 +424,75 @@ class StudyRunner:
                             same = prev is not None and prev[1].shape == np.shape(mesh.nodes) and \
                                 np.allclose(prev[1], mesh.nodes, rtol=0, atol=1e-12 * (np.ptp(prev[1]) or 1))
                             cont = "reuse" if same and os.path.exists(prev[0]) else "save"
-                        init = initial_solution(self.model, self.workdir, step, comp, mesh)
-                        sif = build_sif(self.model, self.study, step, mesh.geometry, len(mesh.nodes), step_overrides,
-                                        continuation=cont, save_restart=True, initial_restart=init is not None)
-                        for w in sif.meta.get("warnings", []):
-                            self.emit("warning", w)
-                        write_case(folder, mesh.to_elmer(), sif.text)
-                        if init is not None:
-                            shutil.copyfile(init, os.path.join(folder, "mesh", "initial.result"))
-                            self.emit("message", f"{step.label}: initial values from "
-                                                 f"{self.model.by_tag(step.get('initsol')).label}")
-                        if cont == "reuse":
-                            shutil.copyfile(prev[0], os.path.join(folder, "mesh", "previous.result"))
-                            self.emit("message", f"{step.label}: starting from the previous parameter's solution")
-                        topology_to_npz(mesh, os.path.join(folder, "mesh.npz"))
-                        self.emit("message", f"{step.label}: solving {', '.join(sif.meta['physics'])} "
-                                             f"(case folder {folder})")
-                        rs = self._run_elmer(folder, step, job, total)
-                        meta = dict(sif.meta)
-                        meta["selections"] = {n.tag: list(n.selection.entities) for n in self.model.root.walk()
-                                              if n.selection is not None and n.selection.named}
-                        # the geometry selections themselves, so that results made later (a Line Graph on a Box Selection)
-                        # resolve them as this run's geometry did
-                        for tag, (_lvl, ents) in getattr(mesh.geometry, "named", {}).items():
-                            meta["selections"].setdefault(tag, [int(e) for e in ents])
-                        meta.update({"comp": comp.tag, "xrefs": xvals.get("__xrefs__", {}),
-                                     "eigen": rs.eigen, "sweep_param": pname, "sweep_value": val,
-                                     "sweep_params": dict(combos[vi]) if combos[vi] else {},
-                                     "step_index": si, "sweep_index": vi, "tunit": step.get("tunit", "s"),
-                                     "returncode": getattr(rs, "returncode", None), "elapsed": time.time() - t_start})
-                        if step.kind == "study.time":
-                            tfac = units.unit_info(step.get("tunit", "s"))[0]
-                            meta["times"] = [t / tfac for t in meta.get("times", [])]
-                        status, diagnostics = judge_run(rs, sif.meta, folder, step.label)
-                        meta.update({"status": status, "diagnostics": diagnostics,
-                                     # provenance: the inputs this solution was computed from (results evaluate with these
-                                     # parameter values, not later edits of the model)
-                                     "params": dict(self.model.parameters(overrides))})
-                        write_solution_meta(folder, meta)
-                        with open(os.path.join(folder, "model.json"), "w") as f:
-                            f.write(self.model.to_json())
-                        with open(os.path.join(folder, "solver.log"), "w", errors="replace") as f:
-                            f.write("\n".join(rs.lines))
-                        if status == "failed":
-                            raise RuntimeError(diagnostics[0])
-                        if status == "not converged":
-                            if self.study.get("nonconv", "stop") != "keep":
-                                raise StudyNotConverged("; ".join(diagnostics) + ". Raise the maximum number of iterations "
-                                                        "or the damping in the study's Solver Configurations, or choose to "
-                                                        "keep unconverged solutions in the study settings.")
-                            for d in diagnostics:
-                                self.emit("warning", f"NOT CONVERGED: {d}")
+                        ctrl = CurrentControl(self.model, comp, step, step_overrides)
+                        while True:                    # once, or until a total-current electrode carries its current
+                            if ctrl.node is not None:
+                                step_overrides = ctrl.overrides(step_overrides)
+                            init = initial_solution(self.model, self.workdir, step, comp, mesh)
+                            sif = build_sif(self.model, self.study, step, mesh.geometry, len(mesh.nodes), step_overrides,
+                                            continuation=cont, save_restart=True, initial_restart=init is not None)
+                            for w in sif.meta.get("warnings", []):
+                                self.emit("warning", w)
+                            write_case(folder, mesh.to_elmer(), sif.text)
+                            if init is not None:
+                                shutil.copyfile(init, os.path.join(folder, "mesh", "initial.result"))
+                                self.emit("message", f"{step.label}: initial values from "
+                                                     f"{self.model.by_tag(step.get('initsol')).label}")
+                            if cont == "reuse":
+                                shutil.copyfile(prev[0], os.path.join(folder, "mesh", "previous.result"))
+                                self.emit("message", f"{step.label}: starting from the previous parameter's solution")
+                            topology_to_npz(mesh, os.path.join(folder, "mesh.npz"))
+                            self.emit("message", f"{step.label}: solving {', '.join(sif.meta['physics'])} "
+                                                 f"(case folder {folder})")
+                            if step.kind == "study.time":           # probes follow the output steps as they are written
+                                live = dict(sif.meta, comp=comp.tag, tunit=step.get("tunit", "s"))
+                                tfac = units.unit_info(live["tunit"])[0]
+                                live["times"] = [t / tfac for t in live.get("times", [])]
+                                self.emit("live", (folder, live))
+                            rs = self._run_elmer(folder, step, job, total)
+                            meta = dict(sif.meta)
+                            meta["selections"] = {n.tag: list(n.selection.entities) for n in self.model.root.walk()
+                                                  if n.selection is not None and n.selection.named}
+                            # the geometry selections themselves, so that results made later (a Line Graph on a Box Selection)
+                            # resolve them as this run's geometry did
+                            for tag, (_lvl, ents) in getattr(mesh.geometry, "named", {}).items():
+                                meta["selections"].setdefault(tag, [int(e) for e in ents])
+                            meta.update({"comp": comp.tag, "xrefs": xvals.get("__xrefs__", {}),
+                                         "eigen": rs.eigen, "sweep_param": pname, "sweep_value": val,
+                                         "sweep_params": dict(combos[vi]) if combos[vi] else {},
+                                         "step_index": si, "sweep_index": vi, "tunit": step.get("tunit", "s"),
+                                         "returncode": getattr(rs, "returncode", None), "elapsed": time.time() - t_start})
+                            if step.kind == "study.time":
+                                tfac = units.unit_info(step.get("tunit", "s"))[0]
+                                meta["times"] = [t / tfac for t in meta.get("times", [])]
+                            status, diagnostics = judge_run(rs, sif.meta, folder, step.label)
+                            meta.update({"status": status, "diagnostics": diagnostics,
+                                         # provenance: the inputs this solution was computed from (results evaluate with these
+                                         # parameter values, not later edits of the model)
+                                         "params": dict(self.model.parameters(overrides))})
+                            if ctrl.node is not None:            # the potential this solution was computed with
+                                meta["params"][ctrl.param] = ctrl.phi
+                            write_solution_meta(folder, meta)
+                            with open(os.path.join(folder, "model.json"), "w") as f:
+                                f.write(self.model.to_json())
+                            with open(os.path.join(folder, "solver.log"), "w", errors="replace") as f:
+                                f.write("\n".join(rs.lines))
+                            if status == "failed":
+                                raise RuntimeError(diagnostics[0])
+                            if status == "not converged":
+                                if self.study.get("nonconv", "stop") != "keep":
+                                    raise StudyNotConverged("; ".join(diagnostics) + ". Raise the maximum number of iterations "
+                                                            "or the damping in the study's Solver Configurations, or choose to "
+                                                            "keep unconverged solutions in the study settings.")
+                                for d in diagnostics:
+                                    self.emit("warning", f"NOT CONVERGED: {d}")
+                            if ctrl.node is None:
+                                break
+                            current = ctrl.measure(folder, mesh)
+                            self.emit("message", f"{ctrl.node.label}: phis = {ctrl.phi:.6g} V gives I = {current:.6g} A "
+                                                  f"(set: {ctrl.target:.6g} A)")
+                            if ctrl.update(current):
+                                break
                         self.folders.append(folder)
                         if cont:
                             previous[(comp.tag, si)] = (os.path.join(folder, "mesh", "restart.result"), np.array(mesh.nodes, float))

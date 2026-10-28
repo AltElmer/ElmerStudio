@@ -7,10 +7,8 @@ This list is deliberately explicit.
 
 * 3D magnetic fields (A–V formulation);
 * turbulence;
-* structural transient and frequency-response analysis;
-* contact;
-* probes;
-* animations;
+* contact, nonlinear materials and prestressed (harmonic perturbation) structural analysis;
+* damped (complex) eigenfrequencies: the eigenfrequency study ignores Damping;
 * acoustic boundary elements (BEM) and perfectly matched layers. Open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;
 * exterior field calculation in 2D planar models (it would need Hankel functions);
 * result filters, dataset joins, and Combined/Array datasets;
@@ -21,12 +19,16 @@ This list is deliberately explicit.
 
 == Partly supported
 
-* Boundary-layer meshing is not exposed.
+* Boundary layers are meshed in 2D and 2D axisymmetric models only (gmsh's boundary-layer field is two-dimensional); in 3D the *Boundary Layers* node is not offered, and Studio's single node takes the boundaries directly (COMSOL nests them in a *Boundary Layer Properties* subnode).
+* Solid Mechanics in a Frequency Domain study: stresses are not computed (Elmer gives those of the real part only), loads have zero phase, and a Roller or Symmetry condition must lie on a boundary perpendicular to a coordinate axis (Elmer's harmonic solve does not rotate a normal-tangential constraint back, so other boundaries are refused). Eigenfrequency studies constrain such boundaries the same way; on an inclined or curved one they keep Elmer's normal-tangential form, with a warning.
+* Damping is Rayleigh damping (mass and stiffness proportional), as in COMSOL's Damping subnode; loss-factor damping is not offered. A Time Dependent structural study starts at rest (zero initial velocity).
+* Probes are evaluated from the saved output steps (every output time, frequency or parameter value), not at the solver's internal steps; while a study runs the Probe Table follows the outputs written so far (time-dependent studies).
+* Animations are written as an animated GIF or a PNG image sequence; there is no AVI/WebM output and no player inside the Graphics window.
 * Library materials have constant properties at 20 °C, unless you enter an expression.
 * The physics-controlled mesh refines automatically only for laminar flow and acoustics.
 * With an incident plane wave the acoustic solution is the total field. The exterior field is then most accurate when integrated over the scatterer's surface.
 * Coupling operators work in results, not inside the equations.
-* In the electrochemistry interfaces, there is no electrode (solid-phase) domain, total-current or total-power electrode condition, or double-layer capacitance.
+* In the electrochemistry interfaces, there is no electrode (solid-phase) domain, total-power electrode condition, or double-layer capacitance. A total current on an Electrode Surface works in Stationary studies, for one electrode per component: the study repeats the solve, adjusting the electrode potential, until the current matches (a few solves).
 
 == ElmerGrid mesher
 

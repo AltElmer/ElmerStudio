@@ -269,6 +269,10 @@ def evaluate_parameters(rows: list[tuple[str, str]], overrides: dict | None = No
     vals: dict[str, float] = {}
     errs: dict[str, str] = {}
     overrides = overrides or {}
+    # numeric overrides of names the table lacks are parameters too (an electrode potential the study adjusts)
+    named = {name for name, _e in rows}
+    vals.update({k: float(v) for k, v in overrides.items()
+                 if k not in named and isinstance(v, (int, float)) and not isinstance(v, bool)})
     pending = list(rows)
     # allow forward references by iterating until no progress
     for _ in range(len(pending) + 1):

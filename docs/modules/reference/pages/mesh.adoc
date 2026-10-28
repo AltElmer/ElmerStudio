@@ -97,3 +97,23 @@ _Size of the last element over the first (COMSOL: Element ratio)_ | | |`+1+` |Te
 |Reverse direction | | |Off |Check box
 |===
 
+[#mesh-bl]
+== Boundary Layers
+
+Layers of thin quadrilaterals along the selected boundaries (walls of a flow, thin diffusion or thermal layers): the first layer's thickness, the number of layers and their stretching factor.
+
+Selection: Boundaries · Space dimensions: 2D · Mesh ribbon
+
+[cols="3,1,1,2,3",options="header",stripes=even]
+|===
+|Setting |Symbol |Unit |Default |Choices / type
+5+h|Layers
+|Number of boundary layers | | |`+8+` |Integer
+|Boundary layer stretching factor +
+_Thickness of a layer over the one inside it_ | | |`+1.2+` |Text
+|Thickness of first layer | | |Automatic |Automatic, Manual
+|Thickness adjustment factor +
+_Automatic: 1/20 of the maximum element size, times this factor_ | | |`+1+` |Text
+|Thickness | |length unit |`+0.001+` |Expression
+|===
+

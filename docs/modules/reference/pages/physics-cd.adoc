@@ -98,8 +98,12 @@ latexmath:[-\mathbf{n}\cdot\mathbf{i}_l = i_{loc}(\eta),\quad \eta = \phi_{s,ext
 |===
 |Setting |Symbol |Unit |Default |Choices / type
 5+h|Electrode Phase Potential Condition
+|Electrode phase potential condition +
+_Total current: the study adjusts the electrode's potential until the current entering the electrolyte through it is the given one (stationary studies)_ | | |Electric potential |Electric potential, Total current
 |Electric potential (of the electrode) +
-_Sweep it with a parameter for a polarization curve_ |φ_s,ext |`+V+` |`+0[V]+` |Expression
+_Sweep it with a parameter for a polarization curve; under current control, the first guess_ |φ_s,ext |`+V+` |`+0[V]+` |Expression
+|Total current +
+_Into the electrolyte (anodic positive); per metre of depth in 2D, the full revolution in 2D axisymmetry, like the result cd.<tag>.Itot_ |I_s |`+A+` |`+0[A]+` |Expression
 5+h|Electrode Kinetics
 |Kinetics expression type | | |Butler-Volmer |Primary condition (thermodynamic equilibrium), Butler-Volmer, Linearized Butler-Volmer, Anodic Tafel equation, Cathodic Tafel equation, Butler-Volmer with limiting current, User defined i(eta)
 5+h|Equilibrium Potential

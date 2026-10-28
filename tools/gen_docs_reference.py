@@ -17,6 +17,7 @@ sys.path.insert(0, ROOT)
 import elmerstudio.core.geometry  # noqa: E402,F401  (registers geometry node types)
 import elmerstudio.core.meshing  # noqa: E402,F401
 import elmerstudio.core.nodes  # noqa: E402,F401
+import elmerstudio.core.probes  # noqa: E402,F401
 from elmerstudio.core import physics as P  # noqa: E402
 from elmerstudio.core import units as U  # noqa: E402
 from elmerstudio.core.materials import LIBRARY, MATPROPS  # noqa: E402
@@ -275,8 +276,9 @@ def main():
     nav = ["* Reference", "** xref:index.adoc[Overview]"]
     physics_pages(out, nav)
     multiphysics_page(out, nav)
-    simple_page(out, nav, "definitions.adoc", "Definitions", "Parameters, functions, variables and component "
-                "couplings (Home or Definitions ribbon).", ["global", "params", "func", "definitions", "variables", "cpl"])
+    simple_page(out, nav, "definitions.adoc", "Definitions", "Parameters, functions, variables, component "
+                "couplings and probes (Home or Definitions ribbon).",
+                ["global", "params", "func", "definitions", "variables", "cpl", "probe"])
     simple_page(out, nav, "geometry.adoc", "Geometry features", "Every geometry feature of the Geometry ribbon. "
                 "Lengths are in the geometry's length unit unless a unit is written.", ["geometry", "geom"],
                 "Geometry ribbon")

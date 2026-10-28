@@ -12,6 +12,7 @@ from . import materials as _materials  # noqa: F401  (registers node types)
 from . import nodes as _nodes  # noqa: F401
 from . import geometry as _geometry  # noqa: F401
 from . import meshing as _meshing  # noqa: F401
+from . import probes as _probes  # noqa: F401
 from .model import Model, Node, node_type
 from .physics import BUNDLES, COUPLINGS, PHYSICS, STUDY_TYPES, physics_def
 

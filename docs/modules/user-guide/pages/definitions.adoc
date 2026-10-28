@@ -70,3 +70,19 @@ Coupling operators (menu:Definitions[...] or right-click *Definitions*) turn a f
 Select the _Geometric entity level_ (domain, boundary or point) and the entities, then use the operator in result expressions: `+aveop1(T)+` in a Global Evaluation or a Global plot over a parametric sweep, or `+intop1(u) - intop2(u)+` in a Definitions variable. The xref:tutorials:busbar.adoc[Busbar] and xref:tutorials:postprocessing.adoc[Postprocessing] tutorials use them.
 
 NOTE: In Elmer Studio, coupling operators are evaluated on the solution, in results. They are not available inside physics settings, where COMSOL would make them nonlocal couplings of the equations.
+
+[#probes]
+== Probes
+
+A probe watches one quantity at every output time, frequency or parameter value of a study (menu:Definitions[Probes] or right-click *Definitions*):
+
+[cols="1,3",options="header"]
+|===
+|Probe |Evaluates
+|*Domain Probe* |The _Average_ (default), _Maximum_, _Minimum_ or _Integral_ of an expression over the selected domains.
+|*Boundary Probe* |The same over the selected boundaries.
+|*Domain Point Probe* |The expression at a point (coordinates in the geometry's length unit).
+|*Global Variable Probe* |A scalar expression, such as `+aveop1(T)+` or a parameter expression.
+|===
+
+When a study is computed, its *Probe Table* (under Results > Tables) gets one column per probe, and a *Probe Plot Group* draws them against time, frequency or the swept parameter. While a time-dependent study runs, the table and plot follow the output steps written so far. Computing again updates the same table and plot group. An expression that cannot be evaluated gives a blank (NaN) column rather than stopping the others.

@@ -524,7 +524,7 @@ class MainWindow(QMainWindow):
         g = t.add_group("Export")
         g.add_small([self._a(f"r_{k}", REGISTRY[k].title, REGISTRY[k].icon,
                              (lambda kk=k: self.add_results_child("results.export", kk)))
-                     for k in ("export.image", "export.data", "export.vtu")])
+                     for k in ("export.image", "export.anim", "export.data", "export.vtu")])
         g.add_large(self._a("r_report", "Report", "report", lambda: self.add_results_child("results.export", "export.report")))
 
         # --- Developer
@@ -2935,8 +2935,13 @@ class MainWindow(QMainWindow):
                 with self.model.scoped(c):
                     self.mesh = p
                     self.mesh_stale = self.rev != rev    # meshed from the model as it was when Compute started
+            elif kind == "live":
+                self._live = {"folder": p[0], "meta": p[1], "sol": None, "at": 0.0}
+            if kind in ("progress", "live") and getattr(self, "_live", None):
+                self.update_probes(study, live=True)
 
         def done(folders):
+            self._live = None
             self._flush_log()
             self.sol_cache = {k: v for k, v in self.sol_cache.items() if not k.startswith(os.path.join(self.workdir, study.tag))}
             ds = B.solution_dataset(self.model, study)
@@ -2959,6 +2964,7 @@ class MainWindow(QMainWindow):
                 cols, rows = evaluate_derived(Node("eval.global"), self.model, sol, [], None)
                 self.table.show_table(f"{study.label}: Eigenfrequencies", cols, rows)
                 self.dock_table.raise_()
+            self.update_probes(study)
             if self.central.indexOf(self.conv) >= 0:
                 self.conv.redraw()
             self.central.setCurrentIndex(0)
@@ -3071,10 +3077,82 @@ class MainWindow(QMainWindow):
         tbl.props["columns"] = cols
         tbl.props["rows"] = [[float(x) if isinstance(x, (int, float)) else str(x) for x in r] for r in rows]
 
+    def update_probes(self, study: Node, live=False):
+        """Fill the study's Probe Table (and make its Probe Plot Group) from the probes of the computed component.
+        *live*: while a time-dependent study runs, from the output steps written so far (at most every 2 s)."""
+        from ..core import probes as P
+        from ..core.nodes import bind_results
+        with self.model.scoped(self._study_component(study)):
+            nodes = P.probes(self.model)
+        if not nodes:
+            return None
+        try:
+            if live:
+                lv = self._live
+                if time.time() - lv["at"] < 2.0:
+                    return None
+                lv["at"] = time.time()
+                if lv["sol"] is None:
+                    lv["sol"] = Solution(lv["folder"], lv["meta"])
+                sol = lv["sol"]
+                sol.frames, sol._cache = sol._frames(), {}
+                done = len(sol.frames) - 1                     # the newest file may still be being written
+                if done < 1:
+                    return None
+                with self.model.scoped(self.model.by_tag(lv["meta"].get("comp", "")) or self.model.component):
+                    bind_results(self.model, sol, None)
+                    cols, rows = P.table(self.model, [(None, sol)], frames=range(done))
+            else:
+                ds = B.solution_dataset(self.model, study)
+                sol = self.solution_of(ds)
+                if sol is None:
+                    return None
+                sweep = self.sweep_solutions(ds)
+                with self.model.scoped(self._study_component(study)):
+                    cols, rows = P.table(self.model, sweep or [(None, sol)])
+        except Exception as exc:
+            if not live:
+                self.messages.add(f"Probes: {exc}", "warning")
+            return None
+        tables = self.model.results.child("results.tables")
+        key = f"probes:{study.tag}"
+        tbl = next((t for t in tables.children if t.meta.get("source") == key), None)
+        new = tbl is None
+        if new:
+            n = 1 + sum(1 for t in tables.children if t.label.startswith("Probe Table"))
+            tbl = self.model.create("table", tables)
+            tbl.label = f"Probe Table {n}"
+            tbl.meta["source"] = key
+        tbl.props["columns"] = cols
+        tbl.props["rows"] = [[float(x) for x in r] for r in rows]
+        pg = next((g for g in self.plot_groups() if g.meta.get("source") == key), None)
+        if pg is None:
+            res = self.model.results
+            n = 1 + sum(1 for g in self.plot_groups() if g.label.startswith("Probe Plot"))
+            pg = self.model.create("pg1d", res, index=next((i for i, c in enumerate(res.children)
+                                                            if c.kind == "results.datasets"), len(res.children)))
+            pg.label = f"Probe Plot Group {n}"
+            pg.meta["source"] = key
+            tg = self.model.create("plot.tablegraph", pg)
+            tg.props.update(table=tbl.tag, xcol=1, ycols="")
+            new = True
+        self.table.show_table(tbl.label, cols, rows)
+        if new:
+            self.tree.refresh()
+        if live or self.current_plot is pg:
+            self.plot(pg)
+        return tbl
+
+    def _study_component(self, study: Node):
+        """The component a study computes (the first one with physics selected in its steps)."""
+        comps = B.step_components(self.model, B.study_steps(study)[0]) if B.study_steps(study) else []
+        return comps[0] if comps else self.model.component
+
     def export_node(self, node: Node):
         fn = str(node.get("file", "")).strip()
         if not fn:
-            ext = {"export.image": "png", "export.data": "csv", "export.vtu": "vtu", "export.report": "html"}[node.kind]
+            ext = {"export.image": "png", "export.data": "csv", "export.vtu": "vtu", "export.report": "html",
+                   "export.anim": "gif" if node.get("format", "gif") == "gif" else "png"}[node.kind]
             fn, _ = QFileDialog.getSaveFileName(self, "Export", f"{node.label}.{ext}")
             if not fn:
                 return
@@ -3086,6 +3164,8 @@ class MainWindow(QMainWindow):
                 if pg is not None:
                     self.plot(pg)
                 self.graphics.snapshot(fn, int(node.get("w", 1600)), int(node.get("h", 1000)))
+            elif node.kind == "export.anim":
+                fn = self.export_animation(node, fn)
             elif node.kind == "export.data":
                 sol = self.solution_of(self._dataset_for(node))
                 exprs = [e.strip() for e in str(node.get("expr", "")).split(",") if e.strip()] or [default_expr(sol)]
@@ -3104,6 +3184,46 @@ class MainWindow(QMainWindow):
             self.messages.add(f"Exported: {fn}")
         except Exception as exc:
             self.messages.add(f"Export failed: {exc}", "error")
+
+    def export_animation(self, node: Node, fn: str) -> str:
+        """Render the plot group at each chosen solution (time, frequency, mode) and write a GIF or PNG files;
+        returns what was written.  The plot group's own solution selection is restored afterwards."""
+        import tempfile
+
+        from ..core.nodes import animation_frames, write_gif
+        pg = self.model.by_tag(node.get("source", "")) or self.current_plot
+        if pg is None or not pg.kind.startswith("pg"):
+            raise ValueError("choose a plot group to animate")
+        sol = self.solution_of(self._dataset_for(pg))
+        if sol is None:
+            raise ValueError(f"{pg.label} has no solution: compute its study first")
+        idx = animation_frames(len(sol.frames), int(node.get("frames", 0) or 0))
+        if len(idx) < 2:
+            raise ValueError(f"{pg.label}: an animation needs a dataset with several solutions (times, frequencies, "
+                             "eigenmodes, parameter values)")
+        w, h = int(node.get("w", 800)), int(node.get("h", 600))
+        keep = pg.props.get("solnum", "last")
+        base, _ext = os.path.splitext(fn)
+        tmp = tempfile.mkdtemp(prefix="es_anim_")
+        files = []
+        try:
+            for k, i in enumerate(idx, 1):
+                pg.props["solnum"] = str(i)
+                self.plot(pg)
+                QApplication.processEvents()
+                out = f"{base}_{k:04d}.png" if node.get("format", "gif") == "png" else os.path.join(tmp, f"f{k:04d}.png")
+                if pg.kind in ("pg1d", "pgpolar"):
+                    self.plot1d.fig.savefig(out)
+                else:
+                    self.graphics.snapshot(out, w, h)
+                files.append(out)
+        finally:
+            pg.props["solnum"] = keep
+            self.plot(pg)
+        if node.get("format", "gif") == "png":
+            return f"{len(files)} images, {files[0]} ... {files[-1]}"
+        write_gif(files, fn, int(node.get("fps", 10) or 10), bool(node.get("loop", True)))
+        return fn
 
     def write_report(self, fn, images=True):
         import html

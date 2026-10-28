@@ -77,8 +77,11 @@ That name appears in the result variables, for example `+cd.es1.Itot+`.
 
 === Potentials
 
+_Electrode phase potential condition_::
+*Electric potential* (default) gives the electrode's potential.
+*Total current* gives the current entering the electrolyte through the electrode instead (anodic positive; per metre of depth in 2D, the full revolution in 2D axisymmetry, like `+cd.es1.Itot+`). The study then solves several times, adjusting the potential by secant steps, until `+cd.es1.Itot+` is the set current to a relative 1e-6. The potential found is the parameter `+phis_es1+` of the solution, and the overpotential and kinetics results use it. Messages lists each try. This works in Stationary studies, for one electrode per component.
 _Electric potential (of the electrode)_ (latexmath:[\phi_{s,ext}])::
-The potential of the metal.
+The potential of the metal (the first guess under current control).
 Use a parameter here, for example `+Vapp+`, and sweep it to get a polarization curve.
 _Equilibrium potential_ (latexmath:[E_{eq}])::
 Any expression.

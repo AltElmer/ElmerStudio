@@ -35,7 +35,7 @@ register(NodeType("component", "Component", "comp", "component", deletable=True,
 register(NodeType("definitions", "Definitions", "defs", "definitions", label="Definitions", numbered=False,
                   deletable=False, can_disable=False,
                   children=["variables", "cpl.average", "cpl.integration", "cpl.maximum", "cpl.minimum",
-                            "dg.ddom", "dg.pnmv"]))
+                            "probe.domain", "probe.boundary", "probe.point", "probe.global", "dg.ddom", "dg.pnmv"]))
 # Identity pairs (COMSOL: Definitions > Pairs): made by Form an Assembly where two objects touch; the physics
 # interfaces keep their fields continuous across them (Elmer: mortar projection between the two sides)
 register(NodeType("pair.identity", "Identity Boundary Pair", "ap", "selection_node", deletable=False,
@@ -269,7 +269,8 @@ register(NodeType("results.derived", "Derived Values", "dvals", "derived_values"
 register(NodeType("results.tables", "Tables", "tbls", "table", label="Tables", numbered=False, deletable=False,
                   can_disable=False, children=["table"]))
 register(NodeType("results.export", "Export", "exps", "export", label="Export", numbered=False, deletable=False,
-                  can_disable=False, children=["export.image", "export.data", "export.vtu", "export.report"]))
+                  can_disable=False, children=["export.image", "export.anim", "export.data", "export.vtu",
+                                               "export.report"]))
 
 register(NodeType("dset.solution", "Solution", "dset", "solution", props=[
     Prop("study", "Study:", "study_ref", "", section="Solution"),
@@ -662,6 +663,44 @@ register(NodeType("export.data", "Data", "data", "data_export", props=[
 register(NodeType("export.vtu", "VTK Unstructured Grid", "vtu", "data_export", props=[
     Prop("data", "Dataset:", "dataset", "", section="Data"),
     Prop("file", "Filename:", "savefile", "", section="Output")]))
+# COMSOL: Export > Animation (a plot group's scene over the result parameter: the output times, frequencies or
+# eigenmodes); written as an animated GIF or as numbered PNG images
+register(NodeType("export.anim", "Animation", "anim", "image_export",
+                  description="The scene of a plot group at every output time (frequency, eigenmode) of its dataset, "
+                              "as an animated GIF or a sequence of PNG images.", props=[
+    Prop("source", "Plot group:", "plotgroup", "", section="Scene"),
+    Prop("format", "Output format:", "choice", "gif", choices=[("gif", "Animated GIF"), ("png", "Image sequence (PNG)")],
+         section="Output"),
+    Prop("file", "Filename:", "savefile", "", section="Output",
+         tip="An image sequence is written as <name>_0001.png, <name>_0002.png, ... next to it"),
+    Prop("frames", "Number of frames (0 = every solution):", "int", 0, section="Frames",
+         tip="Fewer frames than solutions: evenly spread over them, first and last included"),
+    Prop("fps", "Frames per second:", "int", 10, section="Frames", visible=lambda p: p.get("format", "gif") == "gif"),
+    Prop("loop", "Repeat (loop)", "bool", True, section="Frames", visible=lambda p: p.get("format", "gif") == "gif"),
+    Prop("w", "Width (px):", "int", 800, section="Image"), Prop("h", "Height (px):", "int", 600, section="Image")]))
+
+
+def animation_frames(n_solutions: int, n_frames: int) -> list[int]:
+    """Indices of the solutions an animation shows: all of them, or *n_frames* spread evenly (first and last in)."""
+    if n_solutions <= 0:
+        return []
+    if n_frames <= 0 or n_frames >= n_solutions:
+        return list(range(n_solutions))
+    if n_frames == 1:
+        return [n_solutions - 1]
+    return sorted({round(i * (n_solutions - 1) / (n_frames - 1)) for i in range(n_frames)})
+
+
+def write_gif(images: list, path: str, fps: int = 10, loop: bool = True):
+    """Assemble PNG files (or PIL images) into an animated GIF."""
+    from PIL import Image
+    frames = [im if isinstance(im, Image.Image) else Image.open(im).convert("RGB") for im in images]
+    if not frames:
+        raise ValueError("no frames to write")
+    frames[0].save(path, save_all=True, append_images=frames[1:], duration=max(1, int(1000 / max(fps, 1))),
+                   loop=0 if loop else 1, optimize=False)
+
+
 register(NodeType("export.report", "Report", "rpt", "report", props=[
     Prop("file", "Filename:", "savefile", "", section="Output"),
     Prop("images", "Include plot images", "bool", True, section="Content")]))

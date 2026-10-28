@@ -124,6 +124,7 @@ Each evaluation writes to a Table (shown in the *Table* pane). Copy it to the cl
 |===
 |Node |Writes
 |*Image* |A PNG of a plot group, at a given width and height.
+|*Animation* |A plot group at every output time (frequency, eigenmode, parameter value) of its dataset, or at a given _Number of frames_ spread evenly over them, as an animated GIF (frames per second, repeat) or as numbered PNG images. The plot group's own solution selection is restored afterwards. A dataset with a single solution has nothing to animate and is refused.
 |*Data* |The node coordinates and comma-separated expressions, as CSV.
 |*VTK Unstructured Grid* |The solution as `.vtu`, for ParaView.
 |*Report* |An HTML report with the parameters, the model tree and images of the plot groups.

@@ -42,7 +42,8 @@ NORMAL = "5"
 
 register(NodeType("mesh", "Mesh", "mesh", "mesh", deletable=False, can_disable=False,
                   children=lambda n: (["mesh.size", "mesh.ftet", "mesh.distribution"] if space_dim(n.ancestor("component")) == 3
-                                      else ["mesh.size", "mesh.ftri", "mesh.fquad", "mesh.mapped", "mesh.distribution"])
+                                      else ["mesh.size", "mesh.ftri", "mesh.fquad", "mesh.mapped", "mesh.distribution",
+                                            "mesh.bl"])
                   if n.get("sequence") == "user" else [],
                   props=[
                       Prop("sequence", "Sequence type:", "choice", "physics",
@@ -104,6 +105,27 @@ register(NodeType("mesh.distribution", "Distribution", "dis", "distribution", se
          choices=[("geometric", "Geometric sequence"), ("arithmetic", "Arithmetic sequence")], section="Distribution"),
     Prop("symmetric", "Symmetric distribution", "bool", False, section="Distribution"),
     Prop("reverse", "Reverse direction", "bool", False, section="Distribution")]))
+# COMSOL's Boundary Layers node with its Boundary Layer Properties (the boundaries carry the layers here).  gmsh's
+# boundary-layer field is two-dimensional: 2D and 2D axisymmetric models.
+register(NodeType("mesh.bl", "Boundary Layers", "bl", "distribution", selection="boundary", dims=(2,),
+                  description="Layers of thin quadrilaterals along the selected boundaries (walls of a flow, thin "
+                              "diffusion or thermal layers): the first layer's thickness, the number of layers and "
+                              "their stretching factor.", props=[
+    Prop("n", "Number of boundary layers:", "int", 8, section="Layers"),
+    Prop("stretch", "Boundary layer stretching factor:", "string", "1.2", section="Layers",
+         tip="Thickness of a layer over the one inside it"),
+    Prop("first", "Thickness of first layer:", "choice", "auto",
+         choices=[("auto", "Automatic"), ("manual", "Manual")], section="Layers"),
+    Prop("adjust", "Thickness adjustment factor:", "string", "1", section="Layers",
+         visible=lambda p: p.get("first", "auto") == "auto",
+         tip="Automatic: 1/20 of the maximum element size, times this factor"),
+    Prop("h1", "Thickness:", default="0.001", unit="LEN", section="Layers",
+         visible=lambda p: p.get("first") == "manual")]))
+
+
+def boundary_layer_sizes(n: int, stretch: float, first: float) -> list[float]:
+    """Thicknesses of the n layers, from the wall."""
+    return [first * stretch ** i for i in range(max(int(n), 0))]
 
 
 @dataclass
@@ -229,6 +251,7 @@ class Mesher:
             recombine = False
             dists = []
             mapped = []
+            layers_bl = []
             if mn.get("sequence") == "user":
                 for ch in mn.children:
                     if not ch.enabled:
@@ -256,6 +279,11 @@ class Mesher:
                         mapped.append(ch.selection)
                     elif ch.kind == "mesh.distribution":
                         dists.append((ch.selection, int(ch.get("n", 10)), ch))
+                    elif ch.kind == "mesh.bl":
+                        layers_bl.append(ch)
+            if layers_bl and (sd != 2 or mn.get("mesher", "gmsh") == "elmergrid"):
+                raise GeometryError(f"{layers_bl[0].label}: boundary layers are available for Gmsh meshes of 2D and "
+                                    "2D axisymmetric models")
             if mn.get("mesher", "gmsh") == "elmergrid":    # structured mesh of the same geometry, same numbering
                 from . import elmergrid
                 res = elmergrid.mesh(self, gb, geo, hmax, order, progress)
@@ -352,6 +380,37 @@ class Mesher:
             if recombine and sd == 2:
                 for num, tag in geo.tag_of["domain"].items():
                     gmsh.model.mesh.setRecombine(2, tag)
+            bl_info = []
+            for bn in layers_bl:
+                nums = bn.selection.resolve(geo.numbers["boundary"]) if bn.selection is not None else []
+                if not nums:
+                    continue
+                nl = int(bn.get("n", 8))
+                r = gb.N(bn, "stretch") if str(bn.get("stretch", "1.2")).strip() else 1.2
+                if nl < 1 or not r >= 1.0:
+                    raise GeometryError(f"{bn.label}: at least one layer and a stretching factor of 1 or more")
+                h1 = gb.L(bn, "h1") if bn.get("first") == "manual" else hmax / 20 * gb.N(bn, "adjust")
+                if not h1 > 0:
+                    raise GeometryError(f"{bn.label}: the first layer needs a positive thickness")
+                sizes = boundary_layer_sizes(nl, r, h1)
+                if h1 < hmin:                              # the minimum element size must not clip the layers
+                    hmin = h1
+                    gmsh.option.setNumber("Mesh.MeshSizeMin", hmin)
+                fb = gmsh.model.mesh.field.add("BoundaryLayer")
+                curves = [geo.tag_of["boundary"][b] for b in nums]
+                gmsh.model.mesh.field.setNumbers(fb, "CurvesList", curves)
+                # the layers' end points: without them gmsh 4.15 joins layer nodes to far boundaries (elements
+                # half the domain long); with them every element stays local
+                ends = sorted({t for c in curves for _d, t in gmsh.model.getBoundary([(1, c)], oriented=False)})
+                gmsh.model.mesh.field.setNumbers(fb, "PointsList", ends)
+                gmsh.model.mesh.field.setNumber(fb, "Size", h1)
+                gmsh.model.mesh.field.setNumber(fb, "Ratio", r)
+                gmsh.model.mesh.field.setNumber(fb, "NbLayers", nl)
+                gmsh.model.mesh.field.setNumber(fb, "Thickness", sum(sizes) * (1 + 1e-9))
+                gmsh.model.mesh.field.setNumber(fb, "Quads", 1)
+                gmsh.model.mesh.field.setAsBoundaryLayer(fb)
+                bl_info.append({"node": bn.tag, "boundaries": nums, "first": h1 * geo.scale, "layers": nl,
+                                "stretch": r, "thickness": sum(sizes) * geo.scale})
             if progress:
                 progress(0.2, "Generating mesh")
             try:
@@ -365,6 +424,8 @@ class Mesher:
             if progress:
                 progress(0.8, "Extracting mesh")
             res = self._extract(geo, order)
+            if bl_info:
+                res.stats["boundary_layers"] = bl_info
         res.stats["time"] = time.time() - t0
         return res
 

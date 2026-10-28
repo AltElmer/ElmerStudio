@@ -498,6 +498,34 @@ def _feature_fns(kind: str, section: str):
     return [f.fn for f in FEATURES.values() if f.kind == kind and f.section == section and f.fn is not None]
 
 
+# study steps where Elmer's normal-tangential constraint is wrong (Elmer 9 and 26.2): the harmonic solve keeps the
+# rotated components, so normal and tangential values land in x and y; the eigensolver's frequencies come out
+# high (a rod on rollers: 1306 Hz for the exact 1262 Hz, which the Cartesian constraint gives)
+NT_UNROTATED = ("study.freq", "study.eigen")
+
+
+def _cartesian_roller(ctx: SifContext, b: int, kws: dict) -> dict:
+    """A roller (normal displacement zero) on a boundary perpendicular to a coordinate axis, as that Cartesian
+    component; other boundaries cannot be constrained this way."""
+    bb = ctx.geo.bbox_of["boundary"][b]
+    ext = [abs(bb[i + 3] - bb[i]) for i in range(ctx.sdim)]
+    size = max(ext) or 1.0
+    flat = [i for i, e in enumerate(ext) if e <= 1e-6 * size]       # (boxes are stored without OCC's padding)
+    if len(flat) != 1 and ctx.step.kind == "study.eigen":
+        msg = (f"Boundary {b}: the roller/symmetry condition on this inclined or curved boundary uses Elmer's "
+               "normal-tangential constraint, which shifts eigenfrequencies (a few percent in a test case)")
+        if msg not in ctx.warnings:
+            ctx.warnings.append(msg)
+        return kws
+    if len(flat) != 1:
+        raise SifError(f"Boundary {b}: a roller or symmetry condition in a Frequency Domain study needs a boundary "
+                       "perpendicular to the x, y or z axis (Elmer's harmonic solver does not rotate a "
+                       "normal-tangential constraint back)")
+    out = {k: v for k, v in kws.items() if k != "Normal-Tangential Displacement" and not k.startswith("Displacement ")}
+    out[f"Displacement {flat[0] + 1}"] = kws.get("Displacement 1", 0.0)
+    return out
+
+
 def _entities(ctx: SifContext, node: Node, level: str, within=None) -> list[int]:
     avail = ctx.geo.numbers[level]
     if node.selection is None:
@@ -633,6 +661,8 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                 per[b] = dict(kws)    # later feature overrides earlier (COMSOL semantics)
         for b, kws in per.items():
             if b in bc:
+                if kws.get("Normal-Tangential Displacement") and ctx.step.kind in NT_UNROTATED:
+                    kws = _cartesian_roller(ctx, b, kws)
                 _merge(bc[b], kws, owners.setdefault(("bc", b), {}), ph, f"boundary {b}")
     ctx._current_physics = None
 
@@ -729,6 +759,9 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                   "Exec Solver": "After Saving"}
     if eigen:
         out_solver["Number of EigenModes"] = int(step.get("neig", 6))
+    if freq and any(s.keywords.get("Harmonic Analysis") for s in solvers):
+        # Elmer 9 keeps a harmonic solution as a complex mode ("<var> HarmonicMode1"): write both parts
+        out_solver["Eigen Vector Component"] = "complex"
     solvers.append(SolverEntry(None, out_solver, True))
     for i, s in enumerate(solvers, 1):
         s.sid = i

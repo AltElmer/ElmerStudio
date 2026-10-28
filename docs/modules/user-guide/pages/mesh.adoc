@@ -31,6 +31,16 @@ Size settings mean what they mean in COMSOL:
 * _Curvature factor_ is the element size relative to the radius of curvature.
 * _Resolution of narrow regions_ is about the number of element layers across a narrow region.
 
+[#boundary-layers]
+== Boundary layers
+
+A *Boundary Layers* node (user-controlled mesh, 2D and 2D axisymmetric) puts layers of thin quadrilaterals along the selected boundaries: walls of a flow, or any boundary with a thin diffusion or thermal layer. The rest of the domain is meshed as before.
+
+* _Number of boundary layers_ (8) and _Boundary layer stretching factor_ (1.2): each layer is that much thicker than the one inside it.
+* _Thickness of first layer_: *Automatic* is 1/20 of the maximum element size, times the _Thickness adjustment factor_; *Manual* takes a length.
+
+Thin layers resolve what a coarse mesh cannot: a reaction-diffusion layer 1 mm thick at a wall of a 1 m domain gets its wall flux within 1 % with twelve layers on a 5 cm mesh, and is off by more than 30 % without them (`tests/test_boundary_layers.py`). In 3D the node is not offered (see xref:ROOT:known-limitations.adoc[Known limitations]).
+
 == Element order
 
 The mesh is quadratic or linear according to the physics discretization (_Geometry shape order / element order: Automatic_). You can force linear or quadratic on *Mesh 1*.

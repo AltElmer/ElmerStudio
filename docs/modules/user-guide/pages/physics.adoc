@@ -53,6 +53,17 @@ Select the interface node itself (for example *Heat Transfer in Solids (ht)*) fo
 * _Consistent Stabilization_ (Transport of Diluted Species): *Streamline diffusion*, on by default (<<stabilization>>);
 * _Additional Elmer solver keywords_: lines appended verbatim to this interface's `Solver` section in the `.sif`, for anything the GUI doesn't expose.
 
+[#structural-dynamics]
+== Structural dynamics
+
+Solid Mechanics solves Stationary, Time Dependent, Eigenfrequency and Frequency Domain studies.
+
+* *Damping* (a domain feature) is Rayleigh damping, C = α~dM~ M + β~dK~ K, as in COMSOL's Damping subnode: a mode of angular frequency ω gets the damping ratio ζ = α~dM~/(2ω) + β~dK~ ω/2. It acts in Time Dependent and Frequency Domain studies; the Eigenfrequency study is undamped.
+* *Time Dependent*: second order in time with Elmer's Bossak scheme, starting at rest. Loads may depend on `+t+`, for example `+1e6*sin(2*pi*500[Hz]*t)+`.
+* *Frequency Domain*: the loads are amplitudes and the response is a phasor. `+u+`, `+v+`, `+w+` and `+solid.disp+` are the real parts (the field at t = 0), `+solid.uim+`, `+solid.vim+`, `+solid.wim+` the imaginary parts, and `+solid.dispAmp+` the amplitude, which the default plot shows. Stresses are not computed in this study.
+
+A rod in longitudinal vibration checks all of it against the exact phasor (to 2e-4 across a sweep through its first resonance, damped and undamped), the eigenfrequency c/(4L) to 1e-4, and a forced transient that settles on the frequency-domain amplitude within 1 % (`tests/test_solid_dynamics.py`).
+
 [#stabilization]
 == Convection-dominated transport
 

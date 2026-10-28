@@ -52,6 +52,32 @@ Results ribbon › Export
 |Filename | | | |File name
 |===
 
+[#export-anim]
+== Animation
+
+The scene of a plot group at every output time (frequency, eigenmode) of its dataset, as an animated GIF or a sequence of PNG images.
+
+Results ribbon › Export
+
+[cols="3,1,1,2,3",options="header",stripes=even]
+|===
+|Setting |Symbol |Unit |Default |Choices / type
+5+h|Scene
+|Plot group | | | |Plot group
+5+h|Output
+|Output format | | |Animated GIF |Animated GIF, Image sequence (PNG)
+|Filename +
+_An image sequence is written as <name>_0001.png, <name>_0002.png, ... next to it_ | | | |File name
+5+h|Frames
+|Number of frames (0 = every solution) +
+_Fewer frames than solutions: evenly spread over them, first and last included_ | | |`+0+` |Integer
+|Frames per second | | |`+10+` |Integer
+|Repeat (loop) | | |On |Check box
+5+h|Image
+|Width (px) | | |`+800+` |Integer
+|Height (px) | | |`+600+` |Integer
+|===
+
 [#export-report]
 == Report
 

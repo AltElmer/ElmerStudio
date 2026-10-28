@@ -32,6 +32,12 @@ CATALOG = [
     ("u", "displacement", 0, "Displacement field, x component", "m", "scalar"),
     ("v", "displacement", 1, "Displacement field, y component", "m", "scalar"),
     ("w", "displacement", 2, "Displacement field, z component", "m", "scalar"),
+    # frequency response (Elmer's harmonic analysis): the real part above, the imaginary part as "displacement im"
+    ("solid.u_im_vec", "displacement im", "vec", "Displacement field (imaginary part)", "m", "vector"),
+    ("solid.uim", "displacement im", 0, "Displacement field, x component (imaginary part)", "m", "scalar"),
+    ("solid.vim", "displacement im", 1, "Displacement field, y component (imaginary part)", "m", "scalar"),
+    ("solid.wim", "displacement im", 2, "Displacement field, z component (imaginary part)", "m", "scalar"),
+    ("solid.dispAmp", "displacement", "cmag", "Displacement amplitude", "m", "scalar"),
     ("solid.mises", "vonmises", None, "von Mises stress", "Pa", "scalar"),
     ("solid.sx", "stress", 0, "Stress tensor, xx component", "Pa", "scalar"),
     ("solid.sy", "stress", 1, "Stress tensor, yy component", "Pa", "scalar"),
@@ -231,10 +237,14 @@ class Frame:
 
 
 class Solution:
-    def __init__(self, folder: str):
+    def __init__(self, folder: str, meta: dict | None = None):
+        """*meta*: the SIF's metadata of a run still in progress (its meta.json is written when it ends); the
+        frames are the output files written so far."""
         self.folder = folder
-        with open(os.path.join(folder, "meta.json")) as f:
-            self.meta = json.load(f)
+        if meta is None:
+            with open(os.path.join(folder, "meta.json")) as f:
+                meta = json.load(f)
+        self.meta = meta
         self.topo = Topology(os.path.join(folder, "mesh.npz"))
         self.sdim = self.topo.sdim
         self.unit = self.topo.unit
@@ -393,6 +403,11 @@ class Solution:
             for k in list(out.keys()):
                 if k.endswith(suffix):
                     out[k[: -len(suffix)]] = out[k]
+        # a harmonic solution: Elmer 9 writes "<var> harmonicmode1" (+ " im"), later versions "<var>" and
+        # "<var> im"; use the later names for both
+        for k in [k for k in out if k.endswith(" harmonicmode1") or k.endswith(" harmonicmode1 im")]:
+            base, im = k.split(" harmonicmode1")
+            out.setdefault(base + im, out[k])
         for k in [k for k in out if k.endswith(" 1")]:      # split components "name 1", "name 2" -> "name"
             base = k[:-2]
             if base not in out and f"{base} 2" in out:
@@ -433,6 +448,8 @@ class Solution:
                     continue
                 if src == "stress" and comp in (4, 5) and self.sdim == 2:
                     continue
+                if comp == "cmag" and src + " im" not in arr:      # an amplitude needs the imaginary part
+                    continue
                 out.append((alias, label, unit, kind))
         known = {c[1] for c in self.catalog}
         for k, a in arr.items():
@@ -458,6 +475,11 @@ class Solution:
                     v = np.column_stack([v, np.zeros(len(v))])
             elif comp == "mag":
                 v = np.linalg.norm(a, axis=1) if a.ndim == 2 else np.abs(a)
+            elif comp == "cmag":                       # |u| of a complex field: sqrt(|Re u|^2 + |Im u|^2)
+                b = arr.get(src + " im")
+                if b is None:
+                    continue
+                v = np.sqrt(np.sum(np.atleast_2d(a.T).T ** 2, axis=1) + np.sum(np.atleast_2d(b.T).T ** 2, axis=1))
             elif comp in ("bflux", "-bflux"):       # reaction (Loads) -> boundary flux density
                 loads = (a if a.ndim == 1 else a[:, 0]) * self.load_scale(src, arr)
                 v = self.boundary_projection(loads) if self.sdim == 3 else None

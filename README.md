@@ -139,13 +139,14 @@ Added with it:
 | Geometry: Block, Sphere, Cylinder, Cone, Torus, Ellipsoid, Rectangle, Circle, Ellipse, Polygon, Work Plane + Extrude/Revolve, Union/Difference/Intersection, Move/Copy/Rotate/Scale/Mirror/Array, Fillet/Chamfer, STEP/IGES/BREP import, Form Union | yes, with length units, Build Selected (F7) / Build All (F8) | gmsh / OpenCASCADE |
 | Domain/boundary/edge/point numbering and click-selection with hover highlight | yes (position-based numbering, blue selection, red hover) | — |
 | Materials, Material Contents table with required-property status, material library | yes, 20 materials, user materials | Material sections |
-| Physics-controlled mesh (Extremely fine … Extremely coarse, fluid calibration), user-controlled Size / Free Tetrahedral / Free Triangular / Free Quad / Distribution, statistics, quality plot | yes | gmsh → native Elmer mesh with parent elements |
+| Physics-controlled mesh (Extremely fine … Extremely coarse, fluid calibration), user-controlled Size / Free Tetrahedral / Free Triangular / Free Quad / Distribution / Boundary Layers (2D), statistics, quality plot | yes | gmsh → native Elmer mesh with parent elements |
 | — (Elmer's own mesher) | *Mesher: ElmerGrid* on the Mesh node: structured quadrilaterals/hexahedra or triangles/prisms for layouts of axis-aligned rectangles and blocks, same domain and boundary numbers; other geometries are refused with the reason | ElmerGrid `.grd` subcell grid with extruded material mappings |
 | Studies: Stationary, Time Dependent, Eigenfrequency, Frequency Domain (sweeps), Parametric Sweep, Solver Configurations | yes | Steady / Transient (BDF) / Eigen (ARPACK) / Scanning |
 | Alternative solver backend per study | *Solver backend: OpenFOAM (blockMesh)* for Laminar Flow and Heat Transfer in Solids on unions of axis-aligned rectangles/blocks; same Results, names and SI units; everything else refused with the reason ([OpenFOAM backend](docs/modules/user-guide/pages/openfoam.adoc)) | simpleFoam / pimpleFoam / laplacianFoam |
 | Results: 3D/2D/1D/polar plot groups; Surface, Volume, Slice, Multislice, Isosurface, Contour, Arrow, Streamline, Mesh, Line, Annotation, Deformation, Selection, Color Expression, Line Graph, Global, Point Graph, Table Graph, polar Line Graph; datasets Solution, Cut Line, Cut Point, Cut Plane, Parametric Extrusion, Revolution 2D, Mirror; color tables; unit conversion | yes | VTU results |
 | Derived values: Volume/Surface Integration, Average (2D axisymmetric: in the revolved geometry), Maximum, Minimum, Point Evaluation, Global (eigenfrequencies, operators, variables) → Tables | yes | — |
-| Export: Image, Data (CSV), VTU, HTML Report; Convergence Plot during solve | yes | — |
+| Probes (Domain, Boundary, Domain Point, Global Variable) → Probe Table and Probe Plot, updated while a time-dependent study runs | yes | — |
+| Export: Image, Animation (GIF, PNG sequence), Data (CSV), VTU, HTML Report; Convergence Plot during solve | yes | — |
 | Undo/Redo, rename, duplicate, disable/enable, move, context menus, keyboard shortcuts (incl. Ctrl+Tab, Ctrl+Alt+arrows, F1 help per node) | yes | — |
 | Model Builder filter, node marks (error, warning, needs update) with explanations | yes | — |
 | Settings: Enter applies, Esc restores, inline errors, Ctrl+Space completion, multi-row paste as one undo, Paste Selection | yes | — |
@@ -160,7 +161,7 @@ Added with it:
 | Interface | Features | Elmer solver |
 |---|---|---|
 | Heat Transfer in Solids (ht) | Solid, Fluid (prescribed or spf velocity), Heat Source, Temperature, Heat Flux (general/convective), Surface-to-Ambient Radiation, Symmetry, Thermal Insulation | HeatSolver + FluxSolver |
-| Solid Mechanics (solid) | Linear Elastic Material, Body Load, Gravity, Fixed Constraint, Prescribed Displacement, Roller, Symmetry, Boundary Load (force/pressure), Spring Foundation; plane stress/strain | StressSolver (stationary, eigenfrequency) |
+| Solid Mechanics (solid) | Linear Elastic Material, Body Load, Gravity, Fixed Constraint, Prescribed Displacement, Roller, Symmetry, Boundary Load (force/pressure), Spring Foundation, Damping (Rayleigh); plane stress/strain | StressSolver (stationary, transient (Bossak), eigenfrequency, frequency response (harmonic)) |
 | Electrostatics (es) | Charge Conservation, Space Charge Density, Ground, Electric Potential, Surface Charge Density, Zero Charge | StatElecSolver |
 | Electric Currents (ec) | Current Conservation, Ground, Electric Potential, Normal Current Density, Electric Insulation | StatCurrentSolver |
 | Magnetic Fields (mf), 2D and 2D axisymmetric | Ampère's Law, External Current Density, Magnetic Insulation, Magnetic Potential, Perfect Magnetic Conductor | MagnetoDynamics2D + CalcFields |

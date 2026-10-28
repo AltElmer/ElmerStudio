@@ -345,34 +345,75 @@ feature("solid.rotframe", "Rotating Frame", "rotf", "feature_domain", "domain", 
         equation=r"$\mathbf{F}_V = \rho\,\Omega^2\,\mathbf{r}_\perp$")
 
 
+def _solid_damping(n, ctx, d):
+    """Rayleigh damping C = alpha_dM*M + beta_dK*K (Elmer builds it from the element mass and stiffness).  As in
+    COMSOL it acts in Time Dependent and Frequency Domain studies; a stationary study has no damping term and
+    Elmer's eigensolver here is undamped, so nothing is written there."""
+    if ctx.step.kind not in ("study.time", "study.freq"):
+        return {}
+    return {"Rayleigh Damping": True, "Rayleigh Damping Alpha": ctx.value(n.get("alpha", "0")),
+            "Rayleigh Damping Beta": ctx.value(n.get("beta", "0"))}
+
+
+feature("solid.damp", "Damping", "dmp", "feature_domain", "domain", "material", _solid_damping,
+        props=[Prop("dtype", "Damping type:", "choice", "rayleigh", choices=[("rayleigh", "Rayleigh damping")],
+                    section="Damping Settings"),
+               Prop("alpha", "Mass damping parameter:", default="0", unit="1/s", section="Damping Settings",
+                    symbol="α_dM"),
+               Prop("beta", "Stiffness damping parameter:", default="0", unit="s", section="Damping Settings",
+                    symbol="β_dK")],
+        equation=r"$\mathbf{C} = \alpha_{dM}\mathbf{M} + \beta_{dK}\mathbf{K}$",
+        description="Rayleigh damping in Time Dependent and Frequency Domain studies; a mode of angular "
+                    "frequency ω has the damping ratio ζ = α_dM/(2ω) + β_dK ω/2.")
+
+
 def _solid_solvers(ph, ctx):
     s = {"Equation": "Linear Elasticity", "Procedure": ("StressSolve", "StressSolver"),
          "Variable": f"-dofs {ctx.sdim} Displacement", "Calculate Stresses": True, "Displace Mesh": False}
     if ctx.sdim == 2 and not ctx.axi and ph.get("plane", "strain") == "stress":
         ctx.equation_extra["Plane Stress"] = True
     s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    if ctx.step.kind == "study.time":
+        # second order in time: Elmer's Bossak scheme (its default for such systems, alpha = -0.05)
+        s["Timestepping Method"] = "Bossak"
+    elif ctx.step.kind == "study.freq":
+        # time harmonic, (K + i w C - w^2 M) u = F with the loads as amplitudes, solved as a complex system:
+        # Elmer writes the real part as "displacement" and the imaginary part as "displacement im".  Stresses
+        # are not computed (Elmer would give those of the real part only).  Near a resonance the system is
+        # indefinite, so it is solved directly.
+        for k in [k for k in s if k.startswith("Linear System") or k.startswith("BiCGstabl")]:
+            del s[k]
+        s.update({"Harmonic Analysis": True, "Calculate Stresses": False, **linsys("direct", "UMFPack")})
+        # Elmer 9 renumbers the harmonic system for bandwidth but writes the complex result through the original
+        # numbering: the components of some nodes come out swapped.  Without renumbering they do not.
+        s["Optimize Bandwidth"] = False
     return [s]
 
 
 def _solid_plots(ph, sdim, study):
+    kind = "volume" if sdim == 3 else "surface"
     if study == "eigen":
-        return [{"label": "Mode Shape (solid)", "type": "volume" if sdim == 3 else "surface", "expr": "disp",
+        return [{"label": "Mode Shape (solid)", "type": kind, "expr": "disp",
                  "cmap": "RainbowLight", "deform": True, "dims": sdim}]
-    return [{"label": "Stress (solid)", "type": "volume" if sdim == 3 else "surface", "expr": "mises",
+    if study == "freq":
+        return [{"label": "Displacement Amplitude (solid)", "type": kind, "expr": "solid.dispAmp",
+                 "cmap": "RainbowLight", "deform": True, "dims": sdim}]
+    return [{"label": "Stress (solid)", "type": kind, "expr": "mises",
              "cmap": "RainbowLight", "deform": True, "dims": sdim}]
 
 
 define_physics(PhysicsDef(
     "solid", "Solid Mechanics", "physics_solid", "Structural Mechanics",
-    studies=("stationary", "eigen"),
+    studies=("stationary", "time", "eigen", "freq"),
     depvars={"u": ("Displacement 1", "Displacement field, x component", "m"),
              "v": ("Displacement 2", "Displacement field, y component", "m"),
              "w": ("Displacement 3", "Displacement field, z component", "m")},
     defaults=[("solid.lemm", "domain"), ("solid.init", "domain"), ("solid.free", "boundary")],
-    domain=["solid.lemm", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init"],
+    domain=["solid.lemm", "solid.damp", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init"],
     boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring", "solid.free"],
     mat_props=["E", "nu", "rho"], solvers=_solid_solvers, plots=_solid_plots,
-    description="Linear elastic stress analysis, eigenfrequencies. Elmer StressSolver.",
+    description="Linear elastic stress analysis: stationary, transient (Bossak), eigenfrequencies and frequency "
+                "response with Rayleigh damping. Elmer StressSolver.",
     equation=r"$-\nabla\cdot\mathbf{S} = \mathbf{F}_V,\quad \mathbf{S}=\mathbf{C}:\boldsymbol{\epsilon}(\mathbf{u})$"),
     extra_props=[Prop("plane", "2D approximation:", "choice", "strain",
                       choices=[("strain", "Plane strain"), ("stress", "Plane stress")], section="2D Approximation",
@@ -517,8 +558,14 @@ def sub_eta(expr: str, by: str) -> str:
     return _ETA.sub(lambda _m: by, expr)
 
 
+def cd_phis(n):
+    """The electrode's potential: the given one, or under current control the parameter phis_<tag> that the study
+    adjusts until the electrode's total current is the requested one."""
+    return f"phis_{n.tag}" if n.get("control", "potential") == "current" else n.get("phis", "0[V]")
+
+
 def cd_eta(n):
-    return f"(({n.get('phis', '0[V]')})-({n.get('Eeq', '0[V]')})-phil)"
+    return f"(({cd_phis(n)})-({n.get('Eeq', '0[V]')})-phil)"
 
 
 def _cd_backend(ph, ctx=None):
@@ -602,7 +649,7 @@ def _cd_es(n, ctx, d=None):
     back = _cd_backend(ph)
     kin = "primary" if ph.get("dist", "secondary") == "primary" else n.get("kin", "bv")
     if kin == "primary":
-        return {"phil": ctx.value(f"({n.get('phis', '0[V]')})-({n.get('Eeq', '0[V]')})")}
+        return {"phil": ctx.value(f"({cd_phis(n)})-({n.get('Eeq', '0[V]')})")}
     if back == "statcurrent":
         from .sif import SifError
         raise SifError(f"{n.label}: electrode kinetics need the HeatSolve or ModelPDE back end")
@@ -611,14 +658,24 @@ def _cd_es(n, ctx, d=None):
     h = sub_eta(di, eta)
     ext = f"phil+({sub_eta(i, eta)})/({h})"
     if kin == "linear":                       # constant Robin: h = 1/R_ct, external potential phis - Eeq
-        ext = f"({n.get('phis', '0[V]')})-({n.get('Eeq', '0[V]')})"
+        ext = f"({cd_phis(n)})-({n.get('Eeq', '0[V]')})"
     keys = ("Heat Transfer Coefficient", "External Temperature") if back == "heat" else ("Robin Coefficient", "External Field")
     return {keys[0]: ctx.value(h), keys[1]: ctx.value(ext)}
 
 
 feature("cd.es", "Electrode Surface", "es", "feature_boundary", "boundary", "bc", _cd_es,
-        props=[Prop("phis", "Electric potential (of the electrode):", default="0[V]", unit="V", section="Electrode Phase Potential Condition",
-                    symbol="φ_s,ext", tip="Sweep it with a parameter for a polarization curve"),
+        props=[Prop("control", "Electrode phase potential condition:", "choice", "potential",
+                    choices=[("potential", "Electric potential"), ("current", "Total current")],
+                    section="Electrode Phase Potential Condition",
+                    tip="Total current: the study adjusts the electrode's potential until the current entering the "
+                        "electrolyte through it is the given one (stationary studies)"),
+               Prop("phis", "Electric potential (of the electrode):", default="0[V]", unit="V", section="Electrode Phase Potential Condition",
+                    symbol="φ_s,ext", tip="Sweep it with a parameter for a polarization curve; under current control, "
+                                          "the first guess"),
+               Prop("Iset", "Total current:", default="0[A]", unit="A", section="Electrode Phase Potential Condition",
+                    symbol="I_s", visible=lambda p: p.get("control") == "current",
+                    tip="Into the electrolyte (anodic positive); per metre of depth in 2D, the full revolution in "
+                        "2D axisymmetry, like the result cd.<tag>.Itot"),
                Prop("kin", "Kinetics expression type:", "choice", "bv", choices=CD_KINETICS, section="Electrode Kinetics"),
                Prop("Eeq", "Equilibrium potential:", default="0[V]", unit="V", section="Equilibrium Potential", symbol="E_eq"),
                Prop("i0", "Exchange current density:", default="1[A/m^2]", unit="A/m^2", section="Electrode Kinetics", symbol="i₀",
