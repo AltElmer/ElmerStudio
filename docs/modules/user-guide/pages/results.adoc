@@ -51,6 +51,25 @@ The color range is the minimum and maximum of the plotted values, unless you set
 A field that is constant to within 1e-9 of its value is drawn in a single color. Examples are a uniform current density and a fixed temperature. Its nodal values differ only by round-off, and stretching the color table over that tiny range would show the noise as a gradient.
 The legend's ▲ and ▼ markers then show the value.
 
+[#click-evaluate]
+=== Click a plot to get its value
+
+Click a point of a 3D or 2D result plot in the Graphics window to read the plotted value there, as in COMSOL. Each click adds a row to the *Evaluation 2D* or *Evaluation 3D* table and a line to *Messages*. The table appears under *Tables* and in the *Table* pane. A row holds:
+
+* the clicked coordinates in the geometry length unit: x, y (and z), or r, z on 2D axisymmetric models;
+* the value of every plot in the group that uses the clicked plot's dataset, one column per expression, in each plot's unit. For example, a Surface of `+normB+` and a Contour of `+Az+` give a T column and a Wb/m column.
+
+The value is computed by the code behind *Point Evaluation*, so a Point Evaluation at the same coordinates gives the same number. Some details:
+
+* Surface, Volume, Slice, Multislice, Isosurface, Contour and Line plots report their expression. Arrow and Streamline plots report their *Color Expression*, or the norm of the vector field if they have none. Mesh plots and dataset edges are not picked; a click goes through them to the plot beneath. In 3D a click lands on the front-most plotted surface.
+* On a deformed plot, the row gives the material (undeformed) coordinates of the point you clicked and the value there. This matches a Point Evaluation at those coordinates.
+* A plot with its own dataset reports from that dataset. Plots on other datasets in the same group are left out of that click's row.
+* A click off the plotted geometry adds nothing.
+* When a click reports an expression or unit the table does not have yet, it adds a column; the earlier rows are left empty there.
+* Clicks in 1D and polar plot groups do not evaluate: these graphs are drawn by matplotlib, not in the 3D/2D Graphics view. For values at a point, use a *Point Evaluation* or a *Cut Point* with a *Point Graph*.
+
+Delete the *Evaluation 2D* or *Evaluation 3D* table node to start a new table; the next click creates it again.
+
 === Plots for 1D and polar groups
 
 [cols="1,3",options="header"]
@@ -119,7 +138,7 @@ In 2D axisymmetric models, integrals and averages are taken in the *revolved geo
 
 == Tables
 
-Each evaluation writes to a Table (shown in the *Table* pane). Copy it to the clipboard or export it as CSV with the pane's buttons, or plot it with a *Table Graph*.
+Each evaluation writes to a Table (shown in the *Table* pane). Clicks on 2D and 3D plots collect in *Evaluation 2D* and *Evaluation 3D* (see <<click-evaluate>>). Copy it to the clipboard or export it as CSV with the pane's buttons, or plot it with a *Table Graph*.
 
 [#export]
 == Export

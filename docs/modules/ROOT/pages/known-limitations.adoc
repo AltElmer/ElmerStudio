@@ -25,6 +25,7 @@ This list is deliberately explicit.
 * Damping is Rayleigh damping (mass and stiffness proportional), as in COMSOL's Damping subnode; loss-factor damping is not offered. A Time Dependent structural study starts at rest (zero initial velocity).
 * Probes are evaluated from the saved output steps (every output time, frequency or parameter value), not at the solver's internal steps; while a study runs the Probe Table follows the outputs written so far (time-dependent studies).
 * Animations are written as an animated GIF or a PNG image sequence; there is no AVI/WebM output and no player inside the Graphics window.
+* Clicking a result plot to read its value (*Evaluation 2D* / *Evaluation 3D*) works in 2D and 3D plot groups only. 1D and polar graphs are matplotlib figures: for a value at a point there, use a Point Evaluation or a Point Graph. A click reports the plots of the group that use the clicked plot's dataset; plots on another dataset are left out of that row.
 * Library materials have constant properties at 20 °C, unless you enter an expression.
 * The physics-controlled mesh refines automatically only for laminar flow and acoustics.
 * With an incident plane wave the acoustic solution is the total field. The exterior field is then most accurate when integrated over the scatterer's surface.

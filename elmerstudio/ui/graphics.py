@@ -52,11 +52,13 @@ class Scene:
         self.title = ""
         self.sdim = 3
         self.texts: list[tuple] = []
+        self.evals: dict[int, dict] = {}    # item index -> what a click on it evaluates (plots.click_values)
 
 
 class GraphicsView(QWidget):
     entityClicked = Signal(str, int, bool)    # level, number, ctrl
     entitiesSet = Signal(str, list)           # level, the whole selection (Select All, Clear Selection)
+    resultClicked = Signal(object, int, object)   # scene, item index, clicked point (undeformed, geometry units)
     status = Signal(str)
 
     def __init__(self, parent=None):
@@ -108,6 +110,8 @@ class GraphicsView(QWidget):
         self.theme_name = "light"
         self.export_theme = "white"
         self._last_show = None          # (method, args, kwargs) of the shown scene, to redraw it in another theme
+        self._scene = None              # the result scene shown, and its actors a click evaluates
+        self._result_actors: dict = {}  # item index -> actor
         self._build_toolbar()
         if self._ok:
             self._setup_vtk()
@@ -187,7 +191,14 @@ class GraphicsView(QWidget):
         style.AddObserver("RightButtonReleaseEvent", self._rrelease)
         style.AddObserver("MouseMoveEvent", self._mmove)
         self.style = style
-        p.iren.interactor.SetInteractorStyle(style)
+        try:
+            # through pyvista, which re-applies its own idea of the style on a double click (its chart interaction
+            # toggle); a style set behind its back was replaced, and clicks stopped selecting or evaluating
+            p.iren.style = style
+        except Exception:  # noqa: BLE001 - an older pyvista without the setter
+            pass
+        if p.iren.interactor.GetInteractorStyle() is not style:
+            p.iren.interactor.SetInteractorStyle(style)
         self.picker = vtk.vtkCellPicker()
         self.picker.SetTolerance(0.004)
         self.grid_on = False
@@ -354,7 +365,45 @@ class GraphicsView(QWidget):
                 best, bd = num, dist
         return best
 
+    def pick_result(self, pos):
+        """(item index, clicked point) of the evaluable result plot under display position *pos*, or None off the
+        plots.  The point is interpolated in the picked cell from the item's undeformed coordinates (plots.X0)."""
+        acts = getattr(self, "_result_actors", {})
+        if not acts:
+            return None
+        import vtk
+        pk = self.picker
+        pk.InitializePickList()
+        for a in acts.values():
+            pk.AddPickList(a)
+        pk.PickFromListOn()
+        try:
+            if not pk.Pick(pos[0], pos[1], 0, self.plotter.renderer):
+                return None
+            hit = next((i for i, a in acts.items() if a is pk.GetActor()), None)
+            ds, cid = pk.GetDataSet(), pk.GetCellId()
+            if hit is None or ds is None or cid < 0:
+                return None
+            xyz = np.array(pk.GetPickPosition(), float)
+            arr = ds.GetPointData().GetArray("__x0")
+            if arr is None:
+                return hit, xyz
+            cell = ds.GetCell(cid)
+            n = cell.GetNumberOfPoints()
+            w = [0.0] * n
+            cell.EvaluatePosition(list(xyz), [0.0] * 3, vtk.reference(0), [0.0] * 3, vtk.reference(0.0), w)
+            x0 = sum(w[k] * np.array(arr.GetTuple3(cell.GetPointId(k))) for k in range(n))
+            return hit, np.asarray(x0, float)
+        finally:
+            pk.PickFromListOff()
+            pk.InitializePickList()
+
     def _click(self, pos, ctrl):
+        if self.mode == "results" and self._scene is not None:
+            hit = self.pick_result(pos)
+            if hit is not None:
+                self.resultClicked.emit(self._scene, hit[0], hit[1])
+            return
         if self.mode != "geometry" or not self.level:
             return
         stepped = self._cands and self._cand_pos is not None and self.hover in self._cands and \
@@ -629,14 +678,18 @@ class GraphicsView(QWidget):
         p = self.plotter
         self._clear()
         bounds = None
-        for ds, kw in scene.items:
+        self._scene = scene
+        for i, (ds, kw) in enumerate(scene.items):
             kw = dict(kw)
             kw.setdefault("show_scalar_bar", False)
+            kw.setdefault("pickable", i in scene.evals)     # edges and meshes let a click through to the plots
             try:
-                p.add_mesh(ds, **kw)
+                act = p.add_mesh(ds, **kw)
             except Exception as exc:
                 self.status.emit(f"Plot error: {exc}")
                 continue
+            if i in scene.evals and act is not None:
+                self._result_actors[i] = act
             if ds is not None and getattr(ds, "n_points", 1):
                 b = ds.bounds
                 bounds = b if bounds is None else (min(bounds[0], b[0]), max(bounds[1], b[1]), min(bounds[2], b[2]),
@@ -749,6 +802,8 @@ class GraphicsView(QWidget):
         except Exception:
             pass
         self._actors.clear()
+        self._result_actors = {}
+        self._scene = None
         self._face_mesh = None
         self._curve_mesh = None
         self._point_mesh = None
@@ -843,7 +898,7 @@ class GraphicsView(QWidget):
         iren = self.plotter.iren.interactor
 
         def done(obj, ev):
-            QTimer.singleShot(0, lambda: iren.SetInteractorStyle(self.style))
+            QTimer.singleShot(0, lambda: iren.SetInteractorStyle(self.style))   # pyvista still holds self.style
         st.AddObserver("LeftButtonReleaseEvent", lambda o, e: (o.OnLeftButtonUp(), done(o, e)))
         iren.SetInteractorStyle(st)
 

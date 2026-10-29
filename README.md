@@ -145,6 +145,7 @@ Added with it:
 | Alternative solver backend per study | *Solver backend: OpenFOAM (blockMesh)* for Laminar Flow and Heat Transfer in Solids on unions of axis-aligned rectangles/blocks; same Results, names and SI units; everything else refused with the reason ([OpenFOAM backend](docs/modules/user-guide/pages/openfoam.adoc)) | simpleFoam / pimpleFoam / laplacianFoam |
 | Results: 3D/2D/1D/polar plot groups; Surface, Volume, Slice, Multislice, Isosurface, Contour, Arrow, Streamline, Mesh, Line, Annotation, Deformation, Selection, Color Expression, Line Graph, Global, Point Graph, Table Graph, polar Line Graph; datasets Solution, Cut Line, Cut Point, Cut Plane, Parametric Extrusion, Revolution 2D, Mirror; color tables; unit conversion | yes | VTU results |
 | Derived values: Volume/Surface Integration, Average (2D axisymmetric: in the revolved geometry), Maximum, Minimum, Point Evaluation, Global (eigenfrequencies, operators, variables) → Tables | yes | — |
+| Click a 2D/3D result plot → its value there in *Evaluation 2D* / *Evaluation 3D* (one row per click: coordinates, every plot of the group on that dataset in its unit; deformed plots at the material point) and in Messages | yes, the same numbers as Point Evaluation; not in 1D/polar groups | — |
 | Probes (Domain, Boundary, Domain Point, Global Variable) → Probe Table and Probe Plot, updated while a time-dependent study runs | yes | — |
 | Export: Image, Animation (GIF, PNG sequence), Data (CSV), VTU, HTML Report; Convergence Plot during solve | yes | — |
 | Undo/Redo, rename, duplicate, disable/enable, move, context menus, keyboard shortcuts (incl. Ctrl+Tab, Ctrl+Alt+arrows, F1 help per node) | yes | — |
@@ -260,6 +261,7 @@ These are deliberately listed, so nobody assumes they exist. The full list, incl
   - Solid Mechanics in a Frequency Domain study: no stresses, zero-phase loads, and Roller/Symmetry only on boundaries perpendicular to a coordinate axis;
   - damping is Rayleigh damping only; a Time Dependent structural study starts at rest;
   - probes are evaluated at the saved output steps; animations are GIF or PNG sequences;
+  - clicking a result plot evaluates it in 2D and 3D plot groups only (1D and polar graphs: use a Point Evaluation or a Point Graph);
   - identity pairs (Form Assembly) give continuity for heat, electrostatics, electric currents and the coefficient-form PDE, not yet for solid mechanics, flow or transport;
   - electrochemistry: no solid-phase electrode domain or double-layer capacitance; a total-current electrode works in Stationary studies, one per component;
   - library materials are constant (20 °C) unless you enter an expression;

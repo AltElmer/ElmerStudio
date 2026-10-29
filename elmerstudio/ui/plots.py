@@ -16,6 +16,7 @@ PLOT_NAMES = {"plot.surface": "Surface", "plot.volume": "Volume", "plot.slice": 
               "plot.isosurface": "Isosurface", "plot.contour": "Contour", "plot.arrow": "Arrow Volume",
               "plot.streamline": "Streamline", "plot.mesh": "Mesh", "plot.line": "Line", "plot.annotation": "Annotation",
               "plot.radiation": "Radiation Pattern"}
+X0 = "__x0"    # point data of a plotted item: the undeformed coordinates (geometry units) of its dataset
 COLORS = {"black": (0, 0, 0), "white": (1, 1, 1), "gray": (0.5, 0.5, 0.5), "red": (0.85, 0.1, 0.1),
           "green": (0.1, 0.6, 0.15), "blue": (0.1, 0.25, 0.85), "cyan": (0.0, 0.7, 0.8), "magenta": (0.8, 0.1, 0.7),
           "yellow": (0.95, 0.85, 0.1), "orange": (1.0, 0.55, 0.0)}
@@ -267,6 +268,15 @@ def _color_values(sol, feat, fi, n):
     return np.asarray(v, float), (ce, label, unit)
 
 
+def _vector_eval(sol, expr, cinfo):
+    """What a click on arrows or streamlines reports: the Color Expression, else the vector's norm."""
+    if cinfo is not None:
+        ce, label, unit = cinfo
+        return {"expr": str(ce.get("expr")).strip(), "unit": unit, "label": label}
+    label, si = sol.describe(expr)
+    return {"expr": expr, "unit": si, "label": f"{label}, norm", "vector": True}
+
+
 def _model_size(nodes):
     return float(np.linalg.norm(np.ptp(nodes, axis=0))) or 1.0
 
@@ -313,10 +323,12 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
                 titles.append(f"Radiation Pattern: error ({exc})")
             continue
         disp, dscale, dexpr = _deform(sol, f, fi)
-        nodes = np.asarray(sol.topo.nodes, float).copy()
+        ref = np.asarray(sol.topo.nodes, float)
+        nodes = ref.copy()
         if disp is not None:
             nodes = nodes + disp
         size = _model_size(nodes)
+        n0, ev = len(sc.items), None      # the items this plot adds, and what a click on them evaluates
         if k in ("plot.surface", "plot.volume", "plot.slice", "plot.multislice", "plot.isosurface", "plot.contour"):
             expr = (f.get("expr") or "").strip() or default_expr(sol)
             try:
@@ -324,6 +336,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
             except Exception as exc:
                 titles.append(f"{PLOT_NAMES[k]}: error in '{expr}' ({exc})")
                 continue
+            ev = {"expr": expr, "unit": unit, "label": label}
             cmap = colormap(f.get("cmap", "RainbowLight"), f.get("reverse", False))
             if expr in ("acpr.p_t", "p_re") or f.get("cmap") in ("Wave", "WaveLight"):
                 f.props["__symmetric"] = True
@@ -335,6 +348,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
                 g = (sol.boundary_grid() if sdim == 3 and k == "plot.surface" else sol.bulk_grid()).copy()
                 g.points = nodes
                 g.point_data["f"] = v
+                g.point_data[X0] = ref
                 g = _restrict(g, f)
                 ds = g.extract_surface(nonlinear_subdivision=1)
                 sc.items.append((ds, _surface_kw(f, cmap, clim, sdim, show_edges)))
@@ -343,6 +357,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
                 g = sol.bulk_grid().copy()
                 g.points = nodes
                 g.point_data["f"] = v
+                g.point_data[X0] = ref
                 g = _restrict(g, f)
                 planes = []                       # (normal axis index, coordinate)
                 lo, hi = np.min(nodes, axis=0), np.max(nodes, axis=0)
@@ -376,6 +391,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
                 g = sol.bulk_grid().copy()
                 g.points = nodes
                 g.point_data["f"] = v
+                g.point_data[X0] = ref
                 g = _restrict(g, f)
                 lv = max(1, int(f.get("levels", 5)))
                 iso_vals = np.linspace(clim[0], clim[1], lv + 2)[1:-1]
@@ -399,6 +415,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
                 g = (sol.boundary_grid() if sdim == 3 else sol.bulk_grid()).copy()
                 g.points = nodes
                 g.point_data["f"] = v
+                g.point_data[X0] = ref
                 g = _restrict(g, f)
                 lv = max(1, int(f.get("levels", 20)))
                 iso_vals = list(np.linspace(clim[0], clim[1], lv + 2)[1:-1])
@@ -443,6 +460,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
             g = sol.bulk_grid().copy()
             g.points = nodes
             g.point_data["vec"] = vec
+            g.point_data[X0] = ref
             cvals, cinfo = _color_values(sol, f, fi, len(nodes))
             if cvals is not None:
                 g.point_data["c"] = cvals
@@ -460,7 +478,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
                 probe = pv.PolyData(np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])).sample(g)
                 ok = np.asarray(probe.point_data.get("vtkValidPointMask", np.ones(probe.n_points)), bool)
                 pdata = pv.PolyData(np.asarray(probe.points)[ok])
-                for nm in ("vec", "c"):
+                for nm in ("vec", "c", X0):
                     if nm in probe.point_data:
                         pdata.point_data[nm] = np.asarray(probe.point_data[nm])[ok]
             else:
@@ -468,7 +486,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
                 rng = np.random.default_rng(0)
                 idx = rng.choice(g.n_points, size=min(npts, g.n_points), replace=False)
                 pdata = pv.PolyData(np.asarray(g.points)[idx])
-                for nm in ("vec", "c"):
+                for nm in ("vec", "c", X0):
                     if nm in g.point_data:
                         pdata.point_data[nm] = np.asarray(g.point_data[nm])[idx]
             if not pdata.n_points:
@@ -502,6 +520,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
             else:
                 sc.items.append((arrows, dict(color=COLORS.get(col, (0.85, 0.1, 0.1)))))
             label, _unit = sol.describe(expr)
+            ev = _vector_eval(sol, expr, cinfo)
             titles.append(f"Arrow Volume: {label}")
             edge_source = nodes if edge_source is None else edge_source
         elif k == "plot.streamline":
@@ -515,6 +534,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
             g.points = nodes
             g.point_data["vec"] = vec
             g.point_data["mag"] = np.linalg.norm(vec, axis=1)
+            g.point_data[X0] = ref
             cvals, cinfo = _color_values(sol, f, fi, len(nodes))
             if cvals is not None:
                 g.point_data["c"] = cvals
@@ -569,6 +589,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
             except Exception as exc:
                 titles.append(f"Streamline: error ({exc})")
                 continue
+            ev = _vector_eval(sol, expr, cinfo)
             titles.append(f"Streamline: {sol.describe(expr)[0]}")
             edge_source = nodes if edge_source is None else edge_source
         elif k == "plot.mesh":
@@ -587,6 +608,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
         elif k == "plot.line":
             g = sol.boundary_grid().copy()
             g.points = nodes
+            g.point_data[X0] = ref
             expr = str(f.get("expr", "") or "").strip()
             unit = label = ""
             if expr:
@@ -607,6 +629,7 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
                 cm = colormap(f.get("cmap", "RainbowLight"))
                 clim = _clim(f, np.asarray(ed.point_data["f"]))
                 sc.items.append((ed, dict(scalars="f", cmap=cm, clim=clim, line_width=3, lighting=False)))
+                ev = {"expr": expr, "unit": unit, "label": label}
                 _legend(sc, pg, f, cm, clim, unit)
                 titles.append(f"Line: {label} ({pretty_unit(unit)})" if unit else f"Line: {label}")
             else:
@@ -616,6 +639,10 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
             p = np.array([_num(f.get("x", "0")), _num(f.get("y", "0")), _num(f.get("z", "0")) if sdim == 3 else 0.0])
             sc.texts.append((p, annotation_text(f.get("text", ""), sol, fi, p, int(f.get("precision", 4))),
                              bool(f.get("point", True))))
+        if ev is not None:
+            ev.update(plot=f, sol=sol, fi=fi)
+            for j in range(n0, len(sc.items)):
+                sc.evals[j] = ev
         if dscale is not None and titles:
             titles[-1] = titles[-1] + f"   Deformation: {sol.describe(dexpr)[0] if dexpr not in ('disp', 'u') else 'Displacement field'}"
     sol = group_sol
@@ -647,6 +674,53 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
     return sc
 
 
+def click_values(sc: Scene, item: int, x0) -> list[tuple[str, float, str]]:
+    """What a click on result item *item* at *x0* reports (COMSOL's Evaluation 2D/3D table): [(label, value, unit)]
+    for every plot of the group drawn from the clicked plot's dataset, in plot order.
+
+    *x0*: the clicked point in the dataset's own undeformed coordinates (geometry units), so a deformed plot reports
+    the value at the material point it shows.  The value is that dataset's point_eval, the evaluation behind Point
+    Evaluation, in the plot's unit; NaN off the dataset."""
+    hit = sc.evals.get(item)
+    if hit is None:
+        return []
+    out, seen = [], set()
+    for j in sorted(sc.evals):
+        ev = sc.evals[j]
+        key = (ev["label"], ev["unit"])
+        if ev["sol"] is not hit["sol"] or key in seen:
+            continue
+        seen.add(key)
+        out.append((ev["label"], click_value(ev, x0), ev["unit"]))
+    return out
+
+
+def click_value(ev: dict, x0) -> float:
+    """One plot's value at *x0* (see click_values)."""
+    sol, fi, expr = ev["sol"], ev["fi"], ev["expr"]
+    pt = [list(np.asarray(x0, float)[:max(2, sol.sdim)] * sol.scale)]
+    try:
+        if ev.get("vector"):
+            from ..core.results import _probe
+            vec = np.asarray(sol.evaluate_vector(expr, fi), float)
+            g = sol.bulk_grid().copy()
+            P = np.zeros((1, 3))
+            P[0, :len(pt[0])] = np.asarray(pt[0]) / sol.scale
+            comps = []
+            for j in range(vec.shape[1]):
+                g.point_data["f"] = vec[:, j]
+                comps.append(float(_probe(g, P)[0]))
+            return float(np.linalg.norm(comps))
+        v = float(sol.point_eval(expr, fi, pt)[0])
+        _l, si = sol.describe(expr)
+        u = ev.get("unit")
+        if u and u != si and math.isfinite(v):       # as Point Evaluation converts a typed unit
+            v = float(units.from_si(v, u))
+        return v
+    except Exception:
+        return float("nan")
+
+
 _EVAL = re.compile(r"eval\(\s*([^,()]+(?:\([^()]*\))?[^,()]*)\s*(?:,\s*([^()]*?))?\s*\)")
 
 
@@ -668,8 +742,8 @@ def annotation_text(text, sol, fi, p, precision=4):
 def _revolve_scene(sc: Scene, angle=225.0, resolution=60, start=0.0):
     """Revolution 2D dataset: sweep the (r, z) plot around the z (= y) axis, like COMSOL (default -90..135 deg)."""
     import pyvista as pv
-    items = []
-    for ds, kw in sc.items:
+    items, evals = [], {}
+    for i, (ds, kw) in enumerate(sc.items):
         if "scalars" not in kw:          # dataset edges/lines would sweep into black skirts; drop them
             continue
         surf = ds if isinstance(ds, pv.PolyData) else ds.extract_surface()
@@ -684,8 +758,10 @@ def _revolve_scene(sc: Scene, angle=225.0, resolution=60, start=0.0):
         kw = dict(kw)
         kw["lighting"] = True
         kw["smooth_shading"] = True
+        if i in sc.evals:                # the swept copies keep the (r, z) coordinates a click evaluates at
+            evals[len(items)] = sc.evals[i]
         items.append((rev, kw))
-    sc.items = items
+    sc.items, sc.evals = items, evals
     sc.texts = []
     sc.sdim = 3
 

@@ -9,6 +9,7 @@ import re
 import time
 import traceback
 
+import numpy as np
 from PySide6.QtCore import QByteArray, QSettings, QSize, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QIcon, QKeySequence
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDockWidget, QDoubleSpinBox,
@@ -39,7 +40,7 @@ from .model_builder import ModelBuilder
 from .panes import ConvergencePlot, LogPane, MessagesPane, MplCanvas, ProgressPane, TablePane
 from ..core.datasets import resolve as resolve_dataset
 from ..core.datasets import root_dataset
-from .plots import build_scene, default_expr, draw_1d, evaluate_derived
+from .plots import build_scene, click_values, default_expr, draw_1d, evaluate_derived
 from .ribbon import Ribbon
 from .settings import SettingsWindow, pretty_unit
 from .wizard import ModelWizard, NewDialog
@@ -587,6 +588,7 @@ class MainWindow(QMainWindow):
         self.graphics = GraphicsView(self)
         self.graphics.entityClicked.connect(self.on_entity_clicked)
         self.graphics.entitiesSet.connect(self.on_entities_set)
+        self.graphics.resultClicked.connect(self.evaluate_click)
         self.graphics.status.connect(lambda s: self.statusBar().showMessage(s, 3000))
         self.plot1d = MplCanvas(self)
         self.gstack.addWidget(self.graphics)
@@ -3077,6 +3079,47 @@ class MainWindow(QMainWindow):
             self.tree.refresh(select=node)
         tbl.props["columns"] = cols
         tbl.props["rows"] = [[float(x) if isinstance(x, (int, float)) else str(x) for x in r] for r in rows]
+
+    def evaluate_click(self, scene, item, x0):
+        """A click on a 2D/3D result plot (COMSOL): the plotted expressions at that point, one row per click in the
+        Evaluation 2D / Evaluation 3D table, and a line in Messages.  Nothing off the plotted dataset."""
+        ev = scene.evals.get(item)
+        if ev is None:
+            return None
+        vals = click_values(scene, item, x0)
+        if not vals or not any(np.isfinite(v) for _l, v, _u in vals):
+            self.statusBar().showMessage("Outside the plotted data: nothing to evaluate.", 3000)
+            return None
+        sol = ev["sol"]
+        nd = 2 if sol.sdim == 2 else 3
+        names = ("r", "z") if nd == 2 and sol.meta.get("axi") else ("x", "y", "z")[:nd]
+        lu = pretty_unit(getattr(sol, "unit", "") or self.length_unit())
+        row = {f"{c} ({lu})": float(x) for c, x in zip(names, np.asarray(x0, float)[:nd])}
+        for label, v, u in vals:
+            row[f"{label} ({pretty_unit(u)})" if u else label] = float(v)
+        title = f"Evaluation {nd}D"
+        tables = self.model.results.child("results.tables")
+        tbl = next((t for t in tables.children if t.meta.get("source") == f"click:{nd}D"), None)
+        if tbl is None:
+            tbl = self.model.create("table", tables)
+            tbl.label = title
+            tbl.meta["source"] = f"click:{nd}D"
+            self.tree.refresh()
+        cols = list(tbl.props.get("columns") or [])
+        rows = [list(r) for r in tbl.props.get("rows") or []]
+        for c in row:                                   # another plot's expression: a new column
+            if c not in cols:
+                cols.append(c)
+                for r in rows:
+                    r.append(float("nan"))
+        rows.append([row.get(c, float("nan")) for c in cols])
+        tbl.props["columns"], tbl.props["rows"] = cols, rows
+        self.table.show_table(tbl.label, cols, rows)
+        self.dock_table.raise_()
+        where = ", ".join(f"{x:.6g}" for x in np.asarray(x0, float)[:nd])
+        self.messages.add(f"{tbl.label}: ({', '.join(names)}) = ({where}) {lu}: " + "; ".join(
+            f"{label} = {v:.6g}" + (f" {pretty_unit(u)}" if u else "") for label, v, u in vals))
+        return row
 
     def update_probes(self, study: Node, live=False):
         """Fill the study's Probe Table (and make its Probe Plot Group) from the probes of the computed component.

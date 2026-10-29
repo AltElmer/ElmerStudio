@@ -13,7 +13,7 @@ image::screenshots/ui_overview_annotated.png[Annotated Elmer Studio desktop,role
 |2 |*Model Builder*: the model tree. Select a node to edit it; right-click it for everything you can add to it or do with it.
 |3 |*Settings*: the settings of the selected node, in collapsible sections.
 |4 |*Graphics toolbar*: zoom, views, selection, transparency and snapshots.
-|5 |*Graphics window*: geometry, mesh and 3D/2D plots. Where you click boundaries and domains to select them. 1D graphs and polar plots replace it while a 1D plot group is selected.
+|5 |*Graphics window*: geometry, mesh and 3D/2D plots. Where you click boundaries and domains to select them, and click a result plot to read its value (xref:user-guide:results.adoc#click-evaluate[Evaluation 2D/3D]). 1D graphs and polar plots replace it while a 1D plot group is selected.
 |6 |*Messages*, *Progress*, *Log* and *Table* panes, tabbed together.
 |===
 
