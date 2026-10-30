@@ -15,7 +15,7 @@ Study ribbon
 |Setting |Symbol |Unit |Default |Choices / type
 5+h|Study Settings
 |Solver backend +
-_OpenFOAM solves Laminar Flow and Heat Transfer in Solids on unions of axis-aligned rectangles or blocks, meshed by blockMesh; anything else is refused at Compute._ | | |Elmer |Elmer, OpenFOAM (blockMesh)
+_OpenFOAM solves Laminar Flow and Heat Transfer in Solids on unions of axis-aligned rectangles or blocks, meshed by blockMesh; NASTRAN-95 solves stationary and eigenfrequency Solid Mechanics and stationary Heat Transfer in Solids; anything else is refused at Compute._ | | |Elmer |Elmer, OpenFOAM (blockMesh), NASTRAN-95
 |Generate default plots | | |On |Check box
 |Generate convergence plots | | |On |Check box
 5+h|Parallel Computing

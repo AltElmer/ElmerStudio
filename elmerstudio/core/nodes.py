@@ -164,8 +164,10 @@ register(NodeType("study", "Study", "std", "study", deletable=True, can_disable=
                       Prop("backend", "Solver backend:", "choice", "elmer",
                            choices=[("elmer", "Elmer"), ("openfoam", "OpenFOAM (blockMesh)"), ("nastran", "NASTRAN-95")],
                            section="Study Settings",
-                           tip="Choose the solver backend: Elmer (default), OpenFOAM (blockMesh for CFD/heat), "
-                               "or NASTRAN-95 (structural FEA and heat transfer)."),
+                           tip="OpenFOAM solves Laminar Flow and Heat Transfer in Solids on unions of axis-aligned "
+                               "rectangles or blocks, meshed by blockMesh; NASTRAN-95 solves stationary and "
+                               "eigenfrequency Solid Mechanics and stationary Heat Transfer in Solids; anything "
+                               "else is refused at Compute."),
                       Prop("plots", "Generate default plots", "bool", True, section="Study Settings"),
                       Prop("convplot", "Generate convergence plots", "bool", True, section="Study Settings"),
                       Prop("np", "Number of MPI processes:", "int", 1, section="Parallel Computing",
