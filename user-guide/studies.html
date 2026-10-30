@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Studies and solving :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-guide/studies.html">
+    <link rel="prev" href="mesh.html">
+    <link rel="next" href="results.html">
+    <meta name="description" content="Study steps, parametric sweeps, coupled physics, solver configurations, parallel runs and what happens during Compute.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>User guide</li>
+    <li><a href="studies.html">Studies and solving</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/user-guide/pages/studies.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Studies and solving</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>A <strong>Study</strong> holds one study step, an optional <strong>Parametric Sweep</strong>, and optional <strong>Solver Configurations</strong>. A model can have several studies, for example a stationary solve and an eigenfrequency analysis of the same geometry. Each study keeps its own solutions and its own dataset under <strong>Results › Datasets</strong>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="study-steps"><a class="anchor" href="#study-steps"></a>Study steps</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 50%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Step</th>
+<th class="tableblock halign-left valign-top">Settings</th>
+<th class="tableblock halign-left valign-top">Elmer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Stationary</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For coupled physics: <em>Max coupling iterations</em>, <em>Coupling tolerance</em>, <em>Coupling damping factor</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Steady state</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Time Dependent</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Time unit</em>, <em>Output times</em> (<code>range(0,0.1,1)</code>, a list, or several ranges with growing steps, <code>range(0,0.01,0.1) range(0.2,0.1,1) range(2,1,100)</code>), <em>Solver steps per output step</em>, <em>BDF order</em> (1 or 2), <em>Max coupling iterations per step</em></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Transient, BDF time stepping; the time step runs from one output time to the next (divided by the solver steps per output step)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Eigenfrequency</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Desired number of eigenfrequencies</em>, <em>Search for eigenfrequencies around</em> (Hz)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Eigen analysis (ARPACK)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Frequency Domain</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><em>Frequency unit</em>, <em>Frequencies</em> (a value, a list or <code>range(start,step,stop)</code>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Harmonic, scanned over the frequencies</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Every step has a <em>Physics and Variables Selection</em> table, to leave an interface out of this study.</p>
+</div>
+<div class="paragraph">
+<p>Add a study with <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Study</b></span>. Add steps with <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Study Steps</b></span>, and a sweep with <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Sweep</b></span>.</p>
+</div>
+<div class="sect2">
+<h3 id="initial-values"><a class="anchor" href="#initial-values"></a>Starting from another study&#8217;s solution</h3>
+<div class="paragraph">
+<p>A Stationary or Time Dependent step can start from another study&#8217;s last solution: set <strong>Values of Dependent Variables › Initial values from the solution of</strong> to that study. It is the initial state of a time-dependent study, or the initial guess of a nonlinear stationary one, as COMSOL&#8217;s <strong>Solution</strong> option does. The other study must be computed first, and on the same mesh. Otherwise Compute stops and says which. When the other study is computed again later, this study is marked out of date.</p>
+</div>
+<div class="paragraph">
+<p>With several components, a step solves each component that has a ticked physics interface. A component whose settings use another component&#8217;s coupling operator (<code>comp1.aveop1(T)</code>) is solved after it. See <a href="models-and-files.html#components" class="xref page">Several components</a>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="parametric-sweep"><a class="anchor" href="#parametric-sweep"></a>Parametric Sweep</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A sweep solves the study once for each parameter value:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Parameter name</em> and <em>Parameter value list</em>: values like <code>5 6 7</code>, or <code>range(5,1,10)</code> (start, step, stop), and a <em>Parameter unit</em> (the values are in that unit).</p>
+</li>
+<li>
+<p><em>More parameters</em> to sweep several at once:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Sweep type</em> <strong>Specified combinations</strong>: the i-th values of every parameter go together;</p>
+</li>
+<li>
+<p><strong>All combinations</strong>: every combination (2 × 3 values = 6 runs).</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><em>Reuse solution from previous step</em> <strong>Automatic</strong>: each stationary run starts from the previous parameter&#8217;s solution when the mesh hasn&#8217;t changed. Nonlinear problems, such as electrode kinetics, then converge in a few iterations. <strong>Off</strong> starts every run from the initial values.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Geometry, mesh and physics follow the swept parameters. When a parameter changes the geometry, it is rebuilt and remeshed for each value. Use <a href="selections.html#box" class="xref page">Box Selections</a> for features whose boundaries may be renumbered.</p>
+</div>
+<div class="paragraph">
+<p>The results of a sweep are in one dataset, with one solution per value. Plots show one value at a time (<em>Solution selection</em>). Global evaluations and <strong>Global</strong> plots show all of them, against the parameter in its own unit.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="coupling"><a class="anchor" href="#coupling"></a>Coupled physics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When a study solves several physics that depend on each other (Joule heating, thermal stress, tertiary current distribution, …), Elmer solves them one after the other and repeats until the coupling converges:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Max coupling iterations</em>: an upper limit, 30 by default;</p>
+</li>
+<li>
+<p><em>Coupling tolerance</em>: the relative change at which the iteration stops;</p>
+</li>
+<li>
+<p><em>Coupling damping factor</em>: under-relaxation between iterations. Lower it (0.5, 0.25) if the iteration oscillates and grows. A loop with gain G &gt; 1 needs a factor below 2/(1 + G).</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>A coupled stationary run saves its result once, at the end.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="solver"><a class="anchor" href="#solver"></a>Solver configurations</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Show Default Solver</b></span> adds <strong>Solver Configurations</strong> to the study with a <strong>Solver</strong> node per Elmer solver. Without them, Elmer Studio picks the settings itself: direct solvers for small models and iterative ones for large models. Each Solver node can override:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Linear solver</em>: <strong>Automatic</strong>, <strong>Direct</strong> (UMFPACK, MUMPS, banded LAPACK) or <strong>Iterative</strong> (BiCGStab, BiCGStab(l), GCR, CG, GMRES, TFQMR, IDR(s)), with <em>Preconditioner</em> (ILU0–2, ILUT, Jacobi, none), <em>Relative tolerance</em> and <em>Maximum number of iterations</em>;</p>
+</li>
+<li>
+<p><em>Maximum nonlinear iterations</em>, <em>Nonlinear tolerance</em>, <em>Damping (relaxation) factor</em>;</p>
+</li>
+<li>
+<p><em>Additional SIF keywords</em> for the solver section.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="computing"><a class="anchor" href="#computing"></a>Computing</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>) solves the study that the selected node belongs to, or the first study when the selected node is outside any study. Right-click a study and choose <strong>Compute</strong> to pick one.</p>
+</li>
+<li>
+<p><span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Stop</b></span> cancels the run, and any geometry or mesh builds waiting to run. A geometry or mesh build that is already running cannot be interrupted; it finishes in the background and its result is discarded.</p>
+</li>
+<li>
+<p><span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Clear All Solutions</b></span> deletes the solutions.</p>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="convergence"><a class="anchor" href="#convergence"></a>When the solver does not converge</h3>
+<div class="paragraph">
+<p>Elmer Studio accepts a solution only when Elmer converged:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>A <strong>linear solver</strong> that reaches its maximum number of iterations without meeting its tolerance stops the study with an error (Elmer&#8217;s own default, <em>Linear System Abort Not Converged</em>). A direct solver never does.</p>
+</li>
+<li>
+<p><strong>Nonlinear (Newton) iterations</strong> that reach <em>Maximum nonlinear iterations</em> without meeting the <em>Nonlinear tolerance</em>, and <strong>coupling iterations</strong> that reach <em>Max coupling iterations</em> without meeting the <em>Coupling tolerance</em>, also stop the study. Elmer only reports these at an output level Studio does not log, so Studio reads them from the iteration history: in a coupled study, only the Newton iterations of the last coupling iteration count.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>To look at such a solution anyway, set <em>When nonlinear or coupling iterations do not converge</em> on the <strong>Study</strong> node to <strong>Keep the solution, marked not converged</strong>. The solution is then shown, and <strong>Messages</strong> warns that it is not converged each time you plot it. Each solution folder records its status (<code>converged</code>, <code>not converged</code> or <code>failed</code>) and the reasons in <code>meta.json</code>, next to <code>solver.log</code>.</p>
+</div>
+<div class="paragraph">
+<p>During the run:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Progress</strong> shows the step, sweep value or time step;</p>
+</li>
+<li>
+<p><strong>Convergence Plot</strong> shows the nonlinear and coupling convergence of each Elmer solver;</p>
+</li>
+<li>
+<p><strong>Log</strong> streams ElmerSolver&#8217;s output;</p>
+</li>
+<li>
+<p><strong>Messages</strong> reports the solution time, or the error if Elmer stops.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>When the study finishes, default plot groups are created for the solved physics (turn off <em>Generate default plots</em> on the Study to skip that).</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="solver-backend"><a class="anchor" href="#solver-backend"></a>Solver backend</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><em>Solver backend</em> on the <strong>Study</strong> node chooses who solves the study: <strong>Elmer</strong> (the default), <strong>OpenFOAM (blockMesh)</strong>, or <strong>NASTRAN-95</strong>.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>OpenFOAM</strong> solves Laminar Flow and Heat Transfer in Solids on unions of axis-aligned rectangles or blocks, and refuses everything else before it runs, saying why. Its results come back as an ordinary solution with the same variable names and units, and the convergence statuses and the <em>When &#8230;&#8203; do not converge</em> setting work the same way. See <a href="openfoam.html" class="xref page">OpenFOAM backend</a>.</p>
+</li>
+<li>
+<p><strong>NASTRAN-95</strong> solves Solid Mechanics (Stationary and Eigenfrequency) and Heat Transfer in Solids (Stationary, fixed temperatures) on 2D and 3D models. It writes a NASTRAN Bulk Data deck, runs NASTRAN-95 (a native build, or on Windows one inside WSL), and reads back displacements, stresses, eigenfrequencies with their mode shapes, or temperatures, with the same variable names and units as Elmer. It refuses what it cannot translate before it runs. See <a href="nastran.html" class="xref page">NASTRAN-95 backend</a> and the <a href="../tutorials/nastran.html" class="xref page">NASTRAN-95 tutorial</a>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="parallel-computing"><a class="anchor" href="#parallel-computing"></a>Parallel computing</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Set <em>Number of MPI processes</em> on the <strong>Study</strong> node to run Elmer on several cores. It needs an MPI-enabled Elmer (<code>ElmerSolver_mpi</code> and <code>mpiexec</code>). Elmer Studio partitions the mesh with ElmerGrid, runs <code>mpiexec -n N ElmerSolver_mpi</code>, and reads the partitioned results back as one solution.</p>
+</div>
+<div class="paragraph">
+<p>When the study cannot run in parallel, it runs serially, and the Messages window says why:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the Elmer has no <code>ElmerSolver_mpi</code>: it is a serial build, such as the Windows <code>-nompi</code> packages;</p>
+</li>
+<li>
+<p>no <code>mpiexec</code> or <code>mpirun</code> was found next to <code>ElmerSolver_mpi</code>, on <code>PATH</code>, or in the usual MPI folders (<code>/opt/homebrew/bin</code>, <code>/usr/local/bin</code> and <code>/opt/local/bin</code> on macOS; <code>/usr/bin</code>, <code>/usr/lib64/openmpi/bin</code> and <code>/usr/lib64/mpich/bin</code> on Linux; MS-MPI&#8217;s folder on Windows). An application started from the Finder or a desktop launcher does not see the folders your shell adds to <code>PATH</code>;</p>
+</li>
+<li>
+<p>no ElmerGrid was found to partition the mesh, or ElmerGrid did not partition it.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>On more than one process, two solver settings change, because they do not work in Elmer&#8217;s parallel runs; the Messages window lists both:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>a direct linear solve with UMFPACK becomes BiCGStab with ILU(0). Elmer&#8217;s only parallel direct solver is MUMPS, and many MPI builds of Elmer do not include it. If yours does, choose <em>Direct solver</em> <code>MUMPS</code> in the study&#8217;s <strong>Solver Configurations</strong>;</p>
+</li>
+<li>
+<p>the Newton line search of nonlinear electrode kinetics is turned off. If the Newton iteration then does not converge, lower the interface&#8217;s <em>Newton damping factor</em>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="looking-at-the-elmer-files"><a class="anchor" href="#looking-at-the-elmer-files"></a>Looking at the Elmer files</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Show Elmer Input File</b></span> shows the generated <code>.sif</code> for the study.</p>
+</li>
+<li>
+<p><span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Open Case Folder</b></span> opens the folder where the study ran: mesh, <code>.sif</code>, Elmer&#8217;s log and the result files.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>See <a href="elmer.html" class="xref page">Elmer under the hood</a> for how the files are made and what they contain.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="mesh.html">Mesh</a></span>
+  <span class="next"><a href="results.html">Results</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>NASTRAN-95 backend :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-guide/nastran.html">
+    <link rel="prev" href="openfoam.html">
+    <link rel="next" href="../reference/index.html">
+    <meta name="description" content="Solving Solid Mechanics and Heat Transfer with NASTRAN-95 instead of ElmerSolver: what is mapped, how accurate it is, what is refused and why.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>User guide</li>
+    <li><a href="nastran.html">NASTRAN-95 backend</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/user-guide/pages/nastran.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">NASTRAN-95 backend</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>A study can be solved by <strong>NASTRAN-95</strong>, the public-domain release of NASA&#8217;s structural analysis program, instead of ElmerSolver. You build the model exactly as for Elmer: geometry, materials, physics features, mesh, study. Only the study&#8217;s <strong>Solver backend</strong> setting changes. The results come back into the same Results machinery, with the same variable names and SI units as an Elmer solution, so plots, derived values, selections and export work unchanged.</p>
+</div>
+<div class="paragraph">
+<p>The same model means the same problem: loads, constraints, the 2D plane strain or plane stress setting and the per-unit-depth convention of 2D models are translated so that NASTRAN-95 solves what Elmer would. Anything that cannot be translated faithfully is refused before anything runs, with a sentence saying why. Elmer Studio never falls back to Elmer silently, and never drops a feature it cannot map.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="choosing-the-backend"><a class="anchor" href="#choosing-the-backend"></a>Choosing the backend</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Select the study node and set <strong>Solver backend</strong> (section <em>Study Settings</em>) to <strong>NASTRAN-95</strong>. The default is <strong>Elmer</strong>, and models saved before this setting existed open with Elmer.</p>
+</div>
+<div class="paragraph">
+<p>When the model cannot be solved by NASTRAN-95, <strong>Compute</strong> is unavailable and its tooltip says why ("Unavailable: &#8230;&#8203;"), and the study node carries an error mark with the same sentence. Reasons that need the geometry or the mesh are reported when you click <strong>Compute</strong>, before anything runs.</p>
+</div>
+<div class="paragraph">
+<p>NASTRAN-95 is looked up in this order:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><code>NASTRAN_WSL_HOME</code> (Windows): the Linux path of a NASTRAN-95 build inside WSL, the folder that holds <code>dist/bin/nastran</code> and <code>rf/</code>, for example <code>/home/&lt;user&gt;/NASTRAN-95</code>;</p>
+</li>
+<li>
+<p>the <strong>NASTRAN-95 installation folder</strong> in <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span>;</p>
+</li>
+<li>
+<p>the environment variables <code>NASTRAN_ROOT</code>, <code>NASTRAN_EXE</code>, <code>NASTRAN95_ROOT</code> and <code>NASTRAN_HOME</code>;</p>
+</li>
+<li>
+<p>common install folders, such as an unpacked release in your Downloads folder, and <code>nastran</code> on the <code>PATH</code>;</p>
+</li>
+<li>
+<p>on Windows, a build found inside WSL.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>A folder is accepted when it holds the <code>nastran</code> executable (also under <code>dist/bin/</code>) and the rigid formats folder <code>rf/</code>. Releases for Windows, Linux and macOS are published at <a href="https://github.com/Foadsf/NASTRAN-95/releases">Foadsf/NASTRAN-95</a>; the Windows and Linux builds are the ones verified with Elmer Studio.</p>
+</div>
+<div class="paragraph">
+<p>With the NASTRAN study selected, <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Show NASTRAN Input Deck</b></span> shows the generated deck without running anything: the Executive Control and Case Control decks and the Bulk Data with all GRID, material, element, SPC and load cards. <strong>Save As&#8230;&#8203;</strong> writes it to a <code>.bdf</code> file you can run by hand.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="what-is-mapped"><a class="anchor" href="#what-is-mapped"></a>What is mapped</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Model</th>
+<th class="tableblock halign-left valign-top">NASTRAN-95</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Solid Mechanics</strong>, Stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>APP DISP</code>, <code>SOL 1</code> (linear statics), linear elastic material</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Solid Mechanics</strong>, Eigenfrequency</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>APP DISP</code>, <code>SOL 3</code> (normal modes): the lowest <em>Desired number of eigenfrequencies</em> modes by the FEER method, mass normalized, with their mode shapes</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Heat Transfer in Solids</strong>, Stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>APP HEAT</code>, <code>SOL 1</code> (steady conduction), linear isotropic material, fixed temperatures</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D components</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Per unit depth, as in Elmer. Plane strain (the default of the interface) or plane stress, from the interface&#8217;s 2D approximation setting</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D components</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solid elements</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Parametric sweeps</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One NASTRAN run per parameter value</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect2">
+<h3 id="feature-mapping"><a class="anchor" href="#feature-mapping"></a>Feature mapping</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Studio feature</th>
+<th class="tableblock halign-left valign-top">NASTRAN-95 cards</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Linear Elastic Material (E, ν, ρ)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>MAT1</code>; in 2D plane strain with E/(1-ν²) and ν/(1-ν), which gives NASTRAN&#8217;s plane stress membrane the plane strain stiffness</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat Transfer in Solids (k, ρ, C<sub>p</sub>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>MAT4</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fixed Constraint</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>SPC1</code> on the boundary&#8217;s grid points, displacement components 1, 2 (and 3 in 3D)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Prescribed Displacement</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>SPC</code> with the prescribed value, for each direction that is switched on</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Roller, Symmetry</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>SPC1</code> on the normal component; the boundary must be perpendicular to the x, y or z axis</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Boundary Load: force per unit area, total force, pressure</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>FORCE</code> cards: the load integrated over the boundary into consistent nodal forces of the elements NASTRAN solves; a pressure acts along the inward normal, as in Elmer</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Body Load</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>FORCE</code> cards: the force per unit volume integrated over the selected domains</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Gravity</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>GRAV</code> with the material density; it must act on the whole model</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Temperature</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>SPC</code> with the temperature on the boundary&#8217;s grid points</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Thermal Insulation, Symmetry (heat), Free</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nothing to write: they are the natural boundary condition</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sect2">
+<h3 id="elements"><a class="anchor" href="#elements"></a>Elements</h3>
+<div class="paragraph">
+<p>Every mesh node becomes a <code>GRID</code> card (grid ID = node number). NASTRAN-95 has no quadratic triangle or tetrahedron that passes the patch test, so the quadratic elements of the Studio mesh are split into linear ones that keep all the nodes:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>a 6-node triangle into 4 <code>CTRIA3</code> (with <code>PSHELL</code>, unit thickness);</p>
+</li>
+<li>
+<p>a 10-node tetrahedron into 8 <code>CTETRA</code>;</p>
+</li>
+<li>
+<p>linear triangles, quadrilaterals, tetrahedra, hexahedra and prisms map one to one to <code>CTRIA3</code>, <code>CQUAD4</code>, <code>CTETRA</code>, <code>CHEXA</code> and <code>CPENTA</code>.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Quadratic quadrilaterals, hexahedra and prisms (from mapped or swept meshes) and pyramids are refused: use a free triangular or tetrahedral mesh. In 2D the grid points carry <code>PS=3456</code> (a plane membrane), in 3D <code>PS=456</code> (solid elements have no rotational stiffness).</p>
+</div>
+<div class="paragraph">
+<p>NASTRAN-95&#8217;s own 6-node membrane <code>CTRIM6</code> is not used: on coarse free meshes it does not reproduce a uniform stress state, with element stresses off by 30 to 50 percent in pure tension.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="accuracy"><a class="anchor" href="#accuracy"></a>Accuracy</h3>
+<div class="paragraph">
+<p>Linear elements are exact for uniform stress and linear temperature fields and converge more slowly than Elmer&#8217;s quadratic elements in bending. Measured on the same models solved by both backends:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 42.8571%;">
+<col style="width: 28.5714%;">
+<col style="width: 28.5715%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Model</th>
+<th class="tableblock halign-left valign-top">Element size</th>
+<th class="tableblock halign-left valign-top">NASTRAN-95 vs Elmer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D bar in tension (plane strain or plane stress)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">50 mm</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.1 %</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D block on rollers in tension</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">50 mm</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1 %</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D steady conduction, fixed end temperatures</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">100 mm</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2·10<sup>-4</sup> K</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D cantilever under pressure, tip deflection</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">25 mm (2 elements through the 50 mm depth)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">10.5 % stiffer</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">same</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">12.5 mm (4 elements)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2.0 % stiffer; peak von Mises stress 7 % lower</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D cantilever, first three eigenfrequencies</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">12.5 mm</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1.0 % higher; mode shapes identical (correlation 1.000)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D cantilever, tip deflection</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">50 mm (1 element through the depth)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">40 % stiffer</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>For bending, refine the mesh through the thickness: four or more linear elements through the depth in 2D, and more in 3D, where linear tetrahedra are stiffer still.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="results"><a class="anchor" href="#results"></a>Results</h3>
+<div class="paragraph">
+<p>Each solution folder holds the NASTRAN case (<code>nastran/case.inp</code>, with <code>case.out</code> for a native build), the solver output in <code>solver.log</code>, and the same files as an Elmer run: <code>meta.json</code>, <code>model.json</code>, <code>mesh.npz</code> and <code>results/case_t0001.vtu</code>. The result mesh is the Studio mesh, so results can be compared node by node with an Elmer solution of the same model.</p>
+</div>
+<div class="paragraph">
+<p>Variables (Elmer names, so the usual expressions such as <code>solid.disp</code> and <code>solid.mises</code> work):</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Solid Mechanics: <code>displacement</code> (<code>u</code>, <code>v</code>, <code>w</code>), <code>disp_mag</code> and <code>vonmises</code>. The von Mises stress is the element value averaged at the nodes; in 2D plane strain it includes the out-of-plane stress ν(σ<sub>1</sub> + σ<sub>2</sub>).</p>
+</li>
+<li>
+<p>Eigenfrequency: the eigenfrequencies and, for each mode, its mode shape (<code>displacement EigenMode1</code>, &#8230;&#8203;), selected by the mode in plots as for an Elmer solution. Stresses are not computed for modes.</p>
+</li>
+<li>
+<p>Heat Transfer: <code>temperature</code> (<code>T</code>).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="status"><a class="anchor" href="#status"></a>Status</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>converged</strong>: <code>END OF JOB</code> reached, no <code>USER FATAL MESSAGE</code> or <code>SYSTEM FATAL MESSAGE</code>, and displacements, temperatures or mode shapes were produced.</p>
+</li>
+<li>
+<p><strong>failed</strong>: a fatal message (it is shown in Messages), a non-zero exit code, no results, or no end within the time limit (30 min, <code>ELMERSTUDIO_NASTRAN_TIMEOUT</code> in seconds).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="what-is-refused"><a class="anchor" href="#what-is-refused"></a>What is refused</h3>
+<div class="paragraph">
+<p>Each of these stops <strong>Compute</strong> before anything runs, with the reason:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>physics other than Solid Mechanics and Heat Transfer in Solids, more than one physics interface in a study step, and multiphysics couplings;</p>
+</li>
+<li>
+<p>study steps other than Stationary and Eigenfrequency (Time Dependent and Frequency Domain have no NASTRAN-95 deck yet);</p>
+</li>
+<li>
+<p>2D axisymmetric components;</p>
+</li>
+<li>
+<p>features without a NASTRAN-95 card, for example Heat Flux, Spring Foundation and heat sources;</p>
+</li>
+<li>
+<p>a Roller or Symmetry on a boundary that is not perpendicular to a coordinate axis;</p>
+</li>
+<li>
+<p>Gravity on part of the model, or with its own density;</p>
+</li>
+<li>
+<p>a study step that takes its initial values from another study;</p>
+</li>
+<li>
+<p>elements that would leave grid points without stiffness (see <a href="#elements">Elements</a>).</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="out-of-scope"><a class="anchor" href="#out-of-scope"></a>Out of scope</h3>
+<div class="paragraph">
+<p>Non-linear analysis, transient analysis (rigid formats 9 and HEAT 9), frequency response, buckling, superelements and DMAP alters. Use Elmer for these, or edit the saved deck and run NASTRAN-95 by hand.</p>
+</div>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="openfoam.html">OpenFOAM backend</a></span>
+  <span class="next"><a href="../reference/index.html">Overview</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

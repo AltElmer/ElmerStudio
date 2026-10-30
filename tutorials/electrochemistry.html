@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Electrochemistry: current distribution :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/tutorials/electrochemistry.html">
+    <link rel="prev" href="acoustics.html">
+    <link rel="next" href="deforming-electrodes.html">
+    <meta name="description" content="Build secondary, primary and tertiary current distribution models in the GUI and check them against closed-form solutions.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+    <script>
+      window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+                         options: { ignoreHtmlClass: 'nostem|nolatexmath' } };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>Tutorials</li>
+    <li><a href="electrochemistry.html">Electrochemistry: current distribution</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/tutorials/pages/electrochemistry.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Electrochemistry: current distribution</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Four small models, each with a closed-form answer, take you through the <strong>Secondary Current Distribution</strong> interface.
+They are the models of the regression suite <code>tests/test_electrochemistry.py</code>, built here by hand in the GUI.
+The numbers in each <strong>Check the results</strong> section are the ones the tests assert.</p>
+</div>
+<div class="paragraph">
+<p>If you know COMSOL&#8217;s Electrochemistry Module, the workflow will feel familiar: same interface, feature and variable names.
+Elmer Studio is an independent project; the solver underneath is Elmer.
+Background on every feature is in <a href="../user-guide/electrochemistry.html" class="xref page">Electrochemistry: current distribution</a>.</p>
+</div>
+<div class="ulist">
+<div class="title">What you will learn</div>
+<ul>
+<li>
+<p>Set up an electrolyte with an Electrode Surface (Butler–Volmer kinetics) and a counter electrode.</p>
+</li>
+<li>
+<p>Read the electrode current <code>cd.es1.Itot</code> with a Global Evaluation.</p>
+</li>
+<li>
+<p>Compute a polarization curve with a Parametric Sweep and plot it.</p>
+</li>
+<li>
+<p>Model a primary current distribution in 2D axisymmetry and refine the mesh at an electrode edge.</p>
+</li>
+<li>
+<p>Couple the kinetics to a concentration with Transport of Diluted Species (tertiary current distribution).</p>
+</li>
+<li>
+<p>Build a wavy electrode from a Parametric Curve and mesh it with a graded Mapped mesh.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="tutorial-1-a-1d-cell-with-butlervolmer-kinetics"><a class="anchor" href="#tutorial-1-a-1d-cell-with-butlervolmer-kinetics"></a>Tutorial 1: a 1D cell with Butler–Volmer kinetics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A strip of electrolyte, 100 µm wide and L = 200 µm long, with conductivity σ = 20 S/m.
+The anode at the bottom has Butler–Volmer kinetics with i<sub>0</sub> = 50 A/m² and α<sub>a</sub> = α<sub>c</sub> = 0.5 at 298.15 K.
+The top boundary is held at φ<sub>l</sub> = 0, like a counter electrode with fast kinetics.
+The side walls are insulated, so the current flows straight up and the model is one-dimensional.</p>
+</div>
+<div class="paragraph">
+<p>The current density is uniform, so the ohmic drop is iL/σ and the overpotential at the anode is η = V − iL/σ.
+The current density therefore solves</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[i = i_{loc}\!\left(V - \frac{iL}{\sigma}\right),\qquad
+i_{loc}(\eta) = i_0\left(e^{\alpha_a f\eta}-e^{-\alpha_c f\eta}\right),\quad f=\frac{F}{RT}\]
+</div>
+</div>
+<div class="paragraph">
+<p>which has one root that you can find with any calculator.</p>
+</div>
+<div class="sect2">
+<h3 id="create-the-model"><a class="anchor" href="#create-the-model"></a>Create the model</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Choose <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>N</kbd></span>) and click <strong>Model Wizard</strong>.</p>
+</li>
+<li>
+<p>Click <strong>2D</strong>.</p>
+</li>
+<li>
+<p>Open <strong>Electrochemistry &gt; Primary and Secondary Current Distribution</strong>, select <strong>Secondary Current Distribution</strong> and click <strong>Add</strong>.</p>
+</li>
+<li>
+<p>Click <strong>Study</strong>, select <strong>Stationary</strong> and click <strong>Done</strong>.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="parameters-and-geometry"><a class="anchor" href="#parameters-and-geometry"></a>Parameters and geometry</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>In the Model Builder, select <strong>Global Definitions &gt; Parameters 1</strong> and add the parameter <code>Vapp</code> with expression <code>0.1[V]</code> (description: cell voltage).</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Rectangle</b></span>.
+Set <em>Width</em> to <code>1e-4</code> and <em>Height</em> to <code>2e-4</code> (the default length unit is m).</p>
+</li>
+<li>
+<p>Press <kbd>F8</kbd> to build all.
+The Messages window reports 1 domain, 4 boundaries and 4 points.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="physics"><a class="anchor" href="#physics"></a>Physics</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Under <strong>Secondary Current Distribution</strong>, select <strong>Electrolyte 1</strong>.
+Set <em>Electrical conductivity</em> to <code>User defined</code> and enter <code>20[S/m]</code>.</p>
+</li>
+<li>
+<p>Choose <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electrode Surface</b></span>.
+Click the bottom boundary (boundary 2) in the Graphics window.</p>
+</li>
+<li>
+<p>In <strong>Electrode Surface 1</strong>, set:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Electric potential (of the electrode)</em>: <code>Vapp</code></p>
+</li>
+<li>
+<p><em>Kinetics expression type</em>: <code>Butler-Volmer</code></p>
+</li>
+<li>
+<p><em>Exchange current density</em>: <code>50[A/m^2]</code></p>
+</li>
+<li>
+<p>Keep <em>Anodic transfer coefficient</em> and <em>Cathodic transfer coefficient</em> at <code>0.5</code>, <em>Temperature</em> at <code>298.15[K]</code> and <em>Equilibrium potential</em> at <code>0[V]</code>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Choose <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electrolyte Potential</b></span>, click the top boundary and keep <em>Electrolyte potential</em> at <code>0[V]</code>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The side walls keep the default <strong>Insulation 1</strong>.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_echem_1_cell_electrode_surface.png" alt="Electrode Surface settings with Electric potential Vapp and Butler-Volmer kinetics">
+</div>
+<div class="title">Figure 1. Electrode Surface with Butler-Volmer kinetics on the bottom boundary of the strip</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Note the electrode&#8217;s <em>Name</em>, <code>es1</code>, in the Label section.
+Its results are called <code>cd.es1.Itot</code>, <code>cd.es1.eta</code>, and so on, as in COMSOL.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="compute-one-point"><a class="anchor" href="#compute-one-point"></a>Compute one point</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Compute</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>).
+The default mesh is fine: the solution is linear in y.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global Evaluation</b></span>.
+In <em>Expressions</em>, enter <code>cd.es1.Itot</code> with the description <code>Anode current per unit depth</code>, then click <strong>Evaluate</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p><code>cd.es1.Itot</code> is a current per metre of depth in a 2D model, here <code>0.0321245</code> A/m.
+Divided by the 100 µm width, that is i = 321.245 A/m².</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="sweep-the-cell-voltage-a-polarization-curve"><a class="anchor" href="#sweep-the-cell-voltage-a-polarization-curve"></a>Sweep the cell voltage: a polarization curve</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Select <strong>Study 1</strong> and click <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Sweep</b></span>.</p>
+</li>
+<li>
+<p>In <strong>Parametric Sweep 1</strong>, set <em>Parameter name</em> to <code>Vapp</code>, <em>Parameter value list</em> to <code>range(0.05,0.05,0.25)</code> and <em>Parameter unit</em> to <code>V</code>.
+Keep <em>Reuse solution from previous step</em> at <code>Automatic</code>: each voltage starts from the previous solution.</p>
+</li>
+<li>
+<p>Compute again.</p>
+</li>
+<li>
+<p>Select <strong>Global Evaluation 1</strong>, check that <em>Time/parameter selection</em> is <code>All</code> and click <strong>Evaluate</strong>.
+The table now has one row per voltage.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_echem_2_cell_polarization_table.png" alt="Global Evaluation of cd.es1.Itot over the sweep with the electrolyte potential plot">
+</div>
+<div class="title">Figure 2. Electrolyte potential at 0.25 V and the anode current for every swept voltage</div>
+</div>
+<div class="olist arabic">
+<ol class="arabic" start="5">
+<li>
+<p>With <strong>Global Evaluation 1</strong> still selected, click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global</b></span>.
+Elmer Studio adds a <strong>1D Plot Group</strong> with a <strong>Global</strong> plot.</p>
+</li>
+<li>
+<p>In the <strong>Global</strong> plot, set <em>Expression</em> to <code>cd.es1.Itot</code>, <em>Reduction</em> to <code>Global (scalar expression)</code> and <em>Marker</em> to <code>Circle</code>, then click <strong>Plot</strong>.
+The x-axis is the swept parameter, <code>Vapp (V)</code>.</p>
+</li>
+<li>
+<p>Rename the plot group <strong>Polarization curve</strong> (<kbd>F2</kbd>).</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_echem_3_cell_polarization_curve.png" alt="Global plot of cd.es1.Itot against Vapp">
+</div>
+<div class="title">Figure 3. Polarization curve: anode current against cell voltage</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results"><a class="anchor" href="#check-the-results"></a>Check the results</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 14.2857%;">
+<col style="width: 28.5714%;">
+<col style="width: 28.5714%;">
+<col style="width: 28.5715%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Vapp (V)</th>
+<th class="tableblock halign-left valign-top"><code>cd.es1.Itot</code> (A/m)</th>
+<th class="tableblock halign-left valign-top">i = Itot / 100 µm (A/m²)</th>
+<th class="tableblock halign-left valign-top">Ohmic drop iL/σ (V)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.05</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.0110186</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">110.186</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.00110</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.10</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.0321245</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">321.245</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.00321</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.15</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.0790964</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">790.964</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.00791</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.20</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.174406</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1744.06</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.01744</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.25</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.336699</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3366.99</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">0.03367</p></td>
+</tr>
+</tbody>
+</table>
+<div class="ulist">
+<ul>
+<li>
+<p>Every current matches the root of \(i = i_{loc}(V - iL/\sigma)\); the test requires 1e-8 and the run agrees to about 1e-12.</p>
+</li>
+<li>
+<p>The maximum of the electrolyte potential at 0.25 V is the ohmic drop, 0.03367 V, on the anode.</p>
+</li>
+<li>
+<p><code>cd.iloc</code> at every anode node, corners included, equals i (to 1e-8), and <code>cd.nIl</code> on the top boundary carries the same current out.</p>
+</li>
+<li>
+<p>The curve rises monotonically and bends upward: Butler–Volmer kinetics dominate at low voltage, the ohmic drop grows with the current.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+Try the other kinetics on the same cell: <em>Linearized Butler-Volmer</em>, <em>Anodic Tafel equation</em>, <em>Butler-Volmer with limiting current</em> (with <em>Limiting current density</em> <code>100[A/m^2]</code>) or a primary electrode.
+The regression test checks each one against the same equation, with the matching i<sub>loc</sub>(η), to 1e-9.
+For a primary electrode, η = 0 and i = σV/L = 10 000 A/m² at 0.1 V.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+For tabulated polarization data, add <span class="menuseq"><b class="menu">Definitions</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Interpolation</b></span> with <em>Function name</em> <code>pol</code> and the (η, i) pairs, choose <em>Kinetics expression type</em> <code>User defined i(eta)</code> and enter <code>pol(eta)</code>.
+On this cell, with the points (0, 0), (0.05, 40), (0.1, 150), (0.2, 600), (0.3, 2000) and Vapp = 0.3 V, the current agrees with the piecewise-linear root to 1e-6.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="tutorial-2-newmans-disc-electrode-2d-axisymmetric"><a class="anchor" href="#tutorial-2-newmans-disc-electrode-2d-axisymmetric"></a>Tutorial 2: Newman&#8217;s disc electrode (2D axisymmetric)</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A disc electrode of radius a = 1 mm lies flush in an insulating plane, under an electrolyte with σ = 5 S/m.
+For a primary current distribution, Newman&#8217;s classic result for the resistance between the disc and infinity is 1/(4σa).
+Here the counter electrode is a hemisphere of radius R = 30 mm, which removes the far-field part 1/(2πσR):</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[R_{cell} = \frac{1}{4\sigma a} - \frac{1}{2\pi\sigma R} = 50 - 1.061 = 48.939\ \Omega\]
+</div>
+</div>
+<div class="paragraph">
+<p>At 1 V on the disc the current is 1/R<sub>cell</sub> = 0.020434 A.
+The current density is singular at the disc edge, so this model is a test of the mesh as much as of the physics.</p>
+</div>
+<div class="sect2">
+<h3 id="create-the-model-and-geometry"><a class="anchor" href="#create-the-model-and-geometry"></a>Create the model and geometry</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Choose <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span>, <strong>Model Wizard</strong>, <strong>2D Axisymmetric</strong>, add <strong>Secondary Current Distribution</strong>, choose <strong>Stationary</strong> and click <strong>Done</strong>.
+The r axis is horizontal and z vertical.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Circle</b></span>.
+Set <em>Radius</em> to <code>0.03</code> and <em>Sector angle</em> to <code>90</code>: a quarter disc that becomes a hemisphere when revolved.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Rectangle</b></span>.
+Set <em>Width</em> to <code>1e-3</code> and <em>Height</em> to <code>2.5e-4</code>.
+This small rectangle only splits the bottom boundary at r = a, so the disc is a boundary of its own.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Union</b></span> and select both objects as <em>Input objects</em>.
+Keep <em>Keep interior boundaries</em> on.</p>
+</li>
+<li>
+<p>Press <kbd>F8</kbd>.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="physics-2"><a class="anchor" href="#physics-2"></a>Physics</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Select <strong>Secondary Current Distribution</strong> and set <em>Current distribution type</em> to <code>Primary</code>.</p>
+</li>
+<li>
+<p>In <strong>Electrolyte 1</strong>, set <em>Electrical conductivity</em> to <code>User defined</code>, <code>5[S/m]</code>.</p>
+</li>
+<li>
+<p>Add <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electrode Surface</b></span> on the disc, the bottom boundary from r = 0 to r = a (boundary 2).
+Set <em>Electric potential (of the electrode)</em> to <code>1[V]</code>.
+The kinetics settings are ignored for a primary distribution.</p>
+</li>
+<li>
+<p>Add <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electrolyte Potential</b></span> on the quarter-circle arc and keep <code>0[V]</code>.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>The rest of the bottom and the symmetry axis keep the default <strong>Insulation 1</strong>.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_echem_4_disc_primary_interface.png" alt="Secondary Current Distribution settings with Current distribution type Primary">
+</div>
+<div class="title">Figure 4. Primary current distribution: the interface setting overrides the electrode kinetics</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="mesh"><a class="anchor" href="#mesh"></a>Mesh</h3>
+<div class="paragraph">
+<p>The geometry is 30 mm across and the singular edge needs elements of a few micrometres.</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Size</b></span>.
+Elmer Studio switches <strong>Mesh 1</strong> to a user-controlled mesh and adds <strong>Size 1</strong>, <strong>Free Triangular 1</strong> and a second Size node, <strong>Size 2</strong>.</p>
+</li>
+<li>
+<p>In <strong>Size 1</strong> (<em>Geometric entity level</em> <code>Entire geometry</code>), set <em>Element size</em> to <code>Custom</code> and:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Maximum element size</em>: <code>0.0025</code></p>
+</li>
+<li>
+<p><em>Minimum element size</em>: <code>2.5e-6</code></p>
+</li>
+<li>
+<p><em>Curvature factor</em>: <code>0.3</code></p>
+</li>
+<li>
+<p><em>Resolution of narrow regions</em>: <code>1</code></p>
+</li>
+<li>
+<p>keep <em>Maximum element growth rate</em> at <code>1.3</code>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>In <strong>Size 2</strong>, set <em>Geometric entity level</em> to <code>Point</code> and select the point at r = a, z = 0 (the disc edge).
+Set <em>Element size</em> to <code>Custom</code>, <em>Maximum element size</em> <code>5e-6</code>, <em>Minimum element size</em> <code>2.5e-6</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Size</b></span> again for <strong>Size 3</strong>.
+Set <em>Geometric entity level</em> to <code>Boundary</code>, select the disc (boundary 2), <em>Element size</em> <code>Custom</code>, <em>Maximum element size</em> <code>4e-5</code>, <em>Minimum element size</em> <code>2.5e-6</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Build Mesh</b></span>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_echem_5_disc_mesh.png" alt="Free triangular mesh refined at the disc electrode">
+</div>
+<div class="title">Figure 5. The mesh: coarse in the bulk, graded down to a few micrometres at the disc edge</div>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+The <em>Maximum element growth rate</em> grades the local sizes into the domain.
+Without it, a refined disc edge sits inside coarse elements; during development that put the disc resistance off by 6 to 46 %.
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="sect2">
+<h3 id="compute-and-evaluate"><a class="anchor" href="#compute-and-evaluate"></a>Compute and evaluate</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Compute (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>).</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Global Evaluation</b></span> and enter two expressions:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><code>cd.es1.Itot</code>, description <code>Disc current</code></p>
+</li>
+<li>
+<p><code>1/cd.es1.Itot</code>, description <code>Resistance V/I</code> (the disc is at 1 V)</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Click <strong>Evaluate</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_echem_6_disc_potential_current.png" alt="Global Evaluation of the disc current and resistance">
+</div>
+<div class="title">Figure 6. Electrolyte potential, concentrated around the disc, and the disc current and resistance</div>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Surface Integration</b></span>.
+In a 2D model this boundary integral is called <strong>Line Integration</strong>.
+Select the disc boundary, enter <code>cd.iloc</code> and click <strong>Evaluate</strong>.
+<em>Compute integral in revolved geometry</em> is on by default, so the result is the disc current again.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results-2"><a class="anchor" href="#check-the-results-2"></a>Check the results</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>cd.es1.Itot</code> = 0.020445 A and V/I = 48.911 Ω, against 48.939 Ω from the formula: about 0.06 % low.
+The regression test requires better than 0.5 %.</p>
+</li>
+<li>
+<p>The <strong>Line Integration</strong> of <code>cd.iloc</code> over the disc, in the revolved geometry, equals <code>cd.es1.Itot</code> (the test requires 1e-9).</p>
+</li>
+<li>
+<p><code>cd.es1.Itot</code> already includes the factor 2π of the revolution: Elmer&#8217;s axisymmetric loads are per radian.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="tutorial-3-tertiary-current-distribution-in-a-nernst-layer"><a class="anchor" href="#tutorial-3-tertiary-current-distribution-in-a-nernst-layer"></a>Tutorial 3: tertiary current distribution in a Nernst layer</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This model adds a concentration to the kinetics.
+The same 1D cell geometry idea is used: an anode at the bottom, a reference at φ<sub>l</sub> = 0 at the top, L = 200 µm apart.
+The first δ = 2 µm above the anode are a Nernst diffusion layer; above it the bulk is well mixed at concentration c<sub>b</sub>.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Kinetics are linear: i<sub>loc</sub> = (σ/Λ) η, a charge-transfer resistance Λ/σ with Λ = 15 µm.</p>
+</li>
+<li>
+<p>The dissolved product (ν = 1, n = 2) accumulates in the layer and raises the equilibrium potential by the linearized Nernst term \(E_{eq} = \frac{RT}{nF}\,\frac{c-c_b}{c_b}\).</p>
+</li>
+<li>
+<p>c<sub>b</sub> is chosen so that the concentration resistance equals that of a layer βδ thick, with β = 2.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Three resistances in series give</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[i = \frac{\sigma V}{L + \Lambda + \beta\delta},\qquad
+\beta = \frac{\sigma R T}{n^2F^2 D c_b}\]
+</div>
+</div>
+<div class="paragraph">
+<p>With σ = 20 S/m, V = 0.02 V and D = 1e-9 m²/s, that is i = 1826.48 A/m².
+Without the concentration term it would be 1860.47 A/m².</p>
+</div>
+<div class="sect2">
+<h3 id="create-the-model-2"><a class="anchor" href="#create-the-model-2"></a>Create the model</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span>, <strong>Model Wizard</strong>, <strong>2D</strong>.</p>
+</li>
+<li>
+<p>Add <strong>Electrochemistry &gt; Primary and Secondary Current Distribution &gt; Secondary Current Distribution</strong> and <strong>Chemical Species Transport &gt; Transport of Diluted Species</strong>.</p>
+</li>
+<li>
+<p>Choose <strong>Stationary</strong> and click <strong>Done</strong>.</p>
+</li>
+<li>
+<p>In <strong>Parameters 1</strong>, enter:</p>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 33.3333%;">
+<col style="width: 50.0001%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Expression</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sig</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>20[S/m]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrolyte conductivity</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Vc</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>0.02[V]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrode potential</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Lam</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>15e-6[m]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Polarization length Λ</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Dc</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>1e-9[m^2/s]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Diffusion coefficient</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>nel</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>2</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrons per reaction</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>cb</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>665.712[mol/m^3]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bulk concentration (β = 2)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>Tk</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>298.15[K]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Temperature</p></td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p>Add two rectangles with <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Rectangle</b></span>:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Rectangle 1</strong> (Nernst layer): <em>Width</em> <code>20e-6</code>, <em>Height</em> <code>2e-6</code>.</p>
+</li>
+<li>
+<p><strong>Rectangle 2</strong> (bulk): <em>Width</em> <code>20e-6</code>, <em>Height</em> <code>198e-6</code>, <em>y</em> <code>2e-6</code>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Press <kbd>F8</kbd>. The geometry has two domains that share the boundary at y = δ.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="current-distribution"><a class="anchor" href="#current-distribution"></a>Current distribution</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>In <strong>Electrolyte 1</strong>, set <em>Electrical conductivity</em> to <code>User defined</code> and <code>sig</code>.</p>
+</li>
+<li>
+<p>With <strong>Secondary Current Distribution</strong> selected, choose <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electrode Surface</b></span> and select the bottom boundary (y = 0).
+The Physics ribbon adds features to the interface that is selected in the Model Builder, or that contains the selected feature.
+Set:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Electric potential (of the electrode)</em>: <code>Vc</code></p>
+</li>
+<li>
+<p><em>Kinetics expression type</em>: <code>User defined i(eta)</code></p>
+</li>
+<li>
+<p><em>Local current density i(eta)</em>: <code>sig/Lam*eta</code></p>
+</li>
+<li>
+<p><em>Equilibrium potential</em>: <code>R_const*Tk/(nel*F_const)*(c-cb)/cb</code></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Add an <strong>Electrolyte Potential</strong> on the top boundary (y = 200 µm), <code>0[V]</code>.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="species-transport"><a class="anchor" href="#species-transport"></a>Species transport</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Select <strong>Transport of Diluted Species</strong>.
+In <em>Domain Selection</em>, choose <code>Manual</code> and keep only the thin lower domain, the Nernst layer.</p>
+</li>
+<li>
+<p>In <strong>Transport Properties 1</strong>, set <em>Diffusion coefficient</em> to <code>Dc</code>.</p>
+</li>
+<li>
+<p>In <strong>Initial Values 1</strong>, set <em>Concentration</em> to <code>cb</code>.</p>
+</li>
+<li>
+<p>Right-click <strong>Transport of Diluted Species</strong> and choose <strong>Boundaries &gt; Electrode Surface Coupling</strong>.
+Select the anode (y = 0) and set:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Electrode surface (name of a Current Distribution feature)</em>: <code>es1</code></p>
+</li>
+<li>
+<p><em>Stoichiometric coefficient</em>: <code>1</code></p>
+</li>
+<li>
+<p><em>Number of participating electrons</em>: <code>nel</code></p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>With <strong>Transport of Diluted Species</strong> selected, add <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Concentration</b></span> on the boundary between the layer and the bulk (y = δ), with <em>Concentration</em> <code>cb</code>.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="study-and-compute"><a class="anchor" href="#study-and-compute"></a>Study and compute</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Select <strong>Step 1: Stationary</strong> and set <em>Max coupling iterations</em> to <code>100</code> and <em>Coupling tolerance</em> to <code>1e-11</code>.
+Keep <em>Coupling damping factor</em> at <code>1</code>.</p>
+</li>
+<li>
+<p>Compute.</p>
+</li>
+<li>
+<p>Evaluate <code>cd.es1.Itot</code> with a <strong>Global Evaluation</strong>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Volume Maximum</b></span> (in 2D: <strong>Surface Maximum</strong>), select the Nernst layer domain and evaluate <code>c</code>.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="check-the-results-3"><a class="anchor" href="#check-the-results-3"></a>Check the results</h3>
+<div class="ulist">
+<ul>
+<li>
+<p><code>cd.es1.Itot</code> = 0.0365297 A/m, that is 1826.48 A/m² over the 20 µm width, equal to σV/(L + Λ + βδ) to 1e-8.</p>
+</li>
+<li>
+<p>The maximum of <code>c</code>, on the anode, is c<sub>b</sub> + iδ/(nFD) = 684.64 mol/m³ (the test requires 1e-6).</p>
+</li>
+<li>
+<p>The current is 1.8 % below σV/(L + Λ): the concentration resistance is there.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If a coupled model oscillates instead of converging, lower the <em>Coupling damping factor</em>.
+A loop gain G &gt; 1 between the two interfaces needs a factor below 2/(1 + G).
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="tutorial-4-current-modulation-over-a-sinusoidal-anode"><a class="anchor" href="#tutorial-4-current-modulation-over-a-sinusoidal-anode"></a>Tutorial 4: current modulation over a sinusoidal anode</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A wavy anode y = a cos(kx), with amplitude a = 1 µm and wavelength λ = 100 µm, faces a flat counter electrode L = 200 µm away.
+For a primary distribution and a small amplitude, Wagner&#8217;s analysis gives a current density of the form i<sub>0</sub>(1 + m cos kx), with</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[m = a\,k\coth(kL),\qquad k = \frac{2\pi}{\lambda}\]
+</div>
+</div>
+<div class="paragraph">
+<p>Here m = 0.06283: the crests, nearer the counter electrode, carry 6.3 % more than the mean.</p>
+</div>
+<div class="sect2">
+<h3 id="geometry-from-a-parametric-curve"><a class="anchor" href="#geometry-from-a-parametric-curve"></a>Geometry from a parametric curve</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Create a <strong>2D</strong> model with <strong>Secondary Current Distribution</strong> and a <strong>Stationary</strong> study.</p>
+</li>
+<li>
+<p>Select <strong>Geometry 1</strong> and set <em>Length unit</em> to <code>µm</code>.</p>
+</li>
+<li>
+<p>In <strong>Parameters 1</strong>, add <code>lam</code> = <code>100</code>, <code>a0</code> = <code>1</code> and <code>L</code> = <code>200</code>.
+Plain numbers in geometry settings are in the geometry length unit.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Parametric Curve</b></span>.
+Keep <em>Parameter name</em> <code>s</code> from <code>0</code> to <code>1</code>, and set <em>x</em> to <code>lam*s</code>, <em>y</em> to <code>a0*cos(2*pi*s)</code> and <em>Number of interpolation points</em> to <code>81</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Polygon</b></span>.
+Set <em>Type</em> to <code>Open curve</code>, <em>x</em> to <code>lam lam 0 0</code> and <em>y</em> to <code>a0 L L a0</code>.
+The polygon runs from the end of the wave up the right side, across the top and down the left side to the start of the wave.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Convert to Solid</b></span> and select the curve and the polygon as <em>Input objects</em>.</p>
+</li>
+<li>
+<p>Press <kbd>F8</kbd>.
+The geometry has 1 domain, 4 boundaries and 4 points: the wavy anode (boundary 1), the left side (2), the top (3) and the right side (4).</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="physics-and-mesh"><a class="anchor" href="#physics-and-mesh"></a>Physics and mesh</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Set <em>Current distribution type</em> to <code>Primary</code> and <em>Electrical conductivity</em> in <strong>Electrolyte 1</strong> to <code>User defined</code>, <code>20[S/m]</code>.</p>
+</li>
+<li>
+<p>Add an <strong>Electrode Surface</strong> on the anode with <em>Electric potential (of the electrode)</em> <code>0[V]</code>.</p>
+</li>
+<li>
+<p>Add an <strong>Electrolyte Potential</strong> on the top with <code>-0.02[V]</code>.</p>
+</li>
+<li>
+<p>Click <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Mapped</b></span>.
+The mesh becomes user-controlled with <strong>Size 1</strong>, <strong>Free Triangular 1</strong> and <strong>Mapped 1</strong>.
+Select <strong>Free Triangular 1</strong> and press <kbd>Delete</kbd>.</p>
+</li>
+<li>
+<p>Add three <strong>Distribution</strong> nodes with <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Distribution</b></span>:</p>
+<div class="ulist">
+<ul>
+<li>
+<p>anode and top (boundaries 1 and 3): <em>Number of elements</em> <code>80</code>;</p>
+</li>
+<li>
+<p>right side (4): <em>Number of elements</em> <code>60</code>, <em>Element ratio</em> <code>20</code>;</p>
+</li>
+<li>
+<p>left side (2): <em>Number of elements</em> <code>60</code>, <em>Element ratio</em> <code>20</code>, <em>Reverse direction</em> on.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Build the mesh (<span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Build Mesh</b></span>).
+Opposite sides have the same counts, as a Mapped mesh requires.
+The element ratio grades both sides so that the smallest elements are at the anode; if the Graphics window shows the grading the wrong way on a side, toggle its <em>Reverse direction</em>.
+It has 80 × 60 = 4800 quadratic quadrilaterals; <span class="menuseq"><b class="menu">Mesh</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Statistics</b></span> shows the counts.</p>
+</li>
+</ol>
+</div>
+</div>
+<div class="sect2">
+<h3 id="compute-and-check-the-results"><a class="anchor" href="#compute-and-check-the-results"></a>Compute and check the results</h3>
+<div class="paragraph">
+<p>Compute, then evaluate <code>cd.es1.Itot</code> with a <strong>Global Evaluation</strong>.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>cd.es1.Itot</code> = 0.2000 A/m, the flat-cell value σ·0.02 V/L·λ, to 0.02 % (the test requires 0.1 %).</p>
+</li>
+<li>
+<p>The nodal <code>cd.iloc</code> on the anode ranges from about 1875 A/m² in the troughs to 2126 A/m² on the crests.</p>
+</li>
+<li>
+<p>The regression test fits i<sub>0</sub> + i<sub>1</sub> cos kx through the anode values: i<sub>1</sub>/i<sub>0</sub> matches a k coth(kL) = 0.06283 within 0.02 % (the test requires 0.2 %).</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+To sweep the amplitude, for example <code>a0</code> = <code>1 0</code> µm, select the electrodes with Box Selections (<span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Box Selection</b></span>, <em>y maximum</em> <code>L/2</code> for the anode, <em>y minimum</em> <code>L/2</code> for the top) instead of boundary numbers.
+A change of shape can renumber the boundaries (the regression test sees this when the amplitude of a wavy anode goes to zero); Box Selections are re-evaluated on every run&#8217;s geometry.
+See <a href="../user-guide/electrochemistry.html" class="xref page">Electrochemistry: current distribution</a>.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="where-to-go-next"><a class="anchor" href="#where-to-go-next"></a>Where to go next</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="../user-guide/electrochemistry.html" class="xref page">Electrochemistry: current distribution</a> explains every feature, the Newton–Robin solution of the kinetics and the coupling settings.</p>
+</li>
+<li>
+<p><a href="../reference/physics-cd.html" class="xref page">Secondary Current Distribution (cd)</a> and <a href="../reference/physics-tds.html" class="xref page">Transport of Diluted Species (tds)</a> list all settings with their defaults.</p>
+</li>
+<li>
+<p><a href="../user-guide/studies.html" class="xref page">Studies and solving</a> covers parametric sweeps in general.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="acoustics.html">Acoustics</a></span>
+  <span class="next"><a href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

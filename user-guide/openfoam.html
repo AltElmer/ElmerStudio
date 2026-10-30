@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>OpenFOAM backend :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-guide/openfoam.html">
+    <link rel="prev" href="elmer.html">
+    <link rel="next" href="nastran.html">
+    <meta name="description" content="Solving Laminar Flow and Heat Transfer in Solids with OpenFOAM and blockMesh instead of ElmerSolver, what is supported, what is refused and why.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>User guide</li>
+    <li><a href="openfoam.html">OpenFOAM backend</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/user-guide/pages/openfoam.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">OpenFOAM backend</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>A study can be solved by <strong>OpenFOAM</strong> (finite volumes, with a <strong>blockMesh</strong> hexahedral mesh) instead of ElmerSolver. You build the model exactly as for Elmer: geometry, materials, physics features, mesh settings, study. Only the study&#8217;s <strong>Solver backend</strong> setting changes. The results come back into the same Results machinery, with the same variable names and SI units as an Elmer solution, so plots, derived values, selections and export work unchanged.</p>
+</div>
+<div class="paragraph">
+<p>OpenFOAM covers a narrow, exact subset. Anything it cannot represent faithfully is refused before anything runs, with a sentence saying why and what to use instead. Elmer Studio never falls back to Elmer silently.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="choosing-the-backend"><a class="anchor" href="#choosing-the-backend"></a>Choosing the backend</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Select the study node and set <strong>Solver backend</strong> (section <em>Study Settings</em>) to <strong>OpenFOAM (blockMesh)</strong>. The default is <strong>Elmer</strong>, and models saved before this setting existed open with Elmer.</p>
+</div>
+<div class="paragraph">
+<p>Choosing OpenFOAM implies blockMesh meshing of the component: the <strong>Mesher</strong> choice on the Mesh node (Gmsh or ElmerGrid) applies to Elmer studies only. The element sizes of the Mesh node and its Size and Distribution children still set the mesh density (see <a href="#mesh">Mesh</a>).</p>
+</div>
+<div class="paragraph">
+<p>When the model cannot be solved by OpenFOAM, <strong>Compute</strong> is unavailable and its tooltip says why ("Unavailable: &#8230;&#8203;"), and the study node carries an error mark with the same sentence. Reasons that need the geometry (a circle, a rotated rectangle) are reported when you click <strong>Compute</strong>, before anything runs.</p>
+</div>
+<div class="paragraph">
+<p>OpenFOAM is found through <code>OPENFOAM_ROOT</code>, then <code>WM_PROJECT_DIR</code>, then the usual install locations, and on Windows finally an OpenFOAM inside WSL (<code>/usr/lib/openfoam/openfoamNNNN</code>). <code>OPENFOAM_ROOT</code> may be:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the folder of an ESI Windows tree with its bundled <code>msys64</code> (v2106), whose own bash sources <code>etc/bashrc</code> with <code>HOME=/home/ofuser</code>;</p>
+</li>
+<li>
+<p>a Linux OpenFOAM project folder (the one holding <code>etc/bashrc</code>);</p>
+</li>
+<li>
+<p><code>wsl:/usr/lib/openfoam/openfoam2606</code>, a Linux OpenFOAM in the default WSL distribution.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>With the OpenFOAM study selected, <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Show OpenFOAM Input Files</b></span> lists the generated dictionaries without running anything: <code>system/</code>, <code>constant/</code>, and a per-patch summary of the boundary conditions that go into <code>0/</code> once blockMesh has made the mesh.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="what-is-supported"><a class="anchor" href="#what-is-supported"></a>What is supported</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Model</th>
+<th class="tableblock halign-left valign-top">OpenFOAM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Laminar Flow</strong>, stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>simpleFoam</code>, laminar, SIMPLEC, until the initial residuals of <code>U</code> and <code>p</code> fall below the tolerance</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Laminar Flow</strong>, time dependent</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>pimpleFoam</code>, laminar, fixed time step (output step / solver steps per output step), Euler (BDF order 1) or <code>backward</code> (BDF order 2)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Heat Transfer in Solids</strong>, stationary</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>laplacianFoam</code> with the <code>steadyState</code> time derivative: one solve of the linear conduction equation</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Heat Transfer in Solids</strong>, time dependent</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>laplacianFoam</code>, fixed time step, Euler or <code>backward</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D geometry</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Rectangles and unions of axis-aligned rectangles; one cell thick in z with <code>empty</code> front and back</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D geometry</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Blocks and unions of axis-aligned blocks</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Parametric sweeps</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One OpenFOAM case per parameter value</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect2">
+<h3 id="feature-mapping"><a class="anchor" href="#feature-mapping"></a>Feature mapping</h3>
+<div class="paragraph">
+<p>OpenFOAM&#8217;s incompressible solvers work with the <strong>kinematic</strong> pressure p/ρ and the kinematic viscosity ν = μ/ρ. Elmer Studio converts both ways: pressures you enter (in Pa) are divided by ρ in the case files, and the pressure result is multiplied by ρ, so <code>p</code> is in Pa as in an Elmer solution.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 28.5714%;">
+<col style="width: 42.8572%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Studio feature</th>
+<th class="tableblock halign-left valign-top"><code>U</code></th>
+<th class="tableblock halign-left valign-top"><code>p</code> (kinematic)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fluid Properties (ρ, μ from the material or user defined)</p></td>
+<td class="tableblock halign-left valign-top" colspan="2"><p class="tableblock"><code>constant/transportProperties</code>: <code>nu</code> = μ/ρ. ρ must be one constant for all fluid domains.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Initial Values (u, p)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>internalField</code> u</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>internalField</code> p/ρ</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Wall, no slip</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>noSlip</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zeroGradient</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Wall, slip</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>slip</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zeroGradient</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inlet, normal inflow velocity U<sub>0</sub></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fixedValue</code> −U<sub>0</sub><strong>n</strong> per face</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zeroGradient</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inlet, velocity field (u<sub>0</sub>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fixedValue</code> u<sub>0</sub> per face</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zeroGradient</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inlet, pressure p<sub>0</sub></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zeroGradient</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fixedValue</code> p<sub>0</sub>/ρ</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Outlet, pressure p<sub>0</sub></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zeroGradient</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fixedValue</code> p<sub>0</sub>/ρ</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Outlet, normal flow</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>directionMixed</code>: tangential components 0, normal component zero gradient</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fixedValue</code> p<sub>0</sub>/ρ</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Symmetry</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>symmetryPlane</code> patch</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>symmetryPlane</code> patch</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The Outlet and the pressure Inlet set the pressure on the boundary and a zero normal gradient of the velocity. Studio&#8217;s (and COMSOL&#8217;s) outlet condition is a traction condition, <strong class="−p*<strong>I</strong>* + <strong>*K</strong>*">n</strong> = −p<sub>0</sub><strong>n</strong>. The two agree where the flow crosses the boundary parallel, as in a fully developed outflow, and differ by the viscous normal stress elsewhere.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Studio feature</th>
+<th class="tableblock halign-left valign-top"><code>T</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solid (k, ρ, C<sub>p</sub>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>constant/transportProperties</code>: <code>DT</code> = k/(ρC<sub>p</sub>). k, ρ and C<sub>p</sub> must be constants, equal in all domains.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Initial Values T<sub>0</sub></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>internalField</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat Source Q<sub>0</sub></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>system/fvOptions</code>: <code>scalarSemiImplicitSource</code>, specific, <code>Su</code> = Q<sub>0</sub>/(ρC<sub>p</sub>)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Temperature T<sub>0</sub></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fixedValue</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Thermal Insulation, Symmetry</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>zeroGradient</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat Flux, general inward q<sub>0</sub></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>fixedGradient</code> q<sub>0</sub>/k</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat Flux, convective (h, T<sub>ext</sub>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>mixed</code>: <code>refValue</code> T<sub>ext</sub>, <code>refGradient</code> 0, <code>valueFraction</code> h/(h + k/d) per face, d the distance from the cell centre to the face. This is the exact discrete Robin condition: the face flux k(T<sub>f</sub> − T<sub>c</sub>)/d equals h(T<sub>ext</sub> − T<sub>f</sub>).</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Values may depend on x, y and z (they are evaluated at the face or cell centres), on parameters and on functions. A boundary value that depends on time or on the solution is refused.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="mesh"><a class="anchor" href="#mesh"></a>Mesh</h3>
+<div class="paragraph">
+<p>The geometry is cut into blocks by every x, y (and z) coordinate of its vertices. Each block that lies inside a domain becomes a blockMesh block, in a cell zone named after the domain number (<code>dom1</code>, <code>dom2</code>, &#8230;&#8203;). Each boundary becomes a patch named after its number (<code>bnd1</code>, <code>bnd2</code>, &#8230;&#8203;). Selections, boundary integrals and plots therefore use the same numbers as the geometry.</p>
+</div>
+<div class="paragraph">
+<p>Cell counts come from the mesh settings: an interval of length ℓ gets ⌈ℓ/h⌉ cells, where h is the element size of the Mesh node (with the same fluid-flow calibration as Gmsh) or of a Size node, limited by the resolution of narrow regions. A <strong>Distribution</strong> on a boundary (2D) or an edge (3D) that spans exactly one interval sets its number of cells and its grading (element ratio, symmetric, reverse). The counts are per interval, so they are the same in every block the interval crosses.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="results"><a class="anchor" href="#results"></a>Results</h3>
+<div class="paragraph">
+<p>Each solution folder holds the OpenFOAM case (<code>foam/</code>), the logs, and the same files as an Elmer run: <code>meta.json</code>, <code>model.json</code>, <code>mesh.npz</code> and <code>results/case_t*.vtu</code>. The mesh topology is the blockMesh mesh: quadrilaterals in 2D (the front plane), hexahedra in 3D, with the boundary elements of every Studio boundary.</p>
+</div>
+<div class="paragraph">
+<p>OpenFOAM stores cell averages; Studio&#8217;s plots and integrals work on node values. They are made as follows:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>on a boundary with a fixed value (wall, velocity inlet, fixed temperature, fixed pressure) the node takes the boundary value. Where a no-slip wall meets another boundary the wall wins, as at Elmer&#8217;s corner nodes;</p>
+</li>
+<li>
+<p>every other node gets a linear least-squares fit to the cells around it, plus the next layer of cells inward at a boundary, plus the boundary faces whose value is a physical condition (heat flux, convective flux, symmetry, slip). The fit is exact for a linear field and second order otherwise;</p>
+</li>
+<li>
+<p>on symmetry and slip boundaries the normal velocity is zero at the nodes, and on a normal-flow outlet the tangential velocity is.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>An integral of a node field differs from OpenFOAM&#8217;s own face fluxes by O(h²). In a channel with 20 cells across, the flow through the outlet integrated by Derived Values is 0.75 % below the inflow while the face fluxes balance to 1e-10; with 40 cells it is 0.19 %.</p>
+</div>
+<div class="paragraph">
+<p>Variables: <code>u</code>, <code>v</code>, <code>w</code>, <code>spf.U</code>, <code>p</code> (Pa) for Laminar Flow; <code>T</code> (K) for heat transfer. The conductive heat flux (<code>ht.tflux</code>) is not provided by this backend.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="convergence"><a class="anchor" href="#convergence"></a>Convergence</h3>
+<div class="paragraph">
+<p>The log is judged with the same statuses as Elmer runs:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>converged</strong>: <code>simpleFoam</code> reported <code>SIMPLE solution converged</code> (every initial residual below the tolerance), or it reached its maximum number of iterations and one more iteration changed U and p by less than the tolerance (see below); a transient or <code>laplacianFoam</code> run ended with every final linear-solver residual at or below its tolerance;</p>
+</li>
+<li>
+<p><strong>not converged</strong>: <code>simpleFoam</code> reached its maximum number of iterations and the solution was still changing by more than the tolerance; a linear solve ended above its tolerance; a time step&#8217;s continuity error (<code>sum local</code>) exceeded 1e-4;</p>
+</li>
+<li>
+<p><strong>failed</strong>: OpenFOAM exited with an error (<code>FOAM FATAL ERROR</code>, a floating point exception), did not finish within the time limit (1 hour per command, <code>ELMERSTUDIO_FOAM_TIMEOUT</code>), or wrote no result.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>OpenFOAM normalizes each residual by the variation of the field itself. For a field that is uniform or zero, such as the pressure between slip walls or the cross-flow velocity in a straight channel, that normalization is noise and the residual stalls however good the solution is. So when SIMPLE stops at its limit, Elmer Studio runs one more iteration and measures the relative change: of U against max|U|, and of p against max(|p|, |U|²). This is the measure Elmer&#8217;s own nonlinear tolerance uses. The study&#8217;s Messages report both numbers.</p>
+</div>
+<div class="paragraph">
+<p>The tolerance and the maximum number of iterations come from the study&#8217;s <strong>Solver Configurations</strong> node: <em>Nonlinear tolerance</em> and <em>Maximum nonlinear iterations</em>, where 0 means 2000 SIMPLE iterations. The linear tolerance and maximum iterations set OpenFOAM&#8217;s linear solvers (PCG for T; GAMG for p; smoothSolver for U). The study&#8217;s <em>When nonlinear or coupling iterations do not converge</em> setting decides whether a not converged run stops the study or is kept. The Convergence Plot shows the initial residual of every equation per iteration or time step.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="what-is-refused"><a class="anchor" href="#what-is-refused"></a>What is refused</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Each of these stops <strong>Compute</strong> before any file is written, with the reason:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>physics other than Laminar Flow and Heat Transfer in Solids, and more than one physics interface in a study step;</p>
+</li>
+<li>
+<p>multiphysics couplings;</p>
+</li>
+<li>
+<p>eigenfrequency and frequency-domain studies;</p>
+</li>
+<li>
+<p>2D axisymmetric components;</p>
+</li>
+<li>
+<p>geometry that is not a union of axis-aligned rectangles or blocks (circles, arcs, rotated or imported shapes, curved faces);</p>
+</li>
+<li>
+<p>Laminar Flow: Volume Force, Gravity, Open Boundary, Stokes flow, density or viscosity that is not constant or differs between domains;</p>
+</li>
+<li>
+<p>Heat Transfer: Fluid (convection), Surface-to-Ambient Radiation, properties that are not constant or differ between domains;</p>
+</li>
+<li>
+<p>a boundary condition on an interior boundary (it would need a baffle);</p>
+</li>
+<li>
+<p>a physics interface that does not cover every domain of the component;</p>
+</li>
+<li>
+<p>boundary values that depend on time or on the solution; output times that are not equally spaced;</p>
+</li>
+<li>
+<p>mesh Size nodes on boundaries, edges or points; a Distribution spanning more than one block interval, or two that conflict;</p>
+</li>
+<li>
+<p>a study that solves several components with different backends.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="out-of-scope"><a class="anchor" href="#out-of-scope"></a>Out of scope</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Unstructured meshes (<code>gmshToFoam</code>, <code>snappyHexMesh</code>), turbulence models, multiphase flow, conjugate heat transfer between regions, and parallel decomposition. Use Elmer for these, or run the exported case by hand.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="elmer.html">Elmer under the hood</a></span>
+  <span class="next"><a href="nastran.html">NASTRAN-95 backend</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

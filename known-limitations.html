@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Known limitations :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/known-limitations.html">
+    <link rel="prev" href="troubleshooting.html">
+    <link rel="next" href="contributing.html">
+    <meta name="description" content="What Elmer Studio does not do yet, compared with COMSOL, listed so that nobody assumes it does.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="./_/css/site.css">
+    <link rel="stylesheet" href="./_/css/site-extra.css">
+    <link rel="icon" href="./_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="./_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="./installation.html">Install</a>
+        <a class="navbar-item" href="./quick-start.html">Quick start</a>
+        <a class="navbar-item" href="./tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="./user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="./reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Elmer Studio</a></li>
+    <li>About</li>
+    <li><a href="known-limitations.html">Known limitations</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/ROOT/pages/known-limitations.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Known limitations</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This list is deliberately explicit.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="not-available-yet"><a class="anchor" href="#not-available-yet"></a>Not available yet</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>shells, plates and beams: Elmer has ShellSolver and the Smitc plate solver, but Solid Mechanics in Studio is continuum only;</p>
+</li>
+<li>
+<p>3D magnetic fields (A–V formulation);</p>
+</li>
+<li>
+<p>turbulence;</p>
+</li>
+<li>
+<p>contact, nonlinear materials and prestressed (harmonic perturbation) structural analysis;</p>
+</li>
+<li>
+<p>damped (complex) eigenfrequencies: the eigenfrequency study ignores Damping;</p>
+</li>
+<li>
+<p>acoustic boundary elements (BEM) and perfectly matched layers. Open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;</p>
+</li>
+<li>
+<p>exterior field calculation in 2D planar models (it would need Hankel functions);</p>
+</li>
+<li>
+<p>result filters, dataset joins, and Combined/Array datasets;</p>
+</li>
+<li>
+<p>adaptive mesh refinement;</p>
+</li>
+<li>
+<p>LiveLink-style CAD synchronisation;</p>
+</li>
+<li>
+<p>the Application Builder;</p>
+</li>
+<li>
+<p>reading or writing COMSOL <code>.mph</code> files.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="partly-supported"><a class="anchor" href="#partly-supported"></a>Partly supported</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Boundary layers are meshed in 2D and 2D axisymmetric models only (gmsh&#8217;s boundary-layer field is two-dimensional); in 3D the <strong>Boundary Layers</strong> node is not offered, and Studio&#8217;s single node takes the boundaries directly (COMSOL nests them in a <strong>Boundary Layer Properties</strong> subnode).</p>
+</li>
+<li>
+<p>Solid Mechanics in a Frequency Domain study: stresses are not computed (Elmer gives those of the real part only), loads have zero phase, and a Roller or Symmetry condition must lie on a boundary perpendicular to a coordinate axis (Elmer&#8217;s harmonic solve does not rotate a normal-tangential constraint back, so other boundaries are refused). Eigenfrequency studies constrain such boundaries the same way; on an inclined or curved one they keep Elmer&#8217;s normal-tangential form, with a warning.</p>
+</li>
+<li>
+<p>Damping is Rayleigh damping (mass and stiffness proportional), as in COMSOL&#8217;s Damping subnode; loss-factor damping is not offered. A Time Dependent structural study starts at rest (zero initial velocity).</p>
+</li>
+<li>
+<p>Probes are evaluated from the saved output steps (every output time, frequency or parameter value), not at the solver&#8217;s internal steps; while a study runs the Probe Table follows the outputs written so far (time-dependent studies).</p>
+</li>
+<li>
+<p>Animations are written as an animated GIF or a PNG image sequence; there is no AVI/WebM output and no player inside the Graphics window.</p>
+</li>
+<li>
+<p>Clicking a result plot to read its value (<strong>Evaluation 2D</strong> / <strong>Evaluation 3D</strong>) works in 2D and 3D plot groups only. 1D and polar graphs are matplotlib figures: for a value at a point there, use a Point Evaluation or a Point Graph. A click reports the plots of the group that use the clicked plot&#8217;s dataset; plots on another dataset are left out of that row.</p>
+</li>
+<li>
+<p>Library materials have constant properties at 20 °C, unless you enter an expression.</p>
+</li>
+<li>
+<p>The physics-controlled mesh refines automatically only for laminar flow and acoustics.</p>
+</li>
+<li>
+<p>With an incident plane wave the acoustic solution is the total field. The exterior field is then most accurate when integrated over the scatterer&#8217;s surface.</p>
+</li>
+<li>
+<p>Coupling operators work in results, not inside the equations.</p>
+</li>
+<li>
+<p>In the electrochemistry interfaces, there is no electrode (solid-phase) domain, total-power electrode condition, or double-layer capacitance. A total current on an Electrode Surface works in Stationary studies, for one electrode per component: the study repeats the solve, adjusting the electrode potential, until the current matches (a few solves).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="elmergrid-mesher"><a class="anchor" href="#elmergrid-mesher"></a>ElmerGrid mesher</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The ElmerGrid mesher (<a href="user-guide/mesh.html" class="xref page">Mesh</a>) covers only part of what ElmerGrid can do:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Only layouts of axis-aligned rectangles and blocks. ElmerGrid&#8217;s geometry mappings (curved lines, sine waves, circles), revolved meshes, polar shells and 1D meshes are not used, so curved or rotated geometry needs gmsh.</p>
+</li>
+<li>
+<p>Every subcell gets equal elements. ElmerGrid&#8217;s element ratios and densities are not exposed, and <strong>Distribution</strong> nodes and local <strong>Size</strong> nodes are refused.</p>
+</li>
+<li>
+<p>In 3D, ElmerGrid makes at least two element layers in z in every layer of blocks.</p>
+</li>
+<li>
+<p>Quadratic prisms are not available: ElmerGrid extrudes only linear triangles.</p>
+</li>
+<li>
+<p>ElmerGrid&#8217;s mesh conversion (from other formats) and its clean-up options such as <code>-autoclean</code> are not offered: they renumber bodies and boundaries, and Studio&#8217;s selections depend on the geometry&#8217;s numbers.</p>
+</li>
+<li>
+<p>A boundary that lies inside a single domain (an embedded line or face) has no ElmerGrid elements, so the mesh is refused.</p>
+</li>
+<li>
+<p>Remeshing in a deforming-domain study uses gmsh. Messages says so when it replaces an ElmerGrid mesh.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Partitioning for MPI runs is done by ElmerGrid (Metis) for both meshers, as before.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="desktop"><a class="anchor" href="#desktop"></a>Desktop</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>The desktop has one light theme. The Graphics window has light, white and dark themes, with a separate theme for exported images.</p>
+</li>
+<li>
+<p><kbd>F1</kbd> opens the help in the web browser. There is no Help window inside the desktop.</p>
+</li>
+<li>
+<p>Recovery keeps the unsaved model and reuses the interrupted session&#8217;s solutions, but cannot continue a solve from where it stopped (COMSOL&#8217;s <strong>Continue</strong>).</p>
+</li>
+<li>
+<p>The mouse wheel zooms. Hidden entities are reached with <kbd>Up</kbd>/<kbd>Down</kbd> or <kbd>+</kbd>/<kbd>-</kbd> (the wheel does not step through them).</p>
+</li>
+<li>
+<p>A font size change takes effect at the next start.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="approximations"><a class="anchor" href="#approximations"></a>Approximations</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Integrals over quadratic elements use linearized cells (about 0.1 % on smooth fields). Boundary fluxes from reaction loads, such as electrode currents and heat flows, are exact.</p>
+</li>
+<li>
+<p>Units are checked and reported, but a value of the wrong unit is still used (its SI number), as in COMSOL.</p>
+</li>
+<li>
+<p>A component uses another component&#8217;s results only through coupling operators (scalars), one way, evaluated once per study step.</p>
+</li>
+<li>
+<p>Identity pairs give continuity for scalar fields (heat transfer, electrostatics, electric currents, coefficient-form PDE); solid mechanics, flow and transport do not use them yet.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="parallel-computing"><a class="anchor" href="#parallel-computing"></a>Parallel computing</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>MPI runs need an MPI-enabled Elmer. The Windows <code>-nompi</code> builds of Elmer run serially.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>On more than one process, UMFPACK direct solves become BiCGStab with ILU(0), and the Newton line search is off. An eigenfrequency study keeps its direct solver, so in parallel it needs an Elmer with MUMPS.</p>
+</li>
+<li>
+<p>Parallel runs of the tutorial cell were checked against the serial result with an MPI Elmer on Windows (MS-MPI) and Linux (Open MPI). On macOS only the search for <code>mpiexec</code> is tested; no macOS MPI run has been made.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="openfoam-backend"><a class="anchor" href="#openfoam-backend"></a>OpenFOAM backend</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The OpenFOAM backend (see <a href="user-guide/openfoam.html" class="xref page">OpenFOAM backend</a>) is deliberately narrow:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Laminar Flow and Heat Transfer in Solids only, one physics per study step, stationary or time dependent;</p>
+</li>
+<li>
+<p>blockMesh only: unions of axis-aligned rectangles (2D) or blocks (3D). No <code>gmshToFoam</code> or <code>snappyHexMesh</code> for other shapes, and no 2D axisymmetric wedge;</p>
+</li>
+<li>
+<p>no turbulence, multiphase, conjugate heat transfer between regions, or parallel decomposition;</p>
+</li>
+<li>
+<p>one constant density and viscosity (or k, ρ, C<sub>p</sub>) for all domains;</p>
+</li>
+<li>
+<p>the outlet sets p = p<sub>0</sub> with a zero normal velocity gradient. It equals Studio&#8217;s traction outlet only where the flow leaves parallel;</p>
+</li>
+<li>
+<p>no conductive heat flux (<code>ht.tflux</code>) in the results;</p>
+</li>
+<li>
+<p>equally spaced output times with a fixed time step;</p>
+</li>
+<li>
+<p>verified with OpenFOAM v2606 under WSL. The Windows (msys) launcher for the ESI v2106 tree and a native Linux install are implemented but not verified.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="troubleshooting.html">Troubleshooting and FAQ</a></span>
+  <span class="next"><a href="contributing.html">Contributing</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="./_/js/site.js" data-ui-root-path="./_"></script>
+<script async src="./_/js/vendor/highlight.js"></script>
+<script src="./_/js/vendor/lunr.js"></script>
+<script src="./_/js/search-ui.js" id="search-ui-script" data-site-root-path="." data-snippet-length="100" data-stylesheet="./_/css/search.css"></script>
+<script async src="./search-index.js"></script>
+  </body>
+</html>

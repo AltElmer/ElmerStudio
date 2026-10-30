@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Electrochemistry: deforming electrodes :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/tutorials/deforming-electrodes.html">
+    <link rel="prev" href="electrochemistry.html">
+    <link rel="next" href="nastran.html">
+    <meta name="description" content="A dissolving anode that changes shape over time: electropolishing levels a rough surface, checked against the analytic levelling law.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+    <script>
+      window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+                         options: { ignoreHtmlClass: 'nostem|nolatexmath' } };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-guide/nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>Tutorials</li>
+    <li><a href="deforming-electrodes.html">Electrochemistry: deforming electrodes</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/tutorials/pages/deforming-electrodes.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Electrochemistry: deforming electrodes</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>In electropolishing and electrochemical machining, the anode dissolves where the current leaves it, so its shape changes over time. Crests of a rough surface draw more current than troughs and dissolve faster, and the surface levels out. This tutorial models one wavelength of a rough anode facing a flat cathode, lets it dissolve for ten minutes, and checks the levelling rate against the classical linear theory.</p>
+</div>
+<div class="ulist">
+<div class="title">What you will learn</div>
+<ul>
+<li>
+<p>Make an electrode surface move with its dissolution rate (<strong>Deforming electrode surface</strong>), and let the mesh follow it (<strong>Deforming Domain</strong>).</p>
+</li>
+<li>
+<p>Run a <strong>Time Dependent</strong> study in which the shape changes.</p>
+</li>
+<li>
+<p>Plot the electrode shape at every output time, and evaluate the roughness amplitude with coupling operators.</p>
+</li>
+</ul>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<caption class="title">Table 1. Model at a glance</caption>
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Space dimension</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Physics</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Secondary Current Distribution (<code>cd</code>), primary current distribution, with a Deforming Domain</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Study</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Time Dependent, 0 to 600 s</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solve time</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">about 2 minutes (40 time steps, 81 solves)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Expected result</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">the amplitude decays exponentially with the removed thickness, at the rate k·coth(kL)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="the-physics"><a class="anchor" href="#the-physics"></a>The physics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The electrolyte potential solves Laplace&#8217;s equation (primary current distribution: no kinetics, so the current is limited by the electrolyte&#8217;s resistance). At every instant, the metal recedes along the electrode normal at the <strong>dissolution velocity</strong>:</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[v_n = \varepsilon\,\frac{M\,i_{loc}}{n F \rho_m}\]
+</div>
+</div>
+<div class="paragraph">
+<p>with the local current density \(i_{loc}\), molar mass M, number of electrons n, metal density \(\rho_m\) and current efficiency \(\varepsilon\).</p>
+</div>
+<div class="paragraph">
+<p>For a small roughness \(h = a\cos kx\) at distance L from the cathode, linear theory gives the local current density \(i \propto 1 + a k \coth(kL) \cos kx\). Feeding it into the dissolution velocity gives the levelling law, in terms of the mean removed thickness \(\bar h\):</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[\frac{d \ln a}{d \bar h} = -k \coth(kL)\]
+</div>
+</div>
+<div class="paragraph">
+<p>Every material and operating constant cancels: the amplitude falls by a factor e for every 1/k of metal removed, here 32 µm. This makes it a clean check of the moving boundary.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="1-model-parameters-and-geometry"><a class="anchor" href="#1-model-parameters-and-geometry"></a>1. Model, parameters and geometry</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p><span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span> › <strong>Model Wizard</strong> › <strong>2D</strong> › <strong>Electrochemistry</strong> › <strong>Secondary Current Distribution</strong> › <strong>Add</strong> › <strong>Study</strong> › <strong>Time Dependent</strong> › <strong>Done</strong>.</p>
+</li>
+<li>
+<p>In <strong>Parameters 1</strong>:</p>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 33.3333%;">
+<col style="width: 50.0001%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Name</th>
+<th class="tableblock halign-left valign-top">Expression</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>lam</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>200[um]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Wavelength of the surface roughness</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>L</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>300[um]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Gap from the mean anode surface to the cathode</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>a0</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>10[um]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Initial amplitude of the roughness</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>V</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>50[mV]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cell voltage</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>sigma</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>10[S/m]</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrolyte conductivity</p></td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p>Select <strong>Geometry 1</strong> and set <em>Length unit</em> to <strong>µm</strong>.</p>
+</li>
+<li>
+<p>Draw the anode as a <strong>Parametric Curve</strong> (right-click <strong>Geometry 1</strong> › <strong>Primitives</strong> › <strong>Parametric Curve</strong>): <em>x</em> <code>lam*s</code>, <em>y</em> <code>a0*cos(2*pi*s)</code>, with s from 0 to 1, 121 points.</p>
+</li>
+<li>
+<p>Close the cell with a <strong>Polygon</strong> of <em>Type</em> <strong>Open curve</strong>: <em>x</em> <code>lam lam 0 0</code>, <em>y</em> <code>a0 L L a0</code>.</p>
+</li>
+<li>
+<p>Add <strong>Convert to Solid</strong> with both curves as input.</p>
+</li>
+<li>
+<p>Add four <strong>Box Selections</strong> (<span class="menuseq"><b class="menu">Geometry</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Box Selection</b></span>, level <strong>Boundary</strong>), labelled after what they select: <strong>Anode</strong> (<em>y maximum</em> <code>L/2</code>), <strong>Cathode</strong> (<em>y minimum</em> <code>L/2</code>), <strong>Left wall</strong> (<em>x maximum</em> <code>lam/10</code>) and <strong>Right wall</strong> (<em>x minimum</em> <code>0.9*lam</code>). They stay right when the geometry is rebuilt.</p>
+</li>
+<li>
+<p>Press <kbd>F8</kbd>.</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="2-physics"><a class="anchor" href="#2-physics"></a>2. Physics</h2>
+<div class="sectionbody">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Select <strong>Secondary Current Distribution</strong> and set <em>Current distribution type</em> to <strong>Primary</strong>.</p>
+</li>
+<li>
+<p>In <strong>Electrolyte 1</strong>, set <em>Electrical conductivity</em> to <strong>User defined</strong>, <code>sigma</code>.</p>
+</li>
+<li>
+<p>Add an <strong>Electrode Surface</strong> (<span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="submenu">Boundaries</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Electrode Surface</b></span>), label it <strong>Anode</strong>, and choose the <strong>Anode</strong> box selection. Keep <em>Electric potential</em> <code>0[V]</code>. In the <strong>Dissolution</strong> section keep iron&#8217;s molar mass, two electrons and density, and check <strong>Deforming electrode surface (the boundary dissolves or grows)</strong>. <em>Current efficiency</em> stays <code>1</code>.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_deform_1_electrode_surface.png" alt="Electrode Surface with Deforming electrode surface checked">
+</div>
+<div class="title">Figure 1. The anode: a primary electrode that dissolves</div>
+</div>
+</li>
+<li>
+<p>Add an <strong>Electrolyte Potential</strong> on the <strong>Cathode</strong> with <em>Electrolyte potential</em> <code>-V</code>. The current then flows from the anode to the cathode, and the anode dissolves.</p>
+</li>
+<li>
+<p>Add a <strong>Symmetry</strong> on each wall. The walls are symmetry planes of a periodic surface, and the mesh slides along them.</p>
+</li>
+<li>
+<p>Add a <strong>Deforming Domain</strong> (<span class="menuseq"><b class="menu">Definitions</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Deforming Domain</b></span>; it goes under <strong>Component 1 › Definitions</strong>). It applies to all domains. The defaults are right: second-order (Heun) time integration, at most 0.3 boundary elements of motion per step, and a mesh that slides along straight walls.</p>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_deform_2_deforming_domain.png" alt="Deforming Domain settings">
+</div>
+<div class="title">Figure 2. Deforming Domain: how the boundary and the mesh move</div>
+</div>
+</li>
+</ol>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+COMSOL users: <strong>Deforming Domain</strong> sits under <strong>Definitions</strong>, as in COMSOL. The check box on the Electrode Surface replaces the <strong>Deforming Electrode Surface</strong> boundary condition, and <strong>Prescribed Normal Mesh Velocity</strong> (also under Definitions) moves any other boundary with an expression.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="3-mesh"><a class="anchor" href="#3-mesh"></a>3. Mesh</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A structured mesh suits this geometry. Set <strong>Mesh 1</strong> to <strong>User-controlled mesh</strong>, add <strong>Mapped</strong>, and four <strong>Distribution</strong> nodes: 40 elements on the anode and on the cathode, 30 on each wall.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="4-study"><a class="anchor" href="#4-study"></a>4. Study</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Select <strong>Step 1: Time Dependent</strong> and set <em>Output times</em> to <code>range(0,60,600)</code> (seconds).</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_deform_3_time_dependent.png" alt="Time Dependent settings">
+</div>
+<div class="title">Figure 3. Time Dependent step: one output every minute</div>
+</div>
+<div class="paragraph">
+<p>Press <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>=</kbd></span>. At every time step, Elmer Studio solves the current distribution on the present shape. It moves the anode at its dissolution velocity and smooths the mesh behind it. It shortens time steps automatically where the boundary moves fast. The <strong>Messages</strong> pane reports 40 time steps and 81 solves (the Heun predictor doubles them).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="5-results"><a class="anchor" href="#5-results"></a>5. Results</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The default plots show the electrolyte potential and the current density on the deformed geometry at the selected time.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_deform_4_potential_final.png" alt="Potential on the deformed geometry">
+</div>
+<div class="title">Figure 4. Electrolyte potential after 600 s: the anode has receded by about 35 µm and is much smoother</div>
+</div>
+<div class="paragraph">
+<p>A deforming electrode also gets an <strong>Electrode Shape (cd)</strong> plot group. It is a <strong>Line Graph</strong> along the moving boundaries, with <em>x-axis parameter</em> <strong>x</strong> and expression <code>+y</code>, drawn for <strong>All</strong> output times.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_deform_5_electrode_shape.png" alt="Anode outlines over time">
+</div>
+<div class="title">Figure 5. Electrode Shape: the anode outline every minute</div>
+</div>
+<div class="sect2">
+<h3 id="amplitude-and-removed-thickness"><a class="anchor" href="#amplitude-and-removed-thickness"></a>Amplitude and removed thickness</h3>
+<div class="paragraph">
+<p>To put numbers on the levelling:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Add a <strong>Maximum</strong>, a <strong>Minimum</strong> and an <strong>Average</strong> coupling operator (<span class="menuseq"><b class="menu">Definitions</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Component Couplings</b></span>), each with <em>Geometric entity level</em> <strong>Boundary</strong> and the <strong>Anode</strong> selection.</p>
+</li>
+<li>
+<p>Add a <strong>Global Evaluation</strong> with <em>Time/parameter selection</em> <strong>All</strong> and two expressions:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><code>(maxop1(y)-minop1(y))/2</code>, unit <code>um</code>, description <strong>Amplitude</strong>;</p>
+</li>
+<li>
+<p><code>-aveop1(y)</code>, unit <code>um</code>, description <strong>Mean removed thickness</strong>.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p>Click <strong>Evaluate</strong>.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_deform_6_amplitude_table.png" alt="Global Evaluation table">
+</div>
+<div class="title">Figure 6. Amplitude and removed thickness at every output time</div>
+</div>
+<div class="paragraph">
+<p>A <strong>1D Plot Group</strong> with a <strong>Global</strong> plot of the amplitude, on a logarithmic y axis, shows a straight line: the decay is exponential.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="../_images/screenshots/tutorial_deform_7_amplitude_vs_time.png" alt="Amplitude against time" width="log scale">
+</div>
+<div class="title">Figure 7. The amplitude decays exponentially</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="6-check-the-results"><a class="anchor" href="#6-check-the-results"></a>6. Check the results</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Levelling rate.</strong> From the table, the amplitude falls from 10 µm to 3.39 µm while 34.8 µm of metal is removed, and a fit of \(\ln a\) against the removed thickness over all output times gives \(d\ln a/d\bar h\) = −31 100 m⁻¹. Linear theory gives \(-k\coth(kL)\) = −31 416 m⁻¹, 1.0 % away. The difference is the theory&#8217;s own error: it neglects terms of order \((a k)^2\), and here \(a_0 k\) = 0.31.</p>
+</li>
+<li>
+<p><strong>Small amplitudes.</strong> The test suite (<code>tests/test_deforming.py</code>) runs the same cell with a 2 µm amplitude. The measured rate then agrees with linear theory within 1 %. A control run with a uniform recession velocity (<em>Current efficiency</em> <code>1[A/m^2]/iloc</code>) shows no levelling. So the levelling comes from the current distribution, not from the mesh smoothing.</p>
+</li>
+<li>
+<p><strong>A flat anode.</strong> With <code>a0 = 0</code>, the gap grows as the metal dissolves, and the current falls. The recession has a closed form, \((L_0+h)^2 = L_0^2 + 2 c\,\sigma V t\) with \(c = M/(nF\rho_m)\). Elmer Studio reproduces it within 2·10⁻⁴, and the electrode current within 10⁻⁹ of \(\sigma V \lambda/(L_0+h)\).</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="what-next"><a class="anchor" href="#what-next"></a>What next</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Electrochemical machining</strong> moves boundaries much further, and sharp corners round off. Check <strong>Remesh when the mesh gets distorted</strong> on the Deforming Domain, so the mesh is rebuilt on the new shape when its elements degrade (2D models).</p>
+</li>
+<li>
+<p><strong>Passivation thresholds:</strong> the current efficiency can depend on the local current density, for example <code>iloc &gt; 10[A/cm^2]</code>, so that only areas above the threshold dissolve.</p>
+</li>
+<li>
+<p><strong>Kinetics:</strong> the electrode may use any kinetics of the Electrode Surface. Butler–Volmer kinetics reduce the levelling, because the kinetic resistance evens out the current.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The Deforming Domain and the moving electrode surface are described in <a href="../user-guide/electrochemistry.html#deforming" class="xref page">User guide › Electrochemistry</a>.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="electrochemistry.html">Electrochemistry: current distribution</a></span>
+  <span class="next"><a href="nastran.html">NASTRAN-95: one model, two solvers</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

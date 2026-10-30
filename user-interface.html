@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>The desktop :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-interface.html">
+    <link rel="prev" href="quick-start.html">
+    <link rel="next" href="keyboard-shortcuts.html">
+    <meta name="description" content="The windows of Elmer Studio and what each one is for.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="./_/css/site.css">
+    <link rel="stylesheet" href="./_/css/site-extra.css">
+    <link rel="icon" href="./_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="./_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="./installation.html">Install</a>
+        <a class="navbar-item" href="./quick-start.html">Quick start</a>
+        <a class="navbar-item" href="./tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="./user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="./reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="user-guide/nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Elmer Studio</a></li>
+    <li>Getting started</li>
+    <li><a href="user-interface.html">The desktop</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/ROOT/pages/user-interface.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">The desktop</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Elmer Studio desktop has the same layout as COMSOL&#8217;s. On the left, the <strong>Model Builder</strong> holds the model as a tree, and the <strong>Settings</strong> window shows the selected node. The ribbon is on top, the <strong>Graphics</strong> window in the middle, and the information panes underneath.</p>
+</div>
+<div class="imageblock screenshot">
+<div class="content">
+<img src="_images/screenshots/ui_overview_annotated.png" alt="Annotated Elmer Studio desktop">
+</div>
+<div class="title">Figure 1. The desktop, after solving the Quick Start model</div>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 16.6666%;">
+<col style="width: 83.3334%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">#</th>
+<th class="tableblock halign-left valign-top">Window</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">1</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Ribbon</strong> with its tabs (Home, Definitions, Geometry, Materials, Physics, Mesh, Study, Results, Developer) and the <strong>File</strong> menu. Top-left is the <strong>Quick Access Toolbar</strong>: New, Open, Save, Undo, Redo and Compute. Top-right, <strong>?</strong> opens this documentation.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Model Builder</strong>: the model tree. Select a node to edit it; right-click it for everything you can add to it or do with it.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Settings</strong>: the settings of the selected node, in collapsible sections.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">4</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Graphics toolbar</strong>: zoom, views, selection, transparency and snapshots.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">5</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Graphics window</strong>: geometry, mesh and 3D/2D plots. Where you click boundaries and domains to select them, and click a result plot to read its value (<a href="user-guide/results.html#click-evaluate" class="xref page">Evaluation 2D/3D</a>). 1D graphs and polar plots replace it while a 1D plot group is selected.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">6</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Messages</strong>, <strong>Progress</strong>, <strong>Log</strong> and <strong>Table</strong> panes, tabbed together.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Every window is a dock: drag its title to move it, double-click to float it, or close it. <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Reset Desktop</b></span> restores the default arrangement of the current layout.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="layouts"><a class="anchor" href="#layouts"></a>Layouts</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>As in COMSOL there are two layouts, under <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Layout</b></span>:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Widescreen Layout</strong>: Model Builder, Settings and Graphics side by side.</p>
+</li>
+<li>
+<p><strong>Regular Screen Layout</strong>: Model Builder above Settings, with Graphics beside them, for narrow, 4:3 or high-scaling screens.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The first start picks one from the screen&#8217;s size. Each layout remembers its own arrangement: windows you move or close in one come back when you return to it, and <strong>Reset Desktop</strong> resets only the current one. <strong>Maximize Graphics</strong> (or double-click the <strong>Graphics</strong> tab) hides the other windows until you do it again.</p>
+</div>
+<div class="paragraph">
+<p>Text and controls scale with the operating system&#8217;s display scaling (100-200 %). <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span> sets the base font size of the desktop and the plots (it takes effect at the next start).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="ribbon"><a class="anchor" href="#ribbon"></a>Ribbon</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The ribbon shows the commands of one stage of the workflow per tab. The <strong>Home</strong> tab collects the most used commands of all stages. The <strong>Geometry</strong>, <strong>Materials</strong>, <strong>Physics</strong> and <strong>Mesh</strong> tabs appear once the model has a component. Selecting a plot group adds a contextual tab named after it, with its plots and attributes.</p>
+</div>
+<div class="paragraph">
+<p>When the window is too narrow for a tab, its groups collapse from the right into one button each, named after the group, whose menu holds all of the group&#8217;s commands, as in COMSOL. Nothing becomes unreachable at any width. To minimize the ribbon to its tab names, right-click it and choose <strong>Minimize the Ribbon</strong>, or double-click a tab. A tab you click then shows its commands until you choose one.</p>
+</div>
+<div class="paragraph">
+<p>A command that can&#8217;t be used right now is greyed out, and its tooltip says why, for example <em>Unavailable: Add a study first (Home &gt; Add Study)</em>. The ribbon button, its keyboard shortcut and the Model Builder&#8217;s context menu are the same command, so they&#8217;re always available together.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 80%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Tab</th>
+<th class="tableblock halign-left valign-top">Commands</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Home</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add Component, Parameters, Variables, Functions, Build All (geometry), Import, Add Material, Add Physics, Multiphysics, Build Mesh, Element Size, Compute, Add Study, Add Plot Group, Reset Desktop</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Definitions</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Parameters, Variables, Analytic and Interpolation functions, Component Couplings (Average, Integration, Maximum, Minimum), Deformed Geometry (Deforming Domain, Prescribed Normal Mesh Velocity)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Geometry</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Build All, Import; primitives (Block, Cone, Cylinder, Sphere, Torus, Ellipsoid, Rectangle, Circle, Ellipse, Polygon, Parametric Curve); Work Plane, Extrude, Revolve; Union, Intersection, Difference; Array, Copy, Mirror, Move, Rotate, Scale; Fillet, Chamfer, Convert to Solid; Box Selection; Zoom Extents</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Materials</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add Material (from the library), Blank Material</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Physics</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Domains and Boundaries menus with the features of the current physics interface, Add Physics, Multiphysics Couplings</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Mesh</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Build Mesh, Element Size, Free Tetrahedral, Free Triangular, Free Quad, Mapped, Size, Distribution, Statistics, Plot Quality, Clear Mesh</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Study</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compute, Stop, Study Steps, Parametric Sweep, Add Study, Show Default Solver, Clear All Solutions, Show Elmer Input File, Open Case Folder</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Results</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D/2D/1D/Polar plot groups; Surface, Volume, Slice, Isosurface, Contour, Arrow, Streamline, Mesh, Line, Line Graph, Global, Point Graph, Table Graph, Annotation, Multislice, Radiation Pattern, Directivity; Deformation, Selection, Color Expression; datasets; evaluations; export</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Developer</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Run Python Script, Show Elmer Input File, Export Elmer Case, Elmer Installation</p></td>
+</tr>
+</tbody>
+</table>
+<div class="openblock gallery">
+<div class="title">Ribbon tabs</div>
+<div class="content">
+<div class="imageblock">
+<div class="content">
+<img src="_images/screenshots/ui_ribbon_geometry.png" alt="Geometry tab">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/screenshots/ui_ribbon_physics.png" alt="Physics tab">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/screenshots/ui_ribbon_mesh.png" alt="Mesh tab">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/screenshots/ui_ribbon_study.png" alt="Study tab">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/screenshots/ui_ribbon_results.png" alt="Results tab">
+</div>
+</div>
+</div>
+</div>
+<div class="paragraph">
+<p>The <strong>File</strong> menu holds New, Open, Recent, Save, Save As, Application Libraries, Export Elmer Case, Preferences, Documentation, About and Exit. <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span> sets the Elmer installation (see <a href="installation.html#install-elmer" class="xref page">Installation</a>).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="model-builder"><a class="anchor" href="#model-builder"></a>Model Builder</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The tree has the same structure as a COMSOL model:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Global Definitions</strong>: parameters and functions shared by everything.</p>
+</li>
+<li>
+<p><strong>Component 1</strong>: one geometry with its <strong>Definitions</strong> (variables, couplings), <strong>Geometry</strong>, <strong>Materials</strong>, physics interfaces, <strong>Multiphysics</strong>, and <strong>Mesh</strong>.</p>
+</li>
+<li>
+<p><strong>Study 1</strong>, <strong>Study 2</strong>, …: study steps, parametric sweeps and solver configurations.</p>
+</li>
+<li>
+<p><strong>Results</strong>: datasets, derived values, tables, plot groups and export.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The toolbar above the tree has <strong>Go Back</strong> and <strong>Go Forward</strong> (through the nodes you selected), <strong>Move Up</strong> and <strong>Move Down</strong> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Up</kbd></span>, <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Down</kbd></span>), <strong>Expand All</strong> and <strong>Collapse All</strong>.</p>
+</div>
+<div class="paragraph">
+<p>Right-click a node to see what you can add to it. Every node also has <strong>Rename</strong> (<kbd>F2</kbd>), <strong>Duplicate</strong> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></span>), <strong>Delete</strong> (<kbd>Delete</kbd>), <strong>Disable</strong> (<kbd>F3</kbd>) and <strong>Enable</strong> (<kbd>F4</kbd>), and <strong>Move Up/Down</strong>. Disabled nodes are greyed out and ignored when building and solving, as in COMSOL. Default features (such as <strong>Thermal Insulation 1</strong>) can&#8217;t be deleted or disabled. Add a feature after them to override them on some boundaries.</p>
+</div>
+<div class="paragraph">
+<p>Double-click a node to build, compute, plot or evaluate it, the same as <kbd>F8</kbd>.</p>
+</div>
+<div class="paragraph">
+<p>The <strong>Filter</strong> field above the tree (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>L</kbd></span>) shows only the nodes whose label or name contains the text, plus the branches that lead to them. <kbd>Esc</kbd> clears it. Filtering doesn&#8217;t change the selected node.</p>
+</div>
+<div class="paragraph">
+<p>Node icons carry marks, and the tooltip says what each one means:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 80%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Mark</th>
+<th class="tableblock halign-left valign-top">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">red cross (lower left)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An error, such as a material missing a property the physics needs.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">orange triangle (lower left)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A warning, such as a feature with no entities selected, which applies nowhere.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">asterisk (upper right)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Edited since it was built or computed: the geometry, the mesh, or a study whose solution is out of date.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">red stroke, grey italic label</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Disabled, or inactive because a node above it is disabled.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>D</strong> badge</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A default feature.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="settings-window"><a class="anchor" href="#settings-window"></a>Settings window</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The Settings window shows the selected node&#8217;s settings in sections that you can expand and collapse. Typical sections:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Label</strong>: the node&#8217;s label (editable) and its name, used in expressions (<code>aveop1</code>, <code>cd.es1</code>, …).</p>
+</li>
+<li>
+<p><strong>Domain/Boundary Selection</strong>: which entities the feature applies to. See <a href="user-guide/selections.html" class="xref page">Selections</a>.</p>
+</li>
+<li>
+<p><strong>Equation</strong>: the equation the feature contributes, as COMSOL shows it.</p>
+</li>
+<li>
+<p>the feature&#8217;s own settings, with the symbol on the left and the SI unit on the right of each field.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Fields accept expressions with parameters, functions, units and, where it makes sense, the dependent variables (<code>T</code>, <code>phil</code>, …). Results nodes have a <strong>Plot</strong> or <strong>Evaluate</strong> button at the top.</p>
+</div>
+<div class="paragraph">
+<p>Editing a field works like this:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>What you type is a draft, shown with a dashed border. <kbd>Enter</kbd>, or leaving the field, applies it as one undoable edit. <kbd>Esc</kbd> puts back the applied value.</p>
+</li>
+<li>
+<p>An expression with a syntax or unit error is not applied. The field turns pink and the reason appears in red under it, for example <em>Not applied: Syntax error</em>. Your text stays so you can fix it. A name that isn&#8217;t defined yet is applied and noted in orange, because you may define it later, as in COMSOL.</p>
+</li>
+<li>
+<p>Typing a name, or <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Space</kbd></span>, lists the parameters, variables, functions and constants you can use, with their values and descriptions.</p>
+</li>
+<li>
+<p>In the Parameters and Variables tables, <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>V</kbd></span> pastes several rows at once, for example from a spreadsheet, as one undo step. <kbd>Delete</kbd> clears the selected cells.</p>
+</li>
+<li>
+<p>After an edit that rebuilds the form, the field you were in keeps the focus and the scroll position stays.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>A selection section shows how many entities are selected (<em>3 of 12 boundaries selected</em>). Its <strong>Paste Selection</strong> button takes typed entity numbers: <code>1, 3-5 and 8</code> (separated by commas, semicolons, colons, spaces or "and", with ranges as in COMSOL).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="graphics-window"><a class="anchor" href="#graphics-window"></a>Graphics window</h2>
+<div class="sectionbody">
+<div class="imageblock toolbar">
+<div class="content">
+<img src="_images/screenshots/ui_graphics_toolbar.png" alt="Graphics toolbar">
+</div>
+<div class="title">Figure 2. Graphics toolbar</div>
+</div>
+<div class="paragraph">
+<p>From left to right:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 71.4286%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Button</th>
+<th class="tableblock halign-left valign-top">Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom In, Zoom Out</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom by a fixed step.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom Box</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Drag a rectangle to zoom into.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Zoom Extents (<kbd>F5</kbd>)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fit everything into the window.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Go to Default View</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Isometric view.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Go to XY / YZ / ZX View</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Look along an axis.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Orthographic/Perspective Projection</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Toggle the projection.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Select All, Clear Selection</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">For the active selection list.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Transparency</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">See through the geometry to pick hidden faces.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Wireframe Rendering</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show edges only.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scene Light</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Toggle the lighting.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show Axis Orientation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The x/y/z triad.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show Grid</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A grid behind 2D models.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Show Labels</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Entity numbers of the active selection level (domains, boundaries, edges, points).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image Snapshot</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Save the Graphics window as a PNG file.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Mouse actions are listed under <a href="keyboard-shortcuts.html#mouse" class="xref page">Keyboard and mouse</a>. When the window is narrow, toolbar buttons that don&#8217;t fit move to the toolbar&#8217;s <kbd>»</kbd> menu.</p>
+</div>
+<div class="paragraph">
+<p>In <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span>, the <strong>Graphics theme</strong> (light gradient, white or dark) and the <strong>Image export theme</strong> are separate settings. Exported images are white by default whatever the working theme is, so they stay readable in documents. A field that has the same value everywhere is plotted as one color, with that value on the legend&#8217;s max/min markers.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="messages-progress-log-and-table"><a class="anchor" href="#messages-progress-log-and-table"></a>Messages, Progress, Log and Table</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 80%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Pane</th>
+<th class="tableblock halign-left valign-top">Shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Messages</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">One line per action: geometry and mesh statistics, solver runs, solution times, warnings and errors (prefixed <em>Warning:</em> and <em>Error:</em>, not only colored). When Elmer stops with an error, its own <code>ERROR::</code> line is quoted here. A message about a node ends with a link to it, such as <code>[Study 1]</code>; click it to select the node.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Progress</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The running job: one row per stage, with its progress, convergence, and the <strong>Parameter / Value</strong> (time step, sweep value, iteration). <span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Stop</b></span> cancels it.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Log</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ElmerSolver&#8217;s own output, live.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Table</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The results of evaluations (integrals, maxima, point values, global values) and mesh statistics. Copy them, or export them as CSV.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>While a study runs, a <strong>Convergence Plot</strong> tab next to <strong>Graphics</strong> shows the nonlinear and coupling convergence of each Elmer solver.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="windows-that-open-on-demand"><a class="anchor" href="#windows-that-open-on-demand"></a>Windows that open on demand</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Add Material</strong> (<span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Material</b></span>): the material library on the right, with a property preview.</p>
+</li>
+<li>
+<p><strong>Model Wizard</strong> and <strong>New</strong> (<span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span>).</p>
+</li>
+<li>
+<p><strong>Elmer input file</strong> (<span class="menuseq"><b class="menu">Study</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Show Elmer Input File</b></span>): the generated <code>.sif</code>, read-only.</p>
+</li>
+<li>
+<p><strong>Preferences</strong> (<span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span>): the Elmer installation, font size, graphics and export themes, and recovery checkpoints.</p>
+</li>
+<li>
+<p><strong>Recovery Files</strong> (<span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Recovery Files&#8230;&#8203;</b></span>): see <a href="user-guide/models-and-files.html#recovery" class="xref page">Recovery</a>.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="status-bar"><a class="anchor" href="#status-bar"></a>Status bar</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The right of the status bar always shows the state of the model: <strong>Geometry</strong> (built, needs update, not built), <strong>Mesh</strong>, and the current study (<strong>not computed</strong>, <strong>solved</strong>, <strong>out of date</strong>, <strong>NOT CONVERGED</strong>, <strong>failed</strong>). A study is out of date when its inputs (geometry, materials, physics, mesh, study settings or parameters) changed since it was computed. Editing a plot doesn&#8217;t make it out of date. Click an item to go to its node. While a job runs, the status bar shows its name, elapsed time, stage and a <strong>Stop</strong> button. In a narrow window the items shorten to their name and a mark (<strong>ok</strong>, <code>*</code> or <code>!</code>), and the tooltip keeps the full text.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="quick-start.html">Quick start: your first model</a></span>
+  <span class="next"><a href="keyboard-shortcuts.html">Keyboard and mouse</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="./_/js/site.js" data-ui-root-path="./_"></script>
+<script async src="./_/js/vendor/highlight.js"></script>
+<script src="./_/js/vendor/lunr.js"></script>
+<script src="./_/js/search-ui.js" id="search-ui-script" data-site-root-path="." data-snippet-length="100" data-stylesheet="./_/css/search.css"></script>
+<script async src="./search-index.js"></script>
+  </body>
+</html>

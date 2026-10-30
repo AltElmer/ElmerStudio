@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Physics interfaces :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-guide/physics.html">
+    <link rel="prev" href="materials.html">
+    <link rel="next" href="electrochemistry.html">
+    <meta name="description" content="Adding physics interfaces and features, default features, overriding, multiphysics couplings, and the Elmer solvers behind each interface.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="materials.html">Materials</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>User guide</li>
+    <li><a href="physics.html">Physics interfaces</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/user-guide/pages/physics.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Physics interfaces</h1>
+<div class="sect1">
+<h2 id="adding-physics"><a class="anchor" href="#adding-physics"></a>Adding physics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Physics come from the Model Wizard, or from <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Physics</b></span> at any time. Each interface appears under the component with its <strong>default features</strong>. For Heat Transfer in Solids these are <strong>Solid 1</strong> (the domain equation), <strong>Initial Values 1</strong> and <strong>Thermal Insulation 1</strong> on exterior boundaries.</p>
+</div>
+<div class="paragraph">
+<p>Most interfaces solve a fixed Elmer variable (Heat Transfer solves <code>Temperature</code>), so a component has one of each: to cover more domains, select them in the interface&#8217;s Domain Selection. Two interfaces may be added more than once, each instance with its own dependent variable:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Transport of Diluted Species</strong>: a second interface gets the species <code>c2</code> (setting <em>Species</em>), solved as the Elmer variable <code>Concentration_c2</code>. Its results are <code>c2</code>, <code>tds1.tflux</code>, <code>tds1.tfluxMag</code> and <code>tds1.ntflux</code> (with the interface&#8217;s tag). Several species in one domain need streamline diffusion: AdvectionDiffusion keeps each species' keywords apart, ModelPDE does not.</p>
+</li>
+<li>
+<p><strong>Coefficient Form PDE</strong>: a second interface gets the dependent variable <code>u2</code>. ModelPDE reads the same coefficients for every instance, so two PDE interfaces must be on different domains.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>When two interfaces would still overwrite each other in Elmer (the same variable, or one Elmer keyword set to different values in the same domain or boundary), building the study stops with an error that names both.</p>
+</div>
+<div class="paragraph">
+<p>Add features with <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Domains</b></span> and <span class="menuseq"><b class="menu">Physics</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Boundaries</b></span>, or by right-clicking the interface. The ribbon lists the features of the interface that is selected, or that the selected node belongs to.</p>
+</div>
+<div class="paragraph">
+<p>Each feature&#8217;s Settings window has:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>its <strong>Selection</strong> (<a href="selections.html" class="xref page">Selections</a>);</p>
+</li>
+<li>
+<p>an <strong>Equation</strong> section with the equation it contributes;</p>
+</li>
+<li>
+<p>its settings, with symbols and SI units. Every field is an expression.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="the-interfaces"><a class="anchor" href="#the-interfaces"></a>The interfaces</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 28.5714%;">
+<col style="width: 42.8571%;">
+<col style="width: 28.5715%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Interface</th>
+<th class="tableblock halign-left valign-top">Features</th>
+<th class="tableblock halign-left valign-top">Elmer solver</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-ht.html" class="xref page">Heat Transfer in Solids</a> (ht)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Solid, Fluid (prescribed or Laminar-Flow velocity), Heat Source, Temperature, Heat Flux (general or convective), Surface-to-Ambient Radiation, Symmetry, Thermal Insulation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">HeatSolver + FluxSolver</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-solid.html" class="xref page">Solid Mechanics</a> (solid)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Linear Elastic Material, Body Load, Gravity, Rotating Frame, Fixed Constraint, Prescribed Displacement, Roller, Symmetry, Boundary Load (force per area, or total force), Spring Foundation, Free; plane stress or plane strain in 2D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">StressSolver (stationary, eigenfrequency)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-es.html" class="xref page">Electrostatics</a> (es)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Charge Conservation, Space Charge Density, Ground, Electric Potential, Surface Charge Density, Zero Charge</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">StatElecSolver</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-ec.html" class="xref page">Electric Currents</a> (ec)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Current Conservation, Ground, Electric Potential, Normal Current Density, Electric Insulation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">StatCurrentSolver</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-mf.html" class="xref page">Magnetic Fields</a> (mf), 2D and 2D axisymmetric</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Ampère&#8217;s Law, External Current Density, Magnetic Insulation, Magnetic Potential, Perfect Magnetic Conductor</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">MagnetoDynamics2D + CalcFields</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-spf.html" class="xref page">Laminar Flow</a> (spf)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Fluid Properties, Volume Force, Gravity, Wall (no slip or slip), Inlet (velocity or pressure), Outlet (optionally normal flow), Symmetry, Open Boundary; Stokes flow option</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FlowSolve (stabilized P1-P1)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-acpr.html" class="xref page">Pressure Acoustics, Frequency Domain</a> (acpr)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Pressure Acoustics (domain), Sound Hard Boundary (Wall), Sound Soft Boundary, Pressure, Normal Acceleration, Impedance, Plane Wave Radiation, Spherical Wave Radiation (with incident plane wave), Exterior Field Calculation</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">HelmholtzSolver</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-tds.html" class="xref page">Transport of Diluted Species</a> (tds)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Transport Properties (diffusion, convection by a given or Laminar-Flow velocity), Reactions, Concentration, Flux (including mass transfer), Electrode Surface Coupling, No Flux, Symmetry, Outflow; migration in the electrolyte potential</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">AdvectionDiffusion with streamline diffusion (default), or ModelPDE</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-cd.html" class="xref page">Secondary Current Distribution</a> (cd)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electrolyte, Current Source, Electrode Surface (primary, Butler–Volmer, linearized, Tafel, limiting current, user-defined kinetics), Electrolyte Potential, Electrolyte Current Density, Insulation, Symmetry</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">StatCurrentSolve, HeatSolve or ModelPDE, + FluxSolver. See <a href="electrochemistry.html" class="xref page">Electrochemistry</a>.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="../reference/physics-pde.html" class="xref page">Coefficient Form PDE</a> (pde)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">c, a, f, d<sub>a</sub>, β coefficients; Dirichlet, Flux/Source, Zero Flux</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ModelPDE</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="defaults-and-overriding"><a class="anchor" href="#defaults-and-overriding"></a>Defaults and overriding</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Default domain features cover all domains. Default boundary features cover the <strong>exterior</strong> boundaries, as in COMSOL.</p>
+</li>
+<li>
+<p>A feature lower in the tree overrides earlier ones on the boundaries they share.</p>
+</li>
+<li>
+<p>Default features can&#8217;t be deleted or disabled, but any feature can override them.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="interface-settings"><a class="anchor" href="#interface-settings"></a>Interface settings</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Select the interface node itself (for example <strong>Heat Transfer in Solids (ht)</strong>) for settings of the whole interface. The details depend on the interface:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Discretization</em>: the element order, linear or quadratic. The mesh follows it by default.</p>
+</li>
+<li>
+<p>model options, such as 2D plane stress or plane strain in Solid Mechanics, or primary or secondary current distribution;</p>
+</li>
+<li>
+<p>the choice of Elmer solver, where there is one (see <a href="electrochemistry.html" class="xref page">Electrochemistry</a>);</p>
+</li>
+<li>
+<p><em>Consistent Stabilization</em> (Transport of Diluted Species): <strong>Streamline diffusion</strong>, on by default (<a href="#stabilization">Convection-dominated transport</a>);</p>
+</li>
+<li>
+<p><em>Additional Elmer solver keywords</em>: lines appended verbatim to this interface&#8217;s <code>Solver</code> section in the <code>.sif</code>, for anything the GUI doesn&#8217;t expose.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="structural-dynamics"><a class="anchor" href="#structural-dynamics"></a>Structural dynamics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Solid Mechanics solves Stationary, Time Dependent, Eigenfrequency and Frequency Domain studies.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Damping</strong> (a domain feature) is Rayleigh damping, C = α<sub>dM</sub> M + β<sub>dK</sub> K, as in COMSOL&#8217;s Damping subnode: a mode of angular frequency ω gets the damping ratio ζ = α<sub>dM</sub>/(2ω) + β<sub>dK</sub> ω/2. It acts in Time Dependent and Frequency Domain studies; the Eigenfrequency study is undamped.</p>
+</li>
+<li>
+<p><strong>Time Dependent</strong>: second order in time with Elmer&#8217;s Bossak scheme, starting at rest. Loads may depend on <code>t</code>, for example <code>1e6*sin(2*pi*500[Hz]*t)</code>.</p>
+</li>
+<li>
+<p><strong>Frequency Domain</strong>: the loads are amplitudes and the response is a phasor. <code>u</code>, <code>v</code>, <code>w</code> and <code>solid.disp</code> are the real parts (the field at t = 0), <code>solid.uim</code>, <code>solid.vim</code>, <code>solid.wim</code> the imaginary parts, and <code>solid.dispAmp</code> the amplitude, which the default plot shows. Stresses are not computed in this study.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>A rod in longitudinal vibration checks all of it against the exact phasor (to 2e-4 across a sweep through its first resonance, damped and undamped), the eigenfrequency c/(4L) to 1e-4, and a forced transient that settles on the frequency-domain amplitude within 1 % (<code>tests/test_solid_dynamics.py</code>).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="stabilization"><a class="anchor" href="#stabilization"></a>Convection-dominated transport</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When convection dominates diffusion over an element, a Galerkin discretization makes the solution oscillate from node to node along the stream. Convection dominates when the element Péclet number, Pe<sub>h</sub> = \|u\|h/(2D), exceeds 1. A dissolved species in a liquid is the usual case: D ≈ 10<sup>-9</sup> m²/s gives Pe<sub>h</sub> = 2.5 at 1 mm/s on 5 µm elements. Transport of Diluted Species therefore uses <strong>streamline diffusion</strong> by default. This is streamline-upwind Petrov–Galerkin (SUPG) stabilization, in Elmer&#8217;s AdvectionDiffusion solver. It is consistent: it vanishes for the exact solution, so it doesn&#8217;t smear a converged result.</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Untick <strong>Streamline diffusion</strong> on the interface node for the plain Galerkin form (Elmer ModelPDE). Models saved before this option existed open with it unticked, and their results stay as they were.</p>
+</li>
+<li>
+<p>A <strong>Reactions</strong> feature with a first-order rate constant k needs the Galerkin form: the interface falls back to it, with a warning in the log.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Heat Transfer and Laminar Flow are always stabilized.</p>
+</div>
+<div class="paragraph">
+<p>The flow itself matters as much. A thin boundary layer at an outlet needs a velocity field that stays parallel there. Tick <strong>Normal flow</strong> on the Laminar Flow <strong>Outlet</strong> to set the tangential velocity to zero. Without it, the pressure outlet on stretched near-wall elements distorts the flow over the last few element columns.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="multiphysics"><a class="anchor" href="#multiphysics"></a>Multiphysics</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Multiphysics</b></span> adds couplings between two interfaces in the model. They appear under <strong>Multiphysics</strong>:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 20%;">
+<col style="width: 40%;">
+<col style="width: 40%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Coupling</th>
+<th class="tableblock halign-left valign-top">Couples</th>
+<th class="tableblock halign-left valign-top">Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electromagnetic Heating</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Electric Currents → Heat Transfer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The Joule heat Q = J·E is a heat source.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Thermal Expansion</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Heat Transfer → Solid Mechanics</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Thermal strain α(T − T<sub>ref</sub>).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nonisothermal Flow</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Laminar Flow ↔ Heat Transfer</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Convection of heat by the flow, and Boussinesq buoyancy.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>The Model Wizard entries <strong>Joule Heating</strong> and <strong>Thermal Stress</strong> add both interfaces with their coupling. Coupled physics are solved together in one Elmer run, iterating between the solvers until the coupling converges (<a href="studies.html#coupling" class="xref page">Studies › Coupled physics</a>).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="nonlinear-problems"><a class="anchor" href="#nonlinear-problems"></a>Nonlinear problems</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A model becomes nonlinear when a material property or a boundary value depends on the solution (for example k(T), radiation, or electrode kinetics). Elmer Studio detects this from the expressions and makes the solver iterate. The iteration settings are in the study&#8217;s solver configuration (<a href="studies.html#solver" class="xref page">Studies › Solver configurations</a>).</p>
+</div>
+<div class="paragraph">
+<p>Every interface&#8217;s features and settings are in the <a href="../reference/index.html" class="xref page">Reference</a>.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="materials.html">Materials</a></span>
+  <span class="next"><a href="electrochemistry.html">Electrochemistry</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>

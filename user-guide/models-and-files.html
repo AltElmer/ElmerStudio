@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Models, files and the Model Builder :: Elmer Studio</title>
+    <link rel="canonical" href="https://altelmer.github.io/ElmerStudio/user-guide/models-and-files.html">
+    <link rel="prev" href="index.html">
+    <link rel="next" href="definitions.html">
+    <meta name="description" content="Creating, opening and saving models; components; working with nodes; undo; Application Libraries.">
+    <meta name="generator" content="Antora 3.2.1">
+    <link rel="stylesheet" href="../_/css/site.css">
+    <link rel="stylesheet" href="../_/css/site-extra.css">
+    <link rel="icon" href="../_/img/logo.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#1f3d66">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item brand" href="https://altelmer.github.io/ElmerStudio">
+        <img class="brand-logo" src="../_/img/logo.svg" alt="" width="28" height="28">
+        <span class="brand-name">Elmer Studio</span>
+      </a>
+      <div class="navbar-item search hide-for-print">
+        <div id="search-field" class="field">
+          <input id="search-input" type="text" placeholder="Search the docs">
+        </div>
+      </div>
+      <button class="navbar-burger" data-target="topbar-nav" aria-controls="topbar-nav" aria-expanded="false" aria-label="Toggle main menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="../installation.html">Install</a>
+        <a class="navbar-item" href="../quick-start.html">Quick start</a>
+        <a class="navbar-item" href="../tutorials/index.html">Tutorials</a>
+        <a class="navbar-item" href="../user-guide/index.html">User guide</a>
+        <a class="navbar-item" href="../reference/index.html">Reference</a>
+        <div class="navbar-item">
+          <span class="control">
+            <a class="button download" href="https://github.com/AltElmer/ElmerStudio/releases/latest">Download</a>
+          </span>
+        </div>
+        <a class="navbar-item github" href="https://github.com/AltElmer/ElmerStudio" title="Source code on GitHub" aria-label="GitHub">
+          <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="ROOT" data-version="">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <button class="nav-menu-toggle" aria-label="Toggle expand/collapse all" style="display: none"></button>
+    <h3 class="title"><a href="../index.html">Elmer Studio</a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Getting started</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../index.html">Introduction</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../installation.html">Installation</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../quick-start.html">Quick start: your first model</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../user-interface.html">The desktop</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../keyboard-shortcuts.html">Keyboard and mouse</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../comsol-users.html">Coming from COMSOL</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Tutorials</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/application-library.html">Application Library examples</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/busbar.html">Busbar: Joule heating</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/wrench.html">Wrench: solid mechanics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/postprocessing.html">Postprocessing and visualization</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/acoustics.html">Acoustics</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/electrochemistry.html">Electrochemistry: current distribution</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/deforming-electrodes.html">Electrochemistry: deforming electrodes</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/nastran.html">NASTRAN-95: one model, two solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../tutorials/scripting.html">Scripting a model in Python</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">User guide</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="index.html">The modeling workflow</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="2">
+    <a class="nav-link" href="models-and-files.html">Models, files and the Model Builder</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="definitions.html">Parameters, variables and functions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="geometry.html">Geometry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="selections.html">Selections</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="physics.html">Physics interfaces</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="electrochemistry.html">Electrochemistry</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="studies.html">Studies and solving</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="results.html">Results</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="elmer.html">Elmer under the hood</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="openfoam.html">OpenFOAM backend</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="nastran.html">NASTRAN-95 backend</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Reference</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">Physics interfaces</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ht.html">Heat Transfer in Solids (ht)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-solid.html">Solid Mechanics (solid)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-es.html">Electrostatics (es)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-ec.html">Electric Currents (ec)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-cd.html">Secondary Current Distribution (cd)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-mf.html">Magnetic Fields (mf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-spf.html">Laminar Flow (spf)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-acpr.html">Pressure Acoustics, Frequency Domain (acpr)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-tds.html">Transport of Diluted Species (tds)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/physics-pde.html">Coefficient Form PDE (pde)</a>
+  </li>
+  <li class="nav-item" data-depth="3">
+    <a class="nav-link" href="../reference/multiphysics.html">Multiphysics couplings</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/definitions.html">Definitions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/geometry.html">Geometry features</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/materials.html">Materials</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/mesh.html">Mesh</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/studies.html">Studies and solvers</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/datasets.html">Datasets</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/derived-values.html">Derived values</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/plots.html">Plot groups and plots</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/export.html">Export</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/result-variables.html">Result variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../reference/expressions.html">Expressions and units</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <span class="nav-text">About</span>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../verification.html">Verification</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../troubleshooting.html">Troubleshooting and FAQ</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../known-limitations.html">Known limitations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="../contributing.html">Contributing</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+<div class="nav-panel-explore" data-panel="explore">
+  <div class="context">
+    <span class="title">Elmer Studio</span>
+    <span class="version"></span>
+  </div>
+  <ul class="components">
+    <li class="component is-current">
+      <div class="title"><a href="../index.html">Elmer Studio</a></div>
+    </li>
+  </ul>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="../index.html">Elmer Studio</a></li>
+    <li>User guide</li>
+    <li><a href="models-and-files.html">Models, files and the Model Builder</a></li>
+  </ul>
+</nav>
+<div class="edit-this-page"><a href="https://github.com/AltElmer/ElmerStudio/edit/main/docs/modules/user-guide/pages/models-and-files.adoc">Edit this Page</a></div>
+</div>
+  <div class="content">
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+<article class="doc">
+<h1 class="page">Models, files and the Model Builder</h1>
+<div class="sect1">
+<h2 id="starting-a-model"><a class="anchor" href="#starting-a-model"></a>Starting a model</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">New</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>N</kbd></span>) opens the <strong>New</strong> window, with three ways to start:</p>
+</div>
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Model Wizard</dt>
+<dd>
+<p>Pick a space dimension (<strong>3D</strong>, <strong>2D Axisymmetric</strong>, <strong>2D</strong>), one or more physics interfaces, and a study type. The wizard creates the component, the physics with their default features, an empty geometry, and the study. Several physics can be added in one go. Some entries, such as <strong>Joule Heating</strong> and <strong>Thermal Stress</strong>, add two interfaces and their coupling.</p>
+</dd>
+<dt class="hdlist1">Blank Model</dt>
+<dd>
+<p>An empty tree with <strong>Global Definitions</strong> and <strong>Results</strong>. Add a component with <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Component</b></span>, physics with <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Physics</b></span>, and a study with <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Study</b></span>.</p>
+</dd>
+<dt class="hdlist1">Application Libraries</dt>
+<dd>
+<p>Ready-made, solvable models. See <a href="../tutorials/application-library.html" class="xref page">Application Library examples</a>.</p>
+</dd>
+</dl>
+</div>
+<div class="openblock gallery">
+<div class="title">The Model Wizard</div>
+<div class="content">
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/ui_wizard_1_dim.png" alt="Select space dimension">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/ui_wizard_2_physics.png" alt="Select physics">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="../_images/screenshots/ui_wizard_3_study.png" alt="Select study">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="components-and-space-dimensions"><a class="anchor" href="#components-and-space-dimensions"></a>Components and space dimensions</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A model has one or more <strong>Components</strong>. Each has its own space dimension, definitions, geometry, materials, physics and mesh, and its tag (<code>comp1</code>, <code>comp2</code>, …) is its namespace. Add one with <span class="menuseq"><b class="menu">Home</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Add Component</b></span> or by right-clicking the root node. The ribbon acts on the <strong>active component</strong>, the one the selected node belongs to, as in COMSOL. The status bar names it (<code>comp2 geometry: 3 domains</code>).</p>
+</div>
+<div class="paragraph">
+<p>A component&#8217;s space dimension is fixed when you add it:</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Space dimension</th>
+<th class="tableblock halign-left valign-top">Use it for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">3D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">General solids and fields.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Planar problems: cross-sections of long objects (plane strain), thin plates (plane stress), planar fields and flows.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">2D Axisymmetric</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Bodies of revolution about the z axis, with coordinates r (x) and z (y). Integrals over the model are taken in the revolved geometry (×2πr) unless you turn that off.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect2">
+<h3 id="components"><a class="anchor" href="#components"></a>Several components</h3>
+<div class="paragraph">
+<p>Components are separate models that one study can solve together, each with its own mesh and solution:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>A study step solves the physics interfaces ticked in its <strong>Physics and Variables Selection</strong>, in every component that has them.</p>
+</li>
+<li>
+<p>Each component&#8217;s solution gets its own <strong>Solution</strong> dataset (<code>Study 1/Solution 1 (comp2)</code>); plots and evaluations of that dataset see that component.</p>
+</li>
+<li>
+<p>In results, <code>T</code> is the dataset&#8217;s own component&#8217;s temperature. Writing <code>comp1.T</code> is the same thing in comp1. A name of another component (<code>comp2.T</code> in a comp1 dataset) is refused with a message, so a result can&#8217;t silently show the wrong field.</p>
+</li>
+<li>
+<p>One component may use another&#8217;s result through a coupling operator: <code>comp1.aveop1(T)</code> in a setting of comp2 is the average temperature of comp1 (Definitions › Component Couplings of comp1). The study solves comp1 first, evaluates the operator on its solution, and uses the value in comp2. Messages lists the value. Couplings go one way: a circle (comp1 uses comp2 and comp2 uses comp1) is refused before anything runs. A field such as <code>comp1.T</code> cannot enter another component&#8217;s equations, because the meshes are different.</p>
+</li>
+<li>
+<p>Physics interfaces have unique tags across the model: the second Heat Transfer is <code>ht2</code> wherever it is, so its result names (<code>ht2.tfluxMag</code>) are unambiguous.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="saving-and-opening"><a class="anchor" href="#saving-and-opening"></a>Saving and opening</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Save</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>S</kbd></span>) and <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Save As&#8230;&#8203;</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></span>) write an <code>.esm</code> file. It is a zip archive with the model (as JSON) and the computed solutions, so plots and tables come back when you open it. The file is written to a temporary name and renamed when it is complete. If saving fails, the model keeps its previous file name.</p>
+</li>
+<li>
+<p><span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Open&#8230;&#8203;</b></span> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>O</kbd></span>) and <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Recent</b></span> reopen models. You can also pass a file on the command line: <code>elmerstudio model.esm</code>.</p>
+</li>
+<li>
+<p>When you open another model or close the window, Elmer Studio asks about unsaved changes. It also removes the temporary working folder of the model you leave. The title bar&#8217;s <code>*</code> follows undo: undoing back to the saved state clears it, and undoing past it sets it.</p>
+</li>
+</ul>
+</div>
+<div class="sect2">
+<h3 id="file-format"><a class="anchor" href="#file-format"></a>What the file holds</h3>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Entry</th>
+<th class="tableblock halign-left valign-top">Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>model.json</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The model tree: every node and setting.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>work/&lt;study&gt;/&lt;solution&gt;/</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Each computed solution: <code>meta.json</code> (status, solver diagnostics, the parameter values it was computed with), <code>mesh.npz</code>, the result files, <code>model.json</code> (the model as it was solved), <code>solver.log</code>, and for deforming geometries the frame coordinates (<code>frames.npz</code>) and remeshed topologies (<code>mesh_&lt;k&gt;.npz</code>).</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>assets/</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Copies of external files the model reads, such as imported CAD geometry.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>manifest.json</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The size and SHA-256 of every stored file, and whether solutions were included.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>On opening, Elmer Studio checks every stored file against the manifest. Missing or damaged files are listed in a warning, and the affected solutions are not shown until you compute again. A file saved without solutions opens without that warning. If an imported CAD file is no longer at its original path, the model uses the packaged copy. A file whose entries point outside its own folder (such as <code>../</code>) is refused.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="working-with-nodes"><a class="anchor" href="#working-with-nodes"></a>Working with nodes</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Everything in the model is a node of the Model Builder tree:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Add</strong> nodes from the ribbon or by right-clicking the parent node. New nodes are labelled with a number (<strong>Temperature 1</strong>, <strong>Temperature 2</strong>) and get a short name (<code>temp1</code>) used in expressions and variables.</p>
+</li>
+<li>
+<p><strong>Rename</strong> with <kbd>F2</kbd>; <strong>Duplicate</strong> with <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></span>; <strong>Delete</strong> with <kbd>Delete</kbd>.</p>
+</li>
+<li>
+<p><strong>Disable</strong> (<kbd>F3</kbd>) and <strong>Enable</strong> (<kbd>F4</kbd>) a node to leave it out of the model without losing its settings.</p>
+</li>
+<li>
+<p><strong>Reorder</strong> with <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Up</kbd></span> and <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Down</kbd></span>. Order matters in the geometry sequence (features build top to bottom) and among physics features (later wins).</p>
+</li>
+<li>
+<p><strong>Undo</strong> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Z</kbd></span>) and <strong>Redo</strong> (<span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Y</kbd></span> or <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span>) cover every change to the tree and to settings.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>After a change, the geometry and mesh are rebuilt the next time they are needed (for example when you compute).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="recovery"><a class="anchor" href="#recovery"></a>Recovery</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>While a model has unsaved changes, Elmer Studio writes a recovery checkpoint every minute and before every computation. Set the interval in <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Preferences&#8230;&#8203;</b></span>. The checkpoint is removed when you save, open another model or close normally. If Elmer Studio ends any other way (a crash, a power cut, a killed process), the next start opens the <strong>Recovery Files</strong> window, as COMSOL does. It lists each unsaved model with its time and file name, and names the computation that was running. <span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Recovery Files&#8230;&#8203;</b></span> opens the same window later.</p>
+</div>
+<div class="paragraph">
+<p><strong>Open</strong> opens the model as unsaved, under its file name; the file itself still holds the last saved version, so save to keep the recovered one. The solutions of the interrupted session are reused when they are still there, but a computation that was running may have left an incomplete solution, so compute it again. <strong>Delete</strong> discards a checkpoint and <strong>Later</strong> keeps it for the next start.</p>
+</div>
+<div class="paragraph">
+<p>Checkpoints are stored per user (<code>%LOCALAPPDATA%\ElmerStudio\recovery</code> on Windows, <code>~/Library/Application Support/ElmerStudio/recovery</code> on macOS, <code>~/.local/state/ElmerStudio/recovery</code> on Linux).</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="exporting"><a class="anchor" href="#exporting"></a>Exporting</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 75%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Command</th>
+<th class="tableblock halign-left valign-top">Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><span class="menuseq"><b class="menu">File</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Export Elmer Case</b></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A folder with the Elmer mesh and <code>case.sif</code>, runnable with <code>ElmerSolver case.sif</code> on any machine with Elmer.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Image</b></span> (Export)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A PNG of a plot group, at the size you choose.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Data</b></span> (Export)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Coordinates and one or more expressions at every mesh node (last solution), as CSV.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">VTK Unstructured Grid</b></span> (Export)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The solution (<code>.vtu</code>) for ParaView or other VTK tools.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><span class="menuseq"><b class="menu">Results</b>&#160;<i class="fa fa-angle-right caret"></i> <b class="menuitem">Report</b></span></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An HTML report: the parameters with their SI values, the component&#8217;s nodes, and a picture of each 3D/2D plot group.</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>See <a href="results.html#export" class="xref page">Results › Export</a>.</p>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="index.html">The modeling workflow</a></span>
+  <span class="next"><a href="definitions.html">Parameters, variables and functions</a></span>
+</nav>
+</article>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <p>
+    <strong>Elmer Studio</strong> is free software under the GNU General Public License, version 2 or later.
+    It drives the open-source <a href="https://www.elmerfem.org">Elmer FEM</a> solver.
+    It is an independent project, not affiliated with COMSOL AB or CSC.
+  </p>
+  <p>
+    <a href="https://github.com/AltElmer/ElmerStudio">Source code</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/issues">Report an issue</a> ·
+    <a href="https://github.com/AltElmer/ElmerStudio/releases">Releases</a> ·
+    Built with <a href="https://antora.org">Antora</a> from AsciiDoc.
+  </p>
+</footer>
+<script id="site-script" src="../_/js/site.js" data-ui-root-path="../_"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+<script src="../_/js/vendor/lunr.js"></script>
+<script src="../_/js/search-ui.js" id="search-ui-script" data-site-root-path=".." data-snippet-length="100" data-stylesheet="../_/css/search.css"></script>
+<script async src="../search-index.js"></script>
+  </body>
+</html>
