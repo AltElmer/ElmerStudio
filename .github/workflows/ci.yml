@@ -57,14 +57,15 @@ jobs:
           gh release download "${NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p "$ASSET" -D "$DEST"
           echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
           tar -xzf "$DEST/$ASSET" -C "$DEST"
-          # Archive extracts files directly into DEST (nastran, rf/, dist/bin/nastran)
-          if [ -f "$DEST/dist/bin/nastran" ]; then
-            NAS_HOME="$DEST"
-          elif [ -f "$DEST/nastran" ]; then
-            NAS_HOME="$DEST"
+          # Archive extracts to a subfolder like nastran95-v1.0.0-linux-x86_64
+          EXTRACTED=$(find "$DEST" -maxdepth 1 -type d -name 'nastran95*' | head -1)
+          if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
+          elif [ -f "$EXTRACTED/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
           else
-            echo "Could not find nastran executable in $DEST"
-            ls -la "$DEST"
+            echo "Could not find nastran executable in $EXTRACTED"
+            ls -la "$EXTRACTED"
             exit 1
           fi
           echo "NASTRAN_HOME=$NAS_HOME" >> "$GITHUB_ENV"
@@ -132,14 +133,15 @@ jobs:
           gh release download "${NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p "$ASSET" -D "$DEST"
           echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
           tar -xzf "$DEST/$ASSET" -C "$DEST"
-          # Archive extracts files directly into DEST (nastran, rf/, dist/bin/nastran)
-          if [ -f "$DEST/dist/bin/nastran" ]; then
-            NAS_HOME="$DEST"
-          elif [ -f "$DEST/nastran" ]; then
-            NAS_HOME="$DEST"
+          # Archive extracts to a subfolder like nastran95-v1.0.0-macos-*
+          EXTRACTED=$(find "$DEST" -maxdepth 1 -type d -name 'nastran95*' | head -1)
+          if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
+          elif [ -f "$EXTRACTED/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
           else
-            echo "Could not find nastran executable in $DEST"
-            ls -la "$DEST"
+            echo "Could not find nastran executable in $EXTRACTED"
+            ls -la "$EXTRACTED"
             exit 1
           fi
           echo "NASTRAN_HOME=$NAS_HOME" >> "$GITHUB_ENV"
