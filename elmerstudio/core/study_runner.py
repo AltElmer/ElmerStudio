@@ -70,7 +70,7 @@ _XREF = re.compile(r"(?<![\w.])(comp\w*)\.(\w+)(\()?")
 
 def cross_references(model: Model, comp: Node) -> list[tuple[str, str, str, str]]:
     """References from *comp*'s settings to other components: [(text, component tag, name, argument)]; the
-    argument is None for a plain name (comp1.T), which equations cannot use."""
+    argument is None for a plain name (comp1.T), which equations cannot use. Only enabled features are scanned."""
     tags = {c.tag for c in model.components()}
     out, seen = [], set()
 
@@ -103,6 +103,8 @@ def cross_references(model: Model, comp: Node) -> list[tuple[str, str, str, str]
             for x in v:
                 walk(x)
     for n in comp.walk():
+        if not getattr(n, "enabled", True):
+            continue
         walk(n.props)
     return out
 
