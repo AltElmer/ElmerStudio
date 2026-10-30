@@ -64,6 +64,8 @@ class GraphicsView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._ok = True
+        import os
+        offscreen = os.environ.get("QT_QPA_PLATFORM", "") == "offscreen"
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(0)
@@ -77,11 +79,17 @@ class GraphicsView(QWidget):
         v.addWidget(self.toolbar)
         try:
             import pyvista as pv
-            from pyvistaqt import QtInteractor
             pv.global_theme.allow_empty_mesh = True
-            self.plotter = QtInteractor(self, auto_update=False)
-            self.plotter.enable_anti_aliasing("ssaa") if hasattr(self.plotter, "enable_anti_aliasing") else None
-            v.addWidget(self.plotter.interactor, 1)
+            if offscreen:
+                # Use base pyvista Plotter for offscreen rendering (works reliably)
+                self.plotter = pv.Plotter(off_screen=True)
+            else:
+                # Use QtInteractor for interactive mode
+                from pyvistaqt import QtInteractor
+                self.plotter = QtInteractor(self, auto_update=False)
+                self.plotter.enable_anti_aliasing("ssaa") if hasattr(self.plotter, "enable_anti_aliasing") else None
+                if self.plotter.interactor is not None:
+                    v.addWidget(self.plotter.interactor, 1)
         except Exception as exc:  # no usable OpenGL
             self._ok = False
             self.plotter = None
@@ -113,7 +121,7 @@ class GraphicsView(QWidget):
         self._scene = None              # the result scene shown, and its actors a click evaluates
         self._result_actors: dict = {}  # item index -> actor
         self._build_toolbar()
-        if self._ok:
+        if self._ok and not offscreen:
             self._setup_vtk()
             self._keys = _Keys(self)
             self.plotter.interactor.installEventFilter(self._keys)
@@ -1006,17 +1014,26 @@ class GraphicsView(QWidget):
     def snapshot(self, path, w=None, h=None):
         """Write an image in the export theme (white by default, whatever the working theme is), then go back."""
         if not self._ok:
-            return
+            raise RuntimeError("Graphics window not available (no OpenGL context)")
         size = (w, h) if w and h else None
         working = self.theme_name
         export = working if self.export_theme == "graphics" else self.export_theme
         if export != working:
             self.set_theme(export)
         try:
+            # Ensure the scene is rendered before screenshot
+            self.plotter.render()
+            # Enable offscreen rendering on the VTK render window
+            ren_win = self.plotter.ren_win
+            if ren_win is not None:
+                ren_win.SetOffScreenRendering(1)
+                ren_win.MakeCurrent()
             self.plotter.screenshot(path, window_size=size)
         finally:
             if export != working:
                 self.set_theme(working)
+        if not os.path.exists(path):
+            raise RuntimeError(f"Screenshot failed to write file: {path}")
 
     def snapshot_dialog(self):
         fn, _ = QFileDialog.getSaveFileName(self, "Image Snapshot", "snapshot.png", "PNG image (*.png)")
