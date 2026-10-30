@@ -101,9 +101,9 @@ def test_newton_iterations_at_their_maximum_stop_or_are_kept_marked(elmer):
 
 def test_convergence_verdict_from_the_iteration_log():
     spec = {"ss_maxit": 4, "solvers": [{"equation": "a", "post": False, "nl_maxit": 3, "nl_tol": 1e-8,
-                                        "ss_tol": 1e-6, "is_nonlinear": True},
+                                        "ss_tol": 1e-6},
                                        {"equation": "b", "post": False, "nl_maxit": 1, "nl_tol": 1e-8,
-                                        "ss_tol": 1e-6, "is_nonlinear": True}]}
+                                        "ss_tol": 1e-6}]}
 
     def log(blocks):                       # [[(a Newton relcs), b relc, (a SS relc, b SS relc)], ...] per coupling it.
         out, n = [], 0

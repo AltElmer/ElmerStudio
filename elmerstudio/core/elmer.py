@@ -340,21 +340,23 @@ def convergence_problems(conv, spec) -> list[str]:
         sp = solvers[eq]
         rec = nl_bad.setdefault(eq, [0, 0, 0.0, sp["nl_maxit"], sp["nl_tol"]])
         rec[1] += 1
-        # A nonlinear equation that reaches its maximum iterations without meeting the tolerance
-        # is not converged, even if nl_maxit == 1 (the old >1 exemption was for linear equations).
-        if sp.get("is_nonlinear", False) and it >= sp["nl_maxit"] and rel > sp["nl_tol"]:
+        # A Newton loop is not converged when it reaches its maximum iterations without meeting
+        # the tolerance, if either nl_maxit > 1 (the original exemption for linear one-pass solves)
+        # OR the equation is inherently nonlinear (is_nonlinear=True). Missing is_nonlinear means
+        # old behavior (nl_maxit > 1 only).
+        if (sp["nl_maxit"] > 1 or sp.get("is_nonlinear", False)) and it >= sp["nl_maxit"] and rel > sp["nl_tol"]:
             rec[0] += 1
             rec[2] = max(rec[2], rel)
 
     def close_ss():
         top = max(it for it, _r in ss_last.values())
         ss_bad[1] += 1
-        # Coupling iterations: if there are multiple physics with actual cross-dependencies,
-        # reaching ss_maxit without meeting tolerance is not converged, even if ss_maxit == 1.
-        # We infer real coupling from: more than one primary solver AND at least one solver
-        # depends on another's field (indicated by is_nonlinear being true for multiple solvers).
-        coupled = sum(1 for s in solvers.values() if s.get("is_nonlinear", False)) > 1
-        if (ss_maxit > 1 or coupled) and top >= ss_maxit:
+        # Coupling iterations: reaching ss_maxit without meeting tolerance is not converged.
+        # The original exemption (ss_maxit > 1) applied to single-physics or one-way chains.
+        # Two-way cyclic dependencies are flagged via the solver's cross_depends field.
+        # A missing cross_depends key means old behavior (ss_maxit > 1 only).
+        cross_coupled = any(sp.get("cross_depends", False) for sp in solvers.values())
+        if (ss_maxit > 1 or cross_coupled) and top >= ss_maxit:
             over = [rel for eq, (_it, rel) in ss_last.items() if rel > solvers[eq]["ss_tol"]]
             if over:
                 ss_bad[0] += 1

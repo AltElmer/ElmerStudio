@@ -116,6 +116,95 @@ def test_judge_linear_one_pass_is_converged():
     assert msgs == [], f"Linear one-pass should be converged, got {msgs}"
 
 
+def test_judge_navier_stokes_no_is_nonlinear_not_converged():
+    """Navier-Stokes with nl_maxit=20 and no is_nonlinear key must be 'not converged'.
+    
+    This tests the backward compatibility: old saved specs without is_nonlinear
+    should still be judged by nl_maxit > 1 rule."""
+    conv = [(i, "navier-stokes", "NS", 0.3, i) for i in range(1, 21)]
+    spec = {
+        "ss_maxit": 1,
+        "solvers": [{"equation": "navier-stokes", "post": False,
+                     "nl_maxit": 20, "nl_tol": 1e-7, "ss_tol": 1e-6}]
+    }
+    msgs = convergence_problems(conv, spec)
+    assert len(msgs) == 1, f"Expected 1 problem, got {msgs}"
+    assert "navier-stokes" in msgs[0]
+    assert "maximum 20" in msgs[0]
+
+
+def test_judge_navier_stokes_is_nonlinear_false_not_converged():
+    """Navier-Stokes with nl_maxit=20 and is_nonlinear=False must be 'not converged'.
+    
+    Even with explicit is_nonlinear=False, nl_maxit > 1 triggers the check."""
+    conv = [(i, "navier-stokes", "NS", 0.3, i) for i in range(1, 21)]
+    spec = {
+        "ss_maxit": 1,
+        "solvers": [{"equation": "navier-stokes", "post": False,
+                     "nl_maxit": 20, "nl_tol": 1e-7, "ss_tol": 1e-6, "is_nonlinear": False}]
+    }
+    msgs = convergence_problems(conv, spec)
+    assert len(msgs) == 1, f"Expected 1 problem, got {msgs}"
+    assert "navier-stokes" in msgs[0]
+    assert "maximum 20" in msgs[0]
+
+
+def test_judge_coupling_two_way_not_converged():
+    """Two-way cyclic coupling with ss_maxit=1 and high relc must be 'not converged'.
+    
+    Both physics have cross_depends=True, ss_maxit=1, relc=2.0 > ss_tol."""
+    conv = [
+        (1, "physics_a", "NS", 1e-5, 1),
+        (1, "physics_a", "SS", 2.0, 1),
+        (1, "physics_b", "NS", 1e-5, 1),
+        (1, "physics_b", "SS", 2.0, 1),
+    ]
+    spec = {
+        "ss_maxit": 1,
+        "solvers": [
+            {"equation": "physics_a", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": True},
+            {"equation": "physics_b", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": True},
+        ]
+    }
+    msgs = convergence_problems(conv, spec)
+    # Should flag coupling (and also Newton loops since is_nonlinear=True and nl_maxit=1 with rel > tol)
+    coupling_msgs = [m for m in msgs if "coupling" in m]
+    assert len(coupling_msgs) == 1, f"Expected 1 coupling problem, got {msgs}"
+    assert "maximum 1" in coupling_msgs[0]
+    assert "relative change up to 2" in coupling_msgs[0]
+
+
+def test_judge_coupling_one_way_converged():
+    """One-way coupling chain with ss_maxit=1 stays converged (no coupling flag).
+    
+    Neither physics has cross_depends=True (no cycle), so coupling at ss_maxit=1
+    is not flagged. Newton loops may still be flagged if is_nonlinear=True."""
+    conv = [
+        (1, "physics_a", "NS", 1e-5, 1),
+        (1, "physics_a", "SS", 2.0, 1),
+        (1, "physics_b", "NS", 1e-5, 1),
+        (1, "physics_b", "SS", 2.0, 1),
+    ]
+    spec = {
+        "ss_maxit": 1,
+        "solvers": [
+            {"equation": "physics_a", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+            {"equation": "physics_b", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+        ]
+    }
+    msgs = convergence_problems(conv, spec)
+    # Should NOT flag coupling (no cross_depends cycle)
+    coupling_msgs = [m for m in msgs if "coupling" in m]
+    assert len(coupling_msgs) == 0, f"Expected no coupling problem, got {msgs}"
+    # Newton loops are flagged because is_nonlinear=True and nl_maxit=1 with rel > tol
+    newton_msgs = [m for m in msgs if "nonlinear iterations" in m]
+    assert len(newton_msgs) == 2, f"Expected 2 Newton problems, got {msgs}"
+
+
 # --------------------------------------------------------------------------------------- integration tests with real ElmerSolver
 @pytest.mark.integration
 def test_nonlinear_maxit_1_real_run_not_converged(elmer):

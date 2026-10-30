@@ -436,6 +436,18 @@ class SifContext:
             return default
         return 1
 
+    def is_nonlinear_physics(self, ph: Node) -> bool:
+        """Return True if the physics is inherently nonlinear (own variables in nonlinear set,
+        or physics is inherently nonlinear like Navier-Stokes)."""
+        pd = physics_def(ph.kind)
+        inst = instance_variable(ph)
+        own = {inst[1]} if inst else {v for (v, _l, _u) in pd.depvars.values()}
+        if self.nonlinear & own:
+            return True
+        if pd.id == "spf":
+            return True
+        return False
+
     def solver_settings(self, ph: Node, nl: dict) -> dict:
         sols = ensure_solver_configs(self.model, self.study)
         cfg = next((c for c in sols.children if c.props.get("physics") == ph.tag), None)
@@ -918,18 +930,35 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             return float(v)
         except (TypeError, ValueError):
             return default
-    def _solver_var(solver):
-        var = str(solver.keywords.get("Variable", "") or solver.keywords.get("Flux Variable", ""))
-        # strip -dofs prefix and array indices: "-dofs 2 Displacement" -> "Displacement", "Flow Solution[Velocity:1 Pressure:1]" -> "Flow Solution"
-        var = re.sub(r"^-dofs\s+\d+\s+", "", var).split("[")[0].strip()
-        return var
+    # Dependent variables per physics (for cross-dependency detection)
+    phys_depvars = {}
+    for ph in ctx.active:
+        pd = physics_def(ph.kind)
+        inst = instance_variable(ph)
+        own = {inst[1]} if inst else {v for (v, _l, _u) in pd.depvars.values()}
+        phys_depvars[ph.tag] = {v.lower() for v in own}
+    # Cross-dependencies: physics A depends on physics B's variables
+    # Build dependency graph: tag -> set of other tags whose variables it depends on
+    phys_deps = {tag: set() for tag in phys_depvars}
+    for tag, depvars in phys_depvars.items():
+        for other_tag, other_depvars in phys_depvars.items():
+            if other_tag != tag and (ctx.nonlinear & other_depvars):
+                phys_deps[tag].add(other_tag)
+    # Detect cyclic dependencies (two-way coupling): A depends on B and B depends on A
+    phys_cross = {tag: False for tag in phys_depvars}
+    for tag, deps in phys_deps.items():
+        for other_tag in deps:
+            if tag in phys_deps.get(other_tag, set()):
+                phys_cross[tag] = True
+                phys_cross[other_tag] = True
     meta["convergence"] = {
         "ss_maxit": int(sim.get("Steady State Max Iterations", 1) or 1),
         "solvers": [{"equation": str(s.keywords.get("Equation", "")).lower(), "post": bool(s.post),
                      "nl_maxit": int(_num(s.keywords.get("Nonlinear System Max Iterations"), 1)),
                      "nl_tol": _num(s.keywords.get("Nonlinear System Convergence Tolerance"), 1e-7),
                      "ss_tol": _num(s.keywords.get("Steady State Convergence Tolerance"), 1e-6),
-                     "is_nonlinear": _solver_var(s).lower() in {v.lower() for v in ctx.nonlinear}}
+                     "is_nonlinear": ctx.is_nonlinear_physics(s.physics) if s.physics else False,
+                     "cross_depends": phys_cross.get(s.physics.tag, False) if s.physics else False}
                     for s in solvers if s.keywords.get("Equation")]}
 
     g = [0, 0, -1] if sd == 3 else [0, -1, 0]
