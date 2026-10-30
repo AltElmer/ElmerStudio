@@ -374,7 +374,7 @@ class SifContext:
             for v in variables:
                 if not v.startswith("Coordinate") and v != "Time":
                     self.nonlinear.add(v)
-                    self.phys_nonlinear[tag].add(v)
+                    self.phys_nonlinear[tag].add(v.lower())
 
     def material_for(self, domain: int) -> Node | None:
         mats = self.comp.child("materials")
