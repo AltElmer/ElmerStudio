@@ -162,18 +162,20 @@ def load(path: str) -> tuple[Model, str]:
                 expected_sha = info.get("sha256")
                 original_path = str(node.props.get(prop, ""))
                 entry = info.get("entry", "")
-                # If manifest has no digest, we cannot verify; record and skip digest check
+                # If manifest has no digest, we cannot verify; record but still extract and relink
                 if expected_sha is None:
                     problems.append(f"digest not available for asset {key}")
                     # Leave solutions_current unchanged (no evidence of tampering)
-                    continue
+                    has_digest = False
+                else:
+                    has_digest = True
                 if os.path.isfile(original_path):
-                    # Verify live original matches manifest
-                    if os.path.getsize(original_path) != expected_size or _sha256(original_path) != expected_sha:
+                    # Verify live original matches manifest (only if we have a digest)
+                    if has_digest and (os.path.getsize(original_path) != expected_size or _sha256(original_path) != expected_sha):
                         problems.append(f"changed live original for asset {key}; relinked to embedded copy")
                         solutions_current = False
                         # Fall through to extract from archive
-                    else:
+                    elif has_digest:
                         continue                              # the original is still there: keep using it
                 if entry not in names:
                     problems.append(f"missing asset {entry}")
@@ -183,8 +185,8 @@ def load(path: str) -> tuple[Model, str]:
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 with z.open(entry) as src, open(target, "wb") as dst:
                     shutil.copyfileobj(src, dst)
-                # Verify extracted asset matches manifest
-                if os.path.getsize(target) != expected_size or _sha256(target) != expected_sha:
+                # Verify extracted asset matches manifest (only if we have a digest)
+                if has_digest and (os.path.getsize(target) != expected_size or _sha256(target) != expected_sha):
                     problems.append(f"damaged asset {entry}")
                     solutions_current = False
                 node.props[prop] = target                 # relinked to the packaged copy

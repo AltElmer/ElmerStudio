@@ -174,3 +174,43 @@ def test_solutions_current_no_digest_archive():
             f"no-digest asset missing problem: {m2.load_problems}"
     finally:
         shutil.rmtree(src_dir, ignore_errors=True)
+
+
+def test_no_digest_archive_still_relinks_to_embedded_when_original_missing():
+    """An archive without digests must still extract and relink to the embedded copy when the original is missing."""
+    src_dir = tempfile.mkdtemp(prefix="es_asset_nodigest_missing_")
+    try:
+        src = os.path.join(src_dir, "part.step")
+        with open(src, "w") as f:
+            f.write("ISO-10303-21; original\n")
+        m = B.new_model("3D", ["ht"], "stationary")
+        imp = m.create("geom.import", m.component.child("geometry"), index=0)
+        imp.props["file"] = src
+        work = tempfile.mkdtemp(prefix="es_proj_")
+        path = os.path.join(tempfile.mkdtemp(prefix="es_projfile_"), "no_digest_missing.mph")
+        project.save(m, path, work)
+        # Modify manifest to remove sha256
+        bad = path.replace(".mph", "_nodigest_missing.mph")
+        with zipfile.ZipFile(path) as zin, zipfile.ZipFile(bad, "w") as zout:
+            for it in zin.infolist():
+                data = zin.read(it.filename)
+                if it.filename == "manifest.json":
+                    manifest = json.loads(data.decode("utf-8"))
+                    for key, info in manifest.get("assets", {}).items():
+                        info.pop("sha256", None)
+                        info.pop("size", None)
+                    data = json.dumps(manifest).encode("utf-8")
+                zout.writestr(it, data)
+        # Delete the original file so the embedded copy must be used
+        os.remove(src)
+        m2, work2 = project.load(bad)
+        # The asset should be relinked to the embedded copy (file exists in work2/_assets)
+        imp2 = m2.by_tag("imp1")
+        asset_path = imp2.props["file"]
+        assert os.path.isfile(asset_path), f"embedded asset not extracted: {asset_path}"
+        assert "ISO-10303-21; original" in open(asset_path).read(), f"embedded asset content wrong"
+        assert m2.solutions_current is True, f"no-digest missing original: solutions_current={m2.solutions_current}"
+        assert any("digest not available" in p for p in m2.load_problems), \
+            f"no-digest asset missing problem: {m2.load_problems}"
+    finally:
+        shutil.rmtree(src_dir, ignore_errors=True)
