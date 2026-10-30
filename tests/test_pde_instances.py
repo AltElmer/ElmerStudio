@@ -218,23 +218,26 @@ def test_pde_nonconverged_instance_reported_by_equation_name(elmer):
     """A nonconverged second PDE instance must be reported by the convergence judge with its equation name.
     
     PDE 1: nonlinear coefficient c = 1 + u1^2, limited to 2 iterations -> will not converge
-    PDE 2: linear c = 1, should converge
+    PDE 2: nonlinear coefficient c = 1 + u2^2, limited to 1 iteration -> will not converge
     
-    The study should report the nonconverged instance by its unique equation name.
+    Study has ss_maxit = 1 (no segregated coupling loop); the nonconverged
+    instance is reported by its own equation name.
     """
     m, geo = _make_two_pde_disjoint_domains()
     pdes = [c for c in m.component.children if c.kind == "physics.pde"]
     pde1, pde2 = pdes[0], pdes[1]
     # PDE 1: nonlinear, will not converge with limited iterations
     pde1.child("pde.cfeq").props.update(c="1+u1^2", f="20", a="0", da="0")
-    # PDE 2: linear, should converge
-    pde2.child("pde.cfeq").props.update(c="1", f="1", a="0", da="0")
+    # PDE 2: also nonlinear (c = 1 + u2^2), will not converge with nl_maxit = 1
+    pde2.child("pde.cfeq").props.update(c="1+u2^2", f="1", a="0", da="0")
     st = m.studies()[0]
     st.props["nonconv"] = "keep"  # keep solution folder to inspect meta
+    step = B.study_steps(st)[0]
+    step.props["coupling"] = 1      # no segregated coupling loop (ss_maxit = 1)
     cfg = B.ensure_solver_configs(m, st)
-    # Make pde1 need more iterations than allowed
+    # Make pde2 need more iterations than allowed
     for c in cfg.children:
-        if c.props.get("physics") == pde1.tag:
+        if c.props.get("physics") == pde2.tag:
             c.props.update(nl_maxit=1, nl_tol="1e-12")
             break
     work = tempfile.mkdtemp(prefix="es_pde_nc_")
@@ -248,5 +251,5 @@ def test_pde_nonconverged_instance_reported_by_equation_name(elmer):
     meta = sol.meta
     assert meta.get("status") == "not converged"
     diagnostics = meta.get("diagnostics", [])
-    assert any("coefficient form pde" in d and "reached the maximum" in d for d in diagnostics), \
+    assert any("coefficient form pde u2" in d and "reached the maximum" in d for d in diagnostics), \
         f"Nonconverged instance not reported by equation name: {diagnostics}"

@@ -151,6 +151,7 @@ def load(path: str) -> tuple[Model, str]:
                 if os.path.getsize(target) != info.get("size") or _sha256(target) != info.get("sha256"):
                     problems.append(f"damaged {name}")
         m = Model.from_dict(data)
+        solutions_current = True
         if manifest is not None:
             for key, info in manifest.get("assets", {}).items():
                 tag, prop = key.split(":", 1)
@@ -164,10 +165,14 @@ def load(path: str) -> tuple[Model, str]:
                 if os.path.isfile(original_path):
                     # Verify live original matches manifest
                     if os.path.getsize(original_path) != expected_size or _sha256(original_path) != expected_sha:
-                        problems.append(f"changed live original for asset {key}")
-                    continue                              # the original is still there: keep using it
+                        problems.append(f"changed live original for asset {key}; relinked to embedded copy")
+                        solutions_current = False
+                        # Fall through to extract from archive
+                    else:
+                        continue                              # the original is still there: keep using it
                 if entry not in names:
                     problems.append(f"missing asset {entry}")
+                    solutions_current = False
                     continue
                 target = _safe_target(os.path.join(workdir, "_assets"), entry.split("/", 1)[1])
                 os.makedirs(os.path.dirname(target), exist_ok=True)
@@ -176,7 +181,9 @@ def load(path: str) -> tuple[Model, str]:
                 # Verify extracted asset matches manifest
                 if os.path.getsize(target) != expected_size or _sha256(target) != expected_sha:
                     problems.append(f"damaged asset {entry}")
+                    solutions_current = False
                 node.props[prop] = target                 # relinked to the packaged copy
+        m.solutions_current = solutions_current
     m.file_path = path
     m.load_problems = problems
     m.solutions_saved = (manifest or {}).get("solutions", "included")
