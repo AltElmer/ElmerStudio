@@ -57,14 +57,14 @@ jobs:
           gh release download "${NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p "$ASSET" -D "$DEST"
           echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
           tar -xzf "$DEST/$ASSET" -C "$DEST"
-          # The archive extracts to a folder like nastran95-v1.0.0-linux-x86_64
-          EXTRACTED=$(find "$DEST" -maxdepth 1 -type d -name 'nastran95*' | head -1)
-          if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
-            NAS_HOME="$EXTRACTED"
-          elif [ -f "$EXTRACTED/nastran" ]; then
-            NAS_HOME="$EXTRACTED"
+          # Archive extracts files directly into DEST (nastran, rf/, dist/bin/nastran)
+          if [ -f "$DEST/dist/bin/nastran" ]; then
+            NAS_HOME="$DEST"
+          elif [ -f "$DEST/nastran" ]; then
+            NAS_HOME="$DEST"
           else
-            echo "Could not find nastran executable in $EXTRACTED"
+            echo "Could not find nastran executable in $DEST"
+            ls -la "$DEST"
             exit 1
           fi
           echo "NASTRAN_HOME=$NAS_HOME" >> "$GITHUB_ENV"
@@ -88,15 +88,19 @@ jobs:
             exit 1
           }
           Expand-Archive -Path "$dest\$asset" -DestinationPath $dest -Force
-          # The archive extracts to a folder like nastran95-v1.0.0-windows-x86_64
-          $extracted = Get-ChildItem $dest -Directory -Filter "nastran95*" | Select-Object -First 1
-          if (Test-Path "$($extracted.FullName)\dist\bin\nastran.exe") {
-            $nasHome = $extracted.FullName
-          } elseif (Test-Path "$($extracted.FullName)\nastran.exe") {
-            $nasHome = $extracted.FullName
-          } else {
-            Write-Error "Could not find nastran.exe in $($extracted.FullName)"
+          # Archive may extract to a subfolder or directly; find nastran.exe
+          $nastranExe = Get-ChildItem $dest -Recurse -File -Filter "nastran.exe" | Select-Object -First 1
+          if (-not $nastranExe) {
+            Write-Error "Could not find nastran.exe in $dest"
+            Get-ChildItem $dest -Recurse | Format-Table FullName
             exit 1
+          }
+          $nasHome = $nastranExe.DirectoryName
+          # Go up to the root that contains rf/ and dist/
+          while ($nasHome -and -not (Test-Path "$nasHome\rf")) {
+            $parent = Split-Path $nasHome
+            if ($parent -eq $nasHome) { break }
+            $nasHome = $parent
           }
           "NASTRAN_HOME=$nasHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           # Verify the binary runs
@@ -128,13 +132,14 @@ jobs:
           gh release download "${NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p "$ASSET" -D "$DEST"
           echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
           tar -xzf "$DEST/$ASSET" -C "$DEST"
-          EXTRACTED=$(find "$DEST" -maxdepth 1 -type d -name 'nastran95*' | head -1)
-          if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
-            NAS_HOME="$EXTRACTED"
-          elif [ -f "$EXTRACTED/nastran" ]; then
-            NAS_HOME="$EXTRACTED"
+          # Archive extracts files directly into DEST (nastran, rf/, dist/bin/nastran)
+          if [ -f "$DEST/dist/bin/nastran" ]; then
+            NAS_HOME="$DEST"
+          elif [ -f "$DEST/nastran" ]; then
+            NAS_HOME="$DEST"
           else
-            echo "Could not find nastran executable in $EXTRACTED"
+            echo "Could not find nastran executable in $DEST"
+            ls -la "$DEST"
             exit 1
           fi
           echo "NASTRAN_HOME=$NAS_HOME" >> "$GITHUB_ENV"
