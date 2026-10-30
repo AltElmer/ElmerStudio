@@ -1,0 +1,201 @@
+= NASTRAN-95: One Model, Two Solvers
+:description: Solve the same Elmer Studio models with NASTRAN-95 and with ElmerSolver: an axial bar, the eigenfrequencies of a cantilever, steady heat conduction and a 3D bar, each checked against a closed-form answer.
+:page-pagination:
+
+Elmer Studio can hand a study to *NASTRAN-95*, the public-domain release of NASA's structural analysis program, instead of ElmerSolver.
+You build the model once; a single setting on the study decides which program solves it.
+In this tutorial you solve four small models with NASTRAN-95, read its input deck, compare the results with closed-form solutions, and solve the same models with Elmer to see both programs agree.
+
+.What you will learn
+* Switch a study between the Elmer and NASTRAN-95 backends.
+* Read the NASTRAN-95 Bulk Data deck that Elmer Studio writes.
+* Solve linear statics (SOL 1), normal modes (SOL 3) and steady heat conduction (HEAT 1) in 2D and 3D.
+* Judge the accuracy of NASTRAN-95's linear elements, and refine the mesh where they need it.
+
+.Models at a glance
+[cols="1,2,2,2",options="header"]
+|===
+|Model |Physics and study |Closed-form check |NASTRAN-95 (Elmer)
+|Axial bar, 2D |Solid Mechanics, Stationary |elongation σL/E = 0.100 mm, stress 20 MPa |0.0999 mm, 20.00 MPa (0.0999 mm, 20.00 MPa)
+|Cantilever, 2D |Solid Mechanics, Eigenfrequency |first bending frequency 40.77 Hz |41.13 Hz (40.72 Hz)
+|Plate, 2D |Heat Transfer in Solids, Stationary |linear temperature, 350 K to 300 K |within 0.0002 K (exact)
+|Axial bar, 3D |Solid Mechanics, Stationary |elongation PL/EA = 0.100 mm |0.1014 mm (0.0998 mm)
+|===
+
+The static and heat models solve in a second or two, the eigenfrequencies in about a minute.
+The same models run in the automated test suite (`tests/test_nastran.py`) and as scripts in `examples/nastran`.
+
+== Before you start: install NASTRAN-95
+
+. Download a NASTRAN-95 release for your system from https://github.com/AltElmer/NASTRAN-95/releases[AltElmer/NASTRAN-95/releases] and unpack it.
+On Windows you can also use a Linux build inside WSL.
+. Open menu:File[Preferences...] and set *NASTRAN-95 installation folder* to the unpacked folder, the one that contains `nastran` (or `dist/bin/nastran`) and the `rf` folder.
+The line under the field confirms the installation it found.
+For a build inside WSL, set the environment variable `NASTRAN_WSL_HOME` to its Linux path instead, for example `/home/<user>/NASTRAN-95`, and restart Elmer Studio.
+
+See xref:user-guide:nastran.adoc[NASTRAN-95 backend] for the full lookup order.
+
+== Part 1: Axial bar in tension
+
+A steel bar 1 m long and 50 mm high is fixed at its left end and pulled at the right end by a stress of 20 MPa.
+In 2D, Elmer Studio models a slice of unit depth; with plane stress the bar stretches by σL/E = 20 MPa · 1 m / 200 GPa = 0.1 mm, and the stress is 20 MPa everywhere.
+
+=== Build the model
+
+. Click menu:File[New] and choose *Model Wizard*. Choose *2D*, add *Structural Mechanics › Solid Mechanics (solid)*, and choose the *Stationary* study.
+. Click *Geometry 1*, then menu:Geometry[Rectangle]. Set _Width_ to `+1[m]+` and _Height_ to `+5[cm]+`, and press kbd:[F8] (*Build All Objects*).
+. Click menu:Home[Add Material] and add *Built-in › Structural steel*. It covers the whole bar: E = 200 GPa, ν = 0.3.
+. Click *Solid Mechanics (solid)* and set _2D approximation_ to `+Plane stress+`.
+. Click menu:Physics[Boundaries > Fixed Constraint] and click the left edge.
+. Click *Solid Mechanics (solid)* again, click menu:Physics[Boundaries > Boundary Load] and click the right edge.
+Keep _Load type_ `+Force per unit area+` and set _F_A x_ to `+20[MPa]+`.
+. On the *Mesh* ribbon, click menu:Mesh[Free Triangular]. Click *Size 1*, set _Element size_ to `+Custom+`, _Maximum element size_ to `+5[cm]+` and _Minimum element size_ to `+2[cm]+`.
+
+=== Choose NASTRAN-95
+
+. Click *Study 1*. In the section _Study Settings_, set *Solver backend* to `+NASTRAN-95+`.
++
+.Study 1 solved by NASTRAN-95
+image::ROOT:screenshots/tutorial_nastran_1_solver_backend.png["Settings of Study 1 with Solver backend NASTRAN-95; the Graphics window shows the bar",role=screenshot]
+
+The ribbon button *Show Elmer Input File* becomes *Show NASTRAN Input Deck*.
+If NASTRAN-95 cannot solve the model, *Compute* is unavailable and its tooltip gives the reason.
+
+=== Read the input deck
+
+. Click menu:Study[Show NASTRAN Input Deck].
++
+.The NASTRAN-95 input deck
+image::ROOT:screenshots/tutorial_nastran_2_input_deck.png["The NASTRAN Input Deck window: executive and case control, then GRID, MAT1, PSHELL, CTRIA3, SPC1 and FORCE cards",role=screenshot]
+
+The deck has three parts:
+
+* the Executive Control (`APP DISP`, `SOL 1`): linear statics;
+* the Case Control: which constraint and load sets to use (`SPC = 1`, `LOAD = 1`) and which results to print;
+* the Bulk Data: a `GRID` card for every mesh node, the material (`MAT1`), the 2D property (`PSHELL`, unit thickness), the elements, the constraints (`SPC1`) and the loads (`FORCE`).
+
+Every 6-node triangle of the mesh is written as four 3-node `CTRIA3` elements that share its nodes, because NASTRAN-95 has no 6-node triangle that reproduces a uniform stress exactly.
+The 20 MPa on the right edge appears as nodal forces: the stress times the edge area of each element side, shared by its nodes.
+*Save As...* writes the deck to a `.bdf` file that you can run with NASTRAN-95 by hand.
+
+=== Solve and look at the stress
+
+. Click menu:Home[Compute].
+
+The Log window shows NASTRAN-95's output, ending with `END OF JOB`.
+*Results* gets the *Stress (solid)* plot group: the von Mises stress on the deformed bar.
+
+.Von Mises stress from NASTRAN-95: 20 MPa throughout
+image::ROOT:screenshots/tutorial_nastran_3_bar_stress.png["Stress (solid): the bar is uniformly at 20 MPa",role=screenshot]
+
+=== Check the results
+
+Click the plot at the right end of the bar to read the values there (see xref:user-guide:results.adoc[Results]), or evaluate `+u+` and `+solid.mises+` with a Point Evaluation.
+
+[cols="2,1,1,1",options="header"]
+|===
+|Quantity |Theory |NASTRAN-95 |Elmer
+|Elongation at x = 1 m |0.1000 mm |0.0999 mm |0.0999 mm
+|Von Mises stress |20.00 MPa |20.00 MPa |20.00 MPa
+|===
+
+To see Elmer's answer, set *Solver backend* back to `+Elmer+` and compute again.
+The elongation is 0.1 % short of σL/E in both programs, because the clamped end also stops the bar from narrowing there.
+
+== Part 2: Eigenfrequencies of a cantilever
+
+The same bar, clamped at the left end and free at the right, vibrates in bending.
+Euler–Bernoulli beam theory gives its first frequency as
+
+[.text-center]
+f~1~ = 1.8751² / (2π L²) · √(E h² / (12 ρ)) = 40.77 Hz
+
+for L = 1 m, h = 50 mm and ρ = 7850 kg/m³, and the second as 6.267 times the first.
+
+. Start a new 2D model with *Solid Mechanics* and the *Eigenfrequency* study, and repeat the geometry, material, _2D approximation_ `+Plane stress+` and Fixed Constraint of Part 1. There is no load.
+. On the *Mesh* ribbon, click menu:Mesh[Free Triangular]. In *Size 1*, set _Maximum element size_ to `+12.5[mm]+` and _Minimum element size_ to `+5[mm]+`: four elements through the depth of the beam.
+. Click *Study 1*, set *Solver backend* to `+NASTRAN-95+`, and click menu:Home[Compute].
+
+NASTRAN-95 solves rigid format 3 (normal modes) with the FEER method and returns the six lowest modes, as many as _Desired number of eigenfrequencies_ asks for.
+The *Mode Shape (solid)* plot group shows the first mode; choose the others under _Eigenfrequency_ in its settings.
+
+.First bending mode from NASTRAN-95
+image::ROOT:screenshots/tutorial_nastran_4_mode_shape.png["Mode Shape (solid): the cantilever bent in its first mode",role=screenshot]
+
+=== Check the results
+
+[cols="2,1,1,1",options="header"]
+|===
+|Quantity |Beam theory |NASTRAN-95 |Elmer
+|f~1~ |40.77 Hz |41.13 Hz |40.72 Hz
+|f~2~ |255.5 Hz |254.8 Hz |252.3 Hz
+|f~2~/f~1~ |6.267 |6.195 |6.195
+|===
+
+Both programs give the same mode shapes.
+NASTRAN-95's frequencies are 1 % higher than Elmer's because its 3-node triangles are stiffer in bending than Elmer's 6-node triangles.
+With the coarser 5 cm mesh of Part 1, one element through the depth, the difference would be about 10 %: for bending, give NASTRAN-95 at least four linear elements through the thickness.
+Both programs fall below beam theory for f~2~, which ignores shear and rotary inertia.
+
+== Part 3: Steady heat conduction
+
+A steel plate 1 m by 20 cm is held at 350 K on its left edge and 300 K on its right edge; the other edges are insulated.
+The temperature falls linearly from left to right.
+
+. Start a new 2D model with *Heat Transfer › Heat Transfer in Solids (ht)* and the *Stationary* study.
+. Draw a rectangle of _Width_ `+1[m]+` and _Height_ `+20[cm]+`, and add *Structural steel*.
+. Click menu:Physics[Boundaries > Temperature], click the left edge and set _Temperature_ to `+350[K]+`. Add a second *Temperature* on the right edge with `+300[K]+`.
+. Add a *Free Triangular* mesh with a *Size* of `+10[cm]+` maximum and `+5[cm]+` minimum.
+. Set the study's *Solver backend* to `+NASTRAN-95+` and click menu:Home[Compute].
+
+NASTRAN-95 runs its heat transfer approach (`APP HEAT`) with the fixed temperatures as `SPC` cards.
+
+.Temperature from NASTRAN-95
+image::ROOT:screenshots/tutorial_nastran_5_temperature.png["Temperature (ht): a linear gradient from 350 K on the left to 300 K on the right",role=screenshot]
+
+=== Check the results
+
+The temperature at every node is within 0.0002 K of 350 K − 50 K · x / 1 m.
+Heat flux and convection boundaries are not mapped to NASTRAN-95: with one of them in the model, *Compute* is unavailable and says so.
+
+== Part 4: Axial bar in 3D
+
+. Start a new 3D model with *Solid Mechanics* and the *Stationary* study.
+. Click *Geometry 1*, then menu:Geometry[Block]. Set _Width_ `+1[m]+`, _Depth_ `+1[cm]+` and _Height_ `+5[cm]+`, build it, and add *Structural steel*.
+. Add a *Fixed Constraint* on the face at x = 0 and a *Boundary Load* on the face at x = 1 m with _Load type_ `+Total force+` and _F_tot x_ `+10[kN]+`.
+. Add a *Free Tetrahedral* mesh with a *Size* of `+10[cm]+` maximum and `+5[cm]+` minimum.
+. Set the study's *Solver backend* to `+NASTRAN-95+` and click menu:Home[Compute].
+
+Each 10-node tetrahedron of the mesh becomes eight 4-node `CTETRA` elements.
+The cross-section is 5 cm², so the stress is 20 MPa and the elongation PL/EA = 0.1 mm.
+
+.Von Mises stress in the 3D bar from NASTRAN-95
+image::ROOT:screenshots/tutorial_nastran_6_bar_3d_stress.png["Stress (solid): the 3D bar at about 20 MPa",role=screenshot]
+
+=== Check the results
+
+[cols="2,1,1,1",options="header"]
+|===
+|Quantity |Theory |NASTRAN-95 |Elmer
+|Elongation at x = 1 m |0.1000 mm |0.1014 mm |0.0998 mm
+|Mean von Mises stress, 0.2 m < x < 0.8 m |20.0 MPa |20.1 MPa |20.0 MPa
+|===
+
+In tension the linear tetrahedra do well: on this coarse mesh, with one element through the 1 cm depth, NASTRAN-95 is within 1.5 %.
+In bending they are much stiffer than Elmer's quadratic ones: a 3D cantilever with one element through its depth deflects 40 % less with NASTRAN-95.
+The xref:user-guide:nastran.adoc#accuracy[accuracy table] lists the measured differences.
+
+== Run the models as scripts
+
+The four models are also scripts in `examples/nastran`.
+Each builds the model through the Python API, solves it with NASTRAN-95, prints the result next to the closed-form value, saves the `.esm` project and a picture:
+
+[source,bash]
+----
+python examples/nastran/axial_bar_2d.py
+python examples/nastran/cantilever_modes_2d.py
+python examples/nastran/heat_2d.py
+python examples/nastran/axial_bar_3d.py
+----
+
+See xref:scripting.adoc[Scripting a model in Python] for the API.

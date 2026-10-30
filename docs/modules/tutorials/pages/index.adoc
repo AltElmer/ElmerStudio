@@ -78,6 +78,15 @@ A rough anode dissolves and levels out: a moving boundary, its mesh, and the ana
 xref:deforming-electrodes.adoc[Open →]
 ****
 
+.NASTRAN-95
+****
+image::ROOT:screenshots/tutorial_nastran_4_mode_shape.png[Cantilever mode shape from NASTRAN-95]
+
+The same models solved by NASTRAN-95 and by Elmer: an axial bar, cantilever eigenfrequencies, heat conduction and a 3D bar.
+
+xref:nastran.adoc[Open →]
+****
+
 .Scripting
 ****
 Build and solve the same models from Python, headless or inside the GUI.

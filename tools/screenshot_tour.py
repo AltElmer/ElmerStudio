@@ -26,6 +26,9 @@ def redact_messages(w):
     def add(text, kind="info"):
         text = text.replace(tmp, "<tmp>").replace(home, "~")
         text = re.sub(r"~[\\/][^\s]*?[\\/](bin[\\/]ElmerSolver(\.exe)?)", r"<ELMER_HOME>\\\1", text)
+        # a NASTRAN-95 build, native or inside WSL
+        text = re.sub(r"(/home/[^/\s]+|~)[\\/]\S*?[\\/]((dist[\\/]bin[\\/])?nastran(\.exe)?)(?=\s|$)",
+                      r"<NASTRAN_HOME>/\2", text)
         orig(text, kind)
     w.messages.add = add
     w.messages.clear()

@@ -90,7 +90,7 @@ When the study finishes, default plot groups are created for the solved physics 
 _Solver backend_ on the *Study* node chooses who solves the study: *Elmer* (the default), *OpenFOAM (blockMesh)*, or *NASTRAN-95*.
 
 * *OpenFOAM* solves Laminar Flow and Heat Transfer in Solids on unions of axis-aligned rectangles or blocks, and refuses everything else before it runs, saying why. Its results come back as an ordinary solution with the same variable names and units, and the convergence statuses and the _When ... do not converge_ setting work the same way. See xref:openfoam.adoc[OpenFOAM backend].
-* *NASTRAN-95* solves Solid Mechanics (statics, normal modes) and Heat Transfer in Solids (steady conduction) on 2D and 3D models. It writes a NASTRAN Bulk Data deck, runs NASTRAN-95 (via WSL or native Windows), and reads back displacements, stresses, eigenfrequencies, or temperatures. Its results come back with the same variable names and units, and the convergence statuses work the same way. See xref:nastran.adoc[NASTRAN-95 backend].
+* *NASTRAN-95* solves Solid Mechanics (Stationary and Eigenfrequency) and Heat Transfer in Solids (Stationary, fixed temperatures) on 2D and 3D models. It writes a NASTRAN Bulk Data deck, runs NASTRAN-95 (a native build, or on Windows one inside WSL), and reads back displacements, stresses, eigenfrequencies with their mode shapes, or temperatures, with the same variable names and units as Elmer. It refuses what it cannot translate before it runs. See xref:nastran.adoc[NASTRAN-95 backend] and the xref:tutorials:nastran.adoc[NASTRAN-95 tutorial].
 
 == Parallel computing
 

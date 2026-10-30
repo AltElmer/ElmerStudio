@@ -7,4 +7,5 @@
 ** xref:acoustics.adoc[Acoustics]
 ** xref:electrochemistry.adoc[Electrochemistry: current distribution]
 ** xref:deforming-electrodes.adoc[Electrochemistry: deforming electrodes]
+** xref:nastran.adoc[NASTRAN-95: one model, two solvers]
 ** xref:scripting.adoc[Scripting a model in Python]
