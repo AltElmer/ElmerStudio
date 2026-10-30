@@ -6,6 +6,7 @@ solver log with the same statuses and the same study policy as the Elmer path.
 """
 from __future__ import annotations
 
+import math
 import os
 import re
 import shutil
@@ -26,13 +27,28 @@ from .polymesh import PolyMesh, topology
 TIMEOUT = float(os.environ.get("ELMERSTUDIO_FOAM_TIMEOUT", "3600"))   # seconds per OpenFOAM command
 
 RE_TIME = re.compile(r"^Time = (\S+)")
-RE_SOLVE = re.compile(r"(\w+):\s+Solving for (\w+), Initial residual = ([-+\d.eE]+), Final residual = ([-+\d.eE]+), "
+RE_SOLVE = re.compile(r"(\w+):\s+Solving for (\w+), Initial residual = (\S+), Final residual = (\S+), "
                       r"No Iterations (\d+)")
 RE_SIMPLE = re.compile(r"SIMPLE solution converged in (\S+) iterations")
-RE_CONT = re.compile(r"time step continuity errors : sum local = ([-+\d.eE]+), global = ([-+\d.eE]+), "
-                     r"cumulative = ([-+\d.eE]+)")
+RE_CONT = re.compile(r"time step continuity errors : sum local = (\S+), global = (\S+), "
+                     r"cumulative = (\S+)")
 RE_FATAL = re.compile(r"FOAM FATAL|Floating point exception(?! trapping)|FOAM aborting|"
                       r"^#\d+\s+Foam::error::printStack|Segmentation fault|Foam::sigFpe::sigHandler|Foam::sigSegv")
+# the equations the solver of a case must report a solve for: the temperature for the heat solver, the pressure
+# and the velocity for the flow solvers
+EXPECTED_EQUATIONS = {"laplacianFoam": ("T",), "simpleFoam": ("p", "U"), "pimpleFoam": ("p", "U")}
+# the fields each solver writes, and the non-finite numbers a written field may hold
+WRITTEN_FIELDS = {"laplacianFoam": ("T",), "simpleFoam": ("U", "p"), "pimpleFoam": ("U", "p")}
+RE_NONFINITE = re.compile(r"(?<![A-Za-z0-9_])[-+]?(?:nan|inf|infinity)(?![A-Za-z0-9_])", re.IGNORECASE)
+
+
+def _number(token: str) -> float:
+    """The number of a solver log token.  nan, inf and everything unreadable are read as nan, so the judge sees
+    them and rejects the solve instead of skipping the line."""
+    try:
+        return float(token)
+    except ValueError:
+        return float("nan")
 
 
 @dataclass
@@ -62,7 +78,8 @@ class FoamRunState:
             return "step"
         m = RE_SOLVE.search(s)
         if m:
-            solver, fld, r0, r1, it = m.group(1), m.group(2), float(m.group(3)), float(m.group(4)), int(m.group(5))
+            solver, fld = m.group(1), m.group(2)
+            r0, r1, it = _number(m.group(3)), _number(m.group(4)), int(m.group(5))
             self.solves.append((self.steps, solver, fld, r0, r1, it))
             if fld not in self._seen:                  # the first solve of a field per step: its initial residual
                 self._seen.add(fld)
@@ -71,7 +88,7 @@ class FoamRunState:
             return None
         m = RE_CONT.search(s)
         if m:
-            self.continuity.append((self.steps, float(m.group(1))))
+            self.continuity.append((self.steps, _number(m.group(1))))
             return None
         m = RE_SIMPLE.search(s)
         if m:
@@ -101,22 +118,117 @@ def fatal_message(rs: FoamRunState) -> str:
     return rs.fatal[-1] if rs.fatal else ""
 
 
+def expected_equations(P: FoamPlan) -> list[str]:
+    """The equations the solver of this case must report a solve for."""
+    return list(EXPECTED_EQUATIONS.get(getattr(P, "app", ""), ()))
+
+
+def missing_equations(rs: FoamRunState, P: FoamPlan) -> list[str]:
+    """The expected equations the log reports no solve for.  The pressure of a flow case may be solved as pFinal
+    and the velocity as U or as its components."""
+    fields = {f for _st, _sv, f, _r0, _r1, _it in rs.solves}
+    missing = []
+    for name in expected_equations(P):
+        if name == "U":
+            seen = any(f == "U" or f.startswith("U") for f in fields)
+        elif name == "p":
+            seen = any(f in ("p", "pFinal") for f in fields)
+        else:
+            seen = name in fields
+        if not seen:
+            missing.append(name)
+    return missing
+
+
+def nonfinite_solves(rs: FoamRunState) -> list[tuple]:
+    """The solves whose residual is not a finite number."""
+    out = []
+    for st, _sv, fld, r0, r1, it in rs.solves:
+        for which, val in (("initial", r0), ("final", r1)):
+            if not math.isfinite(val):
+                out.append((st, fld, which, val, it))
+    return out
+
+
+def transient_problems(rs: FoamRunState, P: FoamPlan, outputs: list) -> list[str]:
+    """The planned time span the log does not cover: the end time of the plan and the output times it asks for.
+    OpenFOAM prints the time with the precision of its timePrecision setting, so the printed end time may be
+    rounded: half a time step of slack is allowed."""
+    out = []
+    t0, dt, nsteps = getattr(P, "t0", None), getattr(P, "dt", None), getattr(P, "nsteps", None)
+    out_times = getattr(P, "out_times", None)
+    if t0 is not None and dt is not None and nsteps:
+        end = t0 + nsteps * dt
+        try:
+            last = float(rs.time)
+        except (TypeError, ValueError):
+            last = None
+        if last is None:
+            out.append(f"the log reports no time step (the run should reach {end:g} s)")
+        elif last < end - 0.5 * abs(dt) - 1e-9 * max(1.0, abs(end)):
+            out.append(f"the run stopped at time {last:g} s, before the planned end time {end:g} s")
+    if out_times:
+        times = [t for t, _folder in outputs]
+        missing = [t for t in out_times if not any(abs(x - t) <= 1e-9 * max(abs(t), 1.0) for x in times)]
+        if missing:
+            out.append(f"the results of the time {missing[0]:g} s are missing ({len(missing)} of {len(out_times)} "
+                       f"planned output times)")
+    return out
+
+
+def field_problems(P: FoamPlan, outputs: list) -> list[str]:
+    """The written result fields that are not finite (or cannot be read): a field with a nan or an inf in it is
+    not a result, whatever the log says."""
+    out = []
+    for t, folder in outputs:
+        if not os.path.isdir(folder):
+            continue
+        for name in WRITTEN_FIELDS.get(getattr(P, "app", ""), ()):
+            path = os.path.join(folder, name)
+            try:
+                with open(path, errors="replace") as f:
+                    text = f.read()
+            except OSError:
+                out.append(f"the written field {name} of the time {t:g} s is missing")
+                continue
+            i = text.find("internalField")
+            if i < 0:
+                out.append(f"the written field {name} of the time {t:g} s has no internalField")
+                continue
+            j = text.find(";", i)
+            m = RE_NONFINITE.search(text[i:j if j > 0 else len(text)])
+            if m:
+                out.append(f"the written field {name} of the time {t:g} s holds a non-finite value ({m.group(0)})")
+    return out
+
+
 def judge_foam(rs: FoamRunState, P: FoamPlan, outputs: list, label: str) -> tuple[str, list[str]]:
-    """('failed', [message]) when OpenFOAM stopped with an error or wrote no result; ('not converged', [problems])
-    when SIMPLE ran out of iterations (and its last iteration still changed the solution by more than the
-    tolerance), a linear solve ended above its tolerance, or a time step lost continuity; else ('converged', []).
+    """('failed', [message]) when OpenFOAM stopped with an error, wrote no result or left an incomplete log;
+    ('not converged', [problems]) when the log does not qualify: an expected equation was not solved, a residual
+    is not finite or is above its tolerance, the planned time span was not covered, or a written field is not
+    finite; else ('converged', []).
 
     OpenFOAM normalizes a residual by the field's own variation, so for a field that is uniform or zero (the
     pressure with slip walls, v in a straight channel) the residual is noise and residual control is never met.
     Then the relative change of one more SIMPLE iteration decides, the measure Elmer's nonlinear tolerance uses."""
     if rs.timed_out:
         return "failed", [f"{label}: {P.app} did not finish within {TIMEOUT:g} s and was stopped"]
-    if rs.returncode != 0 or rs.fatal or not rs.ended:
+    if rs.returncode != 0 or rs.fatal:
         msg = fatal_message(rs) or f"{P.app} exited with code {rs.returncode}"
         return "failed", [f"{label}: {P.app}: {msg}"]
+    if not rs.ended:
+        return "failed", [f"{label}: {P.app}: the log ends without 'End' (the run did not finish)"]
     if not outputs:
         return "failed", [f"{label}: {P.app} wrote no result"]
     problems = []
+    missing = missing_equations(rs, P)
+    if missing:
+        problems.append(f"the log reports no solve for {', '.join(missing)} (the equation(s) {P.app} had to solve)")
+    nf = nonfinite_solves(rs)
+    if nf:
+        st, fld, which, val, _it = nf[0]
+        problems.append(f"{len(nf)} linear solve(s) reported a non-finite residual; the worst, {fld} in step {st}, "
+                        f"has {which} residual {val:g}")
     if P.app == "simpleFoam":
         if rs.simple_converged is None:
             ch = rs.change or {}
@@ -136,10 +248,15 @@ def judge_foam(rs: FoamRunState, P: FoamPlan, outputs: list, label: str) -> tupl
             st, fld, r1, it = max(bad, key=lambda b: b[2] / P.lin_tol)
             problems.append(f"{len(bad)} linear solve(s) ended above the tolerance {P.lin_tol:g}; the worst, {fld} "
                             f"in step {st}, at {r1:.3g} after {it} iterations (maximum {P.lin_maxit})")
-    if P.transient and rs.continuity:              # per time step it is dimensionless (dt times |div u|)
-        worst = max(c for _s, c in rs.continuity)
-        if worst > 1e-4:
-            problems.append(f"the continuity error of a time step reached {worst:.3g} (sum local)")
+    if getattr(P, "transient", False):
+        problems.extend(transient_problems(rs, P, outputs))
+        if any(not math.isfinite(c) for _s, c in rs.continuity):
+            problems.append("a time step reported a non-finite continuity error")
+        elif rs.continuity:                  # per time step it is dimensionless (dt times |div u|)
+            worst = max(c for _s, c in rs.continuity)
+            if worst > 1e-4:
+                problems.append(f"the continuity error of a time step reached {worst:.3g} (sum local)")
+    problems.extend(field_problems(P, outputs))
     return ("not converged", [f"{label}: {p}" for p in problems]) if problems else ("converged", [])
 
 
