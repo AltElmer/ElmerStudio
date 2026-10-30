@@ -541,6 +541,7 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         case_lines.append("DISPLACEMENT = ALL")
         case_lines.append("STRESS = ALL")
         case_lines.append("ELFORCE = ALL")
+        case_lines.append("SPCFORCE = ALL")
     if spc_cards:
         case_lines.append(f"SPC = {plan.spc_id}")
     if load_cards and plan.sol != 3:
