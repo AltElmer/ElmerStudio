@@ -1,4 +1,4 @@
-"""Tests for unconverged result display (P1c: kept-unconverged results visibly distinct).
+"""Tests for unconverged result display.
 
 These tests verify that a solution with status "not converged" shows the marker
 in: (1) plot titles, (2) model builder tree, (3) evaluation tables, (4) exports.
