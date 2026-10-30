@@ -10,6 +10,7 @@ Outputs in dist/:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import platform
 import shutil
@@ -161,6 +162,23 @@ def package_linux():
     return out
 
 
+def _embed_commit(bundle_dir):
+    """Write the current git commit to the bundle for frozen app to read."""
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=ROOT,
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+    except Exception:
+        commit = "unknown"
+    commit_file = os.path.join(bundle_dir, ".commit")
+    with open(commit_file, "w") as f:
+        f.write(commit)
+    print(f"embedded commit: {commit}", flush=True)
+
+
 def smoke():
     """Start the frozen app on an example, build its geometry, quit; fail unless it reports OK."""
     res = os.path.join(DIST, "selftest.txt")
@@ -170,17 +188,56 @@ def smoke():
            "--selftest-ui"]
     print("+", " ".join(cmd), flush=True)
     try:
-        subprocess.run(cmd, timeout=180)
+        proc = subprocess.run(cmd, timeout=180, capture_output=True, text=True)
     except subprocess.TimeoutExpired:
         print("frozen application did not exit (modal error dialog?)", flush=True)
+        raise SystemExit("frozen application timed out")
+
+    # Check child exit code
+    if proc.returncode != 0:
+        raise SystemExit(f"frozen application exited with code {proc.returncode}")
+
     txt = open(res).read() if os.path.exists(res) else ""
     print("selftest:", txt.strip() or "(no output)", flush=True)
-    if not txt.startswith("OK") or "geometry=built" not in txt:
-        raise SystemExit("frozen application self-test failed")
-    if "ui=ok" not in txt:
-        raise SystemExit("frozen application desktop self-test failed (ribbon, layouts, clipping, names, recovery)")
-    if "elmer=None" not in txt and "frames=1" not in txt:
-        raise SystemExit("frozen application found Elmer but the solve/plot self-test failed")
+
+    # Parse JSON report
+    try:
+        report = json.loads(txt.strip())
+    except json.JSONDecodeError as e:
+        raise SystemExit(f"selftest report is not valid JSON: {e}")
+
+    # Validate schema version
+    if report.get("schema") != 1:
+        raise SystemExit(f"selftest report has unsupported schema version: {report.get('schema')}")
+
+    # Validate commit matches current (frozen app reads embedded .commit)
+    try:
+        current_commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=ROOT,
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+    except Exception:
+        current_commit = "unknown"
+    if report.get("commit") != current_commit:
+        raise SystemExit(f"selftest report commit {report.get('commit')!r} does not match current {current_commit!r}")
+
+    # Validate stages
+    stages = report.get("stages", {})
+    required_stages = ["geometry", "mesh", "compute", "plot", "ui"]
+    for stage in required_stages:
+        if stages.get(stage) not in ("built", "converged", "rendered", "ok"):
+            raise SystemExit(f"selftest stage {stage} failed: {stages.get(stage)!r}")
+
+    # Validate counts (exact integer comparison, no substring matching)
+    counts = report.get("counts", {})
+    if counts.get("frames") != 1:
+        raise SystemExit(f"selftest frames={counts.get('frames')} expected 1")
+    if counts.get("plots") != 1:
+        raise SystemExit(f"selftest plots={counts.get('plots')} expected 1")
+    if counts.get("nodes") < 1:
+        raise SystemExit(f"selftest nodes={counts.get('nodes')} expected >= 1")
 
 
 def main():
@@ -193,6 +250,7 @@ def main():
         run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--distpath", DIST,
              "--workpath", os.path.join(ROOT, "build"), os.path.join(PKG, "elmerstudio.spec")])
     if not args.no_smoke:
+        _embed_commit(bundle_dir())
         smoke()
     if sys.platform == "win32":
         files = package_windows()
