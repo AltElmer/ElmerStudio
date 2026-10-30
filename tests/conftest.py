@@ -46,3 +46,36 @@ def elmer():
     if inst is None:
         pytest.skip("Elmer (ElmerSolver) not installed")
     return inst
+
+
+# Skip budget tracking
+_skip_budget_count = 0
+
+
+def pytest_runtest_logreport(report):
+    """Track skipped tests for budget enforcement."""
+    global _skip_budget_count
+    if report.skipped:
+        # Check if the test is exempt from skip budget
+        item = report.item
+        if not any(m.name == "skip_budget_exempt" for m in item.own_markers):
+            _skip_budget_count += 1
+            print(f"DEBUG: Skip counted, total={_skip_budget_count}", file=sys.stderr)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Enforce skip budget: fail if too many tests are skipped.
+
+    Budget is set via ELMERSTUDIO_SKIP_BUDGET environment variable (default: 5).
+    Tests marked with @pytest.mark.skip_budget_exempt are not counted.
+    """
+    global _skip_budget_count
+    if exitstatus != 0:
+        return  # already failed, don't mask the real failure
+
+    budget = int(os.environ.get("ELMERSTUDIO_SKIP_BUDGET", "5"))
+    if _skip_budget_count > budget:
+        print(f"SKIP BUDGET EXCEEDED: {_skip_budget_count} skipped (budget: {budget})")
+        session.exitstatus = 1
+    # Reset for next session (if any)
+    _skip_budget_count = 0
