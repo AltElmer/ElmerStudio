@@ -918,12 +918,18 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             return float(v)
         except (TypeError, ValueError):
             return default
+    def _solver_var(solver):
+        var = str(solver.keywords.get("Variable", "") or solver.keywords.get("Flux Variable", ""))
+        # strip -dofs prefix and array indices: "-dofs 2 Displacement" -> "Displacement", "Flow Solution[Velocity:1 Pressure:1]" -> "Flow Solution"
+        var = re.sub(r"^-dofs\s+\d+\s+", "", var).split("[")[0].strip()
+        return var
     meta["convergence"] = {
         "ss_maxit": int(sim.get("Steady State Max Iterations", 1) or 1),
         "solvers": [{"equation": str(s.keywords.get("Equation", "")).lower(), "post": bool(s.post),
                      "nl_maxit": int(_num(s.keywords.get("Nonlinear System Max Iterations"), 1)),
                      "nl_tol": _num(s.keywords.get("Nonlinear System Convergence Tolerance"), 1e-7),
-                     "ss_tol": _num(s.keywords.get("Steady State Convergence Tolerance"), 1e-6)}
+                     "ss_tol": _num(s.keywords.get("Steady State Convergence Tolerance"), 1e-6),
+                     "is_nonlinear": _solver_var(s).lower() in {v.lower() for v in ctx.nonlinear}}
                     for s in solvers if s.keywords.get("Equation")]}
 
     g = [0, 0, -1] if sd == 3 else [0, -1, 0]
