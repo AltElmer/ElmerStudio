@@ -157,9 +157,15 @@ def load(path: str) -> tuple[Model, str]:
                 node = m.by_tag(tag)
                 if node is None:
                     continue
-                if os.path.isfile(str(node.props.get(prop, ""))):
-                    continue                              # the original is still there: keep using it
+                expected_size = info.get("size")
+                expected_sha = info.get("sha256")
+                original_path = str(node.props.get(prop, ""))
                 entry = info.get("entry", "")
+                if os.path.isfile(original_path):
+                    # Verify live original matches manifest
+                    if os.path.getsize(original_path) != expected_size or _sha256(original_path) != expected_sha:
+                        problems.append(f"changed live original for asset {key}")
+                    continue                              # the original is still there: keep using it
                 if entry not in names:
                     problems.append(f"missing asset {entry}")
                     continue
@@ -167,6 +173,9 @@ def load(path: str) -> tuple[Model, str]:
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 with z.open(entry) as src, open(target, "wb") as dst:
                     shutil.copyfileobj(src, dst)
+                # Verify extracted asset matches manifest
+                if os.path.getsize(target) != expected_size or _sha256(target) != expected_sha:
+                    problems.append(f"damaged asset {entry}")
                 node.props[prop] = target                 # relinked to the packaged copy
     m.file_path = path
     m.load_problems = problems
