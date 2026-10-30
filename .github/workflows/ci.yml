@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  NASTRAN_RELEASE: v1.0.0
+
 jobs:
   test:
     name: Tests (${{ matrix.os }})
@@ -41,6 +44,103 @@ jobs:
           sudo apt-get install -y elmerfem-csc
           (command -v ElmerSolver || command -v ElmerSolver_mpi) && ElmerGrid 2>&1 | head -n 3 || true
 
+      - name: Install NASTRAN-95 (Linux)
+        if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ASSET="nastran95-v1.0.0-linux-x86_64.tar.gz"
+          EXPECTED="6a97cd11975041367c0ababa560dddbd556a50b0bff1b9f6eb2ecaedf1c0d73b"
+          DEST="${RUNNER_TEMP}/nastran95-linux"
+          mkdir -p "$DEST"
+          gh release download "${NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p "$ASSET" -D "$DEST"
+          echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
+          tar -xzf "$DEST/$ASSET" -C "$DEST"
+          # The archive extracts to a folder like nastran95-v1.0.0-linux-x86_64
+          EXTRACTED=$(find "$DEST" -maxdepth 1 -type d -name 'nastran95*' | head -1)
+          if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
+          elif [ -f "$EXTRACTED/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
+          else
+            echo "Could not find nastran executable in $EXTRACTED"
+            exit 1
+          fi
+          echo "NASTRAN_HOME=$NAS_HOME" >> "$GITHUB_ENV"
+          # Verify the binary runs
+          "$NAS_HOME/nastran" --version 2>&1 | head -5 || "$NAS_HOME/nastran" -v 2>&1 | head -5 || true
+
+      - name: Install NASTRAN-95 (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $asset = "nastran95-v1.0.0-windows-x86_64.zip"
+          $expected = "35399cefb508db4745725f3c61bf3df134b302ff94b251bfa663b7f2ef60f726"
+          $dest = "$env:RUNNER_TEMP\nastran95-windows"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          gh release download "${env:NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p $asset -D $dest
+          $actual = (Get-FileHash "$dest\$asset" -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) {
+            Write-Error "SHA256 mismatch: expected $expected, got $actual"
+            exit 1
+          }
+          Expand-Archive -Path "$dest\$asset" -DestinationPath $dest -Force
+          # The archive extracts to a folder like nastran95-v1.0.0-windows-x86_64
+          $extracted = Get-ChildItem $dest -Directory -Filter "nastran95*" | Select-Object -First 1
+          if (Test-Path "$($extracted.FullName)\dist\bin\nastran.exe") {
+            $nasHome = $extracted.FullName
+          } elseif (Test-Path "$($extracted.FullName)\nastran.exe") {
+            $nasHome = $extracted.FullName
+          } else {
+            Write-Error "Could not find nastran.exe in $($extracted.FullName)"
+            exit 1
+          }
+          "NASTRAN_HOME=$nasHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Verify the binary runs
+          & "$nasHome\nastran.exe" --version 2>&1 | Select-Object -First 5
+          if ($LASTEXITCODE -ne 0) { & "$nasHome\nastran.exe" -v 2>&1 | Select-Object -First 5 }
+
+      - name: Install NASTRAN-95 (macOS)
+        if: runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Try both macOS architectures; prefer x86_64 if available
+          ASSET_X86="nastran95-v1.0.0-macos-x86_64.tar.gz"
+          EXPECTED_X86="58cc6fa854449a0392f027571c4b39185ba7881b5f9f12830c2299d963635a4a"
+          ASSET_ARM="nastran95-v1.0.0-macos-arm64.tar.gz"
+          EXPECTED_ARM="1eb6898b1f180eb79c79fd2857d7eb22676df3a9013b415abf1e31d5340d33d1"
+          DEST="${RUNNER_TEMP}/nastran95-macos"
+          mkdir -p "$DEST"
+          # Detect architecture
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then
+            ASSET="$ASSET_X86"
+            EXPECTED="$EXPECTED_X86"
+          else
+            ASSET="$ASSET_ARM"
+            EXPECTED="$EXPECTED_ARM"
+          fi
+          gh release download "${NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p "$ASSET" -D "$DEST"
+          echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
+          tar -xzf "$DEST/$ASSET" -C "$DEST"
+          EXTRACTED=$(find "$DEST" -maxdepth 1 -type d -name 'nastran95*' | head -1)
+          if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
+          elif [ -f "$EXTRACTED/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
+          else
+            echo "Could not find nastran executable in $EXTRACTED"
+            exit 1
+          fi
+          echo "NASTRAN_HOME=$NAS_HOME" >> "$GITHUB_ENV"
+          # Verify the binary runs
+          "$NAS_HOME/nastran" --version 2>&1 | head -5 || "$NAS_HOME/nastran" -v 2>&1 | head -5 || true
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
@@ -49,7 +149,7 @@ jobs:
       - name: Engine and solver tests (Linux, with Elmer)
         if: runner.os == 'Linux'
         env:
-          ELMERSTUDIO_TEST_MPI_HOME: /usr      # the PPA's Elmer is an MPI build: one study also runs on 2 processes
+          ELMERSTUDIO_TEST_MPI_HOME: /usr
         run: |
           ElmerSolver -v 2>&1 | head -n 8 || true
           command -v mpiexec || echo "no mpiexec: the MPI test will fail with the reason"
