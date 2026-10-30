@@ -19,7 +19,7 @@ NASTRAN-95 is looked up in this order:
 . common install folders, such as an unpacked release in your Downloads folder, and `nastran` on the `PATH`;
 . on Windows, a build found inside WSL.
 
-A folder is accepted when it holds the `nastran` executable (also under `dist/bin/`) and the rigid formats folder `rf/`. Releases for Windows and Linux are published at https://github.com/AltElmer/NASTRAN-95/releases[AltElmer/NASTRAN-95].
+A folder is accepted when it holds the `nastran` executable (also under `dist/bin/`) and the rigid formats folder `rf/`. Releases for Windows, Linux and macOS are published at https://github.com/Foadsf/NASTRAN-95/releases[Foadsf/NASTRAN-95]; the Windows and Linux builds are the ones verified with Elmer Studio.
 
 With the NASTRAN study selected, menu:Study[Show NASTRAN Input Deck] shows the generated deck without running anything: the Executive Control and Case Control decks and the Bulk Data with all GRID, material, element, SPC and load cards. *Save As...* writes it to a `.bdf` file you can run by hand.
 

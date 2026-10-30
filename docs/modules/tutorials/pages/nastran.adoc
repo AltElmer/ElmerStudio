@@ -27,7 +27,7 @@ The same models run in the automated test suite (`tests/test_nastran.py`) and as
 
 == Before you start: install NASTRAN-95
 
-. Download a NASTRAN-95 release for your system from https://github.com/AltElmer/NASTRAN-95/releases[AltElmer/NASTRAN-95/releases] and unpack it.
+. Download a NASTRAN-95 release for your system from https://github.com/Foadsf/NASTRAN-95/releases[Foadsf/NASTRAN-95/releases] (Windows, Linux and macOS) and unpack it.
 On Windows you can also use a Linux build inside WSL.
 . Open menu:File[Preferences...] and set *NASTRAN-95 installation folder* to the unpacked folder, the one that contains `nastran` (or `dist/bin/nastran`) and the `rf` folder.
 The line under the field confirms the installation it found.
