@@ -17,13 +17,29 @@ import numpy as np
 
 from . import units
 from .backends import study_backend
-from .builder import step_components, study_steps, study_sweep
+from .builder import step_components, study_steps, study_sweep, physics_nodes
 from .elmer import (ElmerInstall, RunState, parallel_problem, partition_command, result_files, solver_command,
                     write_case)
 from .meshing import build_mesh
 from .model import Model, Node
 from .results import topology_to_npz, write_solution_meta
 from .sif import build_sif, parse_list
+
+
+def physics_ancestor(node: Node) -> Node | None:
+    """Return the physics.* ancestor of *node*, or None if not under a physics interface."""
+    n = node
+    while n is not None:
+        if n.kind.startswith("physics."):
+            return n
+        n = n.parent
+    return None
+
+
+def step_components_local(model: Model, step: Node) -> list[Node]:
+    """Components with a physics interface that *step* solves."""
+    sel = step.props.get("physics", {}) or {}
+    return [c for c in model.components() if any(ph.enabled and sel.get(ph.tag, False) for ph in physics_nodes(model, c))]
 
 
 def sweep_combinations(model: Model, sweep: Node | None) -> list[dict]:
@@ -68,9 +84,10 @@ def component_dir(model: Model, study_dir: str, comp_tag: str) -> str:
 _XREF = re.compile(r"(?<![\w.])(comp\w*)\.(\w+)(\()?")
 
 
-def cross_references(model: Model, comp: Node) -> list[tuple[str, str, str, str]]:
+def cross_references(model: Model, comp: Node, step: Node | None = None) -> list[tuple[str, str, str, str]]:
     """References from *comp*'s settings to other components: [(text, component tag, name, argument)]; the
-    argument is None for a plain name (comp1.T), which equations cannot use."""
+    argument is None for a plain name (comp1.T), which equations cannot use. Only enabled features are scanned.
+    If *step* is given, only features from physics interfaces active in that study step are scanned."""
     tags = {c.tag for c in model.components()}
     out, seen = [], set()
 
@@ -102,16 +119,31 @@ def cross_references(model: Model, comp: Node) -> list[tuple[str, str, str, str]
         elif isinstance(v, (list, tuple)):
             for x in v:
                 walk(x)
+
+    # Determine active physics tags for this component in the given step
+    active_physics_tags = None
+    if step is not None:
+        sel = step.props.get("physics", {}) or {}
+        active_physics_tags = {ph.tag for ph in physics_nodes(model, comp) if ph.enabled and sel.get(ph.tag, False)}
+
     for n in comp.walk():
+        if not getattr(n, "enabled", True):
+            continue
+        # Skip features from physics not active in the study step
+        if active_physics_tags is not None:
+            ph = physics_ancestor(n)
+            if ph is not None and ph.tag not in active_physics_tags:
+                continue
         walk(n.props)
     return out
 
 
-def component_order(model: Model) -> list[Node]:
-    """Components in solving order: one whose expressions use another component's results comes after it.
-    A circular use is an error naming the components."""
+def component_order(model: Model, step: Node | None = None) -> list[Node]:
+    """Components in solving order for *step*: one whose expressions use another component's results comes after it.
+    A circular use is an error naming the components. If *step* is given, only cross-references from physics
+    active in that step are considered."""
     comps = model.components()
-    deps = {c.tag: {t for _f, t, _n, _a in cross_references(model, c)} for c in comps}
+    deps = {c.tag: {t for _f, t, _n, _a in cross_references(model, c, step)} for c in comps}
     order, state = [], {}
 
     def visit(c, path):
@@ -365,8 +397,8 @@ class StudyRunner:
         os.makedirs(sdir, exist_ok=True)
         # the components each step solves, ordered so that a component whose expressions use another's results
         # (comp1.aveop1(T)) is solved after it
-        order = component_order(self.model)
-        plan = [[c for c in order if c in step_components(self.model, step)] for step in steps]
+        plan = [[c for c in component_order(self.model, step) if c in step_components_local(self.model, step)] for step in steps]
+        order_max = max((len(component_order(self.model, step)) for step in steps), default=1)
         total = max(1, len(values) * sum(len(p) for p in plan))
         job = 0
         t_start = time.time()
@@ -389,7 +421,7 @@ class StudyRunner:
                 for comp in plan[si]:
                     with self.model.scoped(comp):
                         if comp.tag not in meshes:
-                            self.emit("progress", (job / total, f"Meshing {comp.label}" if len(order) > 1 else "Meshing"))
+                            self.emit("progress", (job / total, f"Meshing {comp.label}" if order_max > 1 else "Meshing"))
                             if overrides is None and comp.tag in cache:
                                 mesh = cache[comp.tag]
                             else:
@@ -400,7 +432,7 @@ class StudyRunner:
                                     self.emit("message", m)
                             meshes[comp.tag] = mesh
                             st = mesh.stats
-                            self.emit("message", (f"{comp.label}: " if len(order) > 1 else "")
+                            self.emit("message", (f"{comp.label}: " if order_max > 1 else "")
                                       + f"Mesh: {st['elements']} domain elements, {st['boundary_elements']} boundary "
                                       f"elements, {st['nodes']} nodes (order {st['order']}).")
                         mesh = meshes[comp.tag]

@@ -1320,7 +1320,12 @@ feature("pde.flux", "Flux/Source", "flux", "feature_boundary", "boundary", "bc",
 
 
 def _pde_solvers(ph, ctx):
-    s = {"Equation": "Coefficient Form PDE", "Procedure": ("ModelPDE", "AdvDiffSolver"), "Variable": ctx.pde_var(ph)}
+    var = ctx.pde_var(ph)
+    # Find index of this PDE among active PDE instances
+    pde_physics = [p for p in ctx.active if physics_def(p.kind).id == "pde"]
+    pde_index = pde_physics.index(ph) if ph in pde_physics else 0
+    eq_name = "Coefficient Form PDE" if pde_index == 0 else f"Coefficient Form PDE {var}"
+    s = {"Equation": eq_name, "Procedure": ("ModelPDE", "AdvDiffSolver"), "Variable": var}
     s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20))))
     return [s]
 
