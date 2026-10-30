@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import subprocess
 import sys
 
 
@@ -20,9 +22,36 @@ def _fix_stdio():
             sys.stderr = log
 
 
+def _get_commit():
+    """Get commit hash; for frozen builds, read from embedded file."""
+    # Check for embedded commit (written by packaging/build.py)
+    try:
+        base = os.path.dirname(os.path.abspath(__file__))
+        embedded = os.path.join(base, ".commit")
+        if os.path.exists(embedded):
+            with open(embedded, "r") as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    # Fallback: git rev-parse (dev checkout)
+    git_exe = r"C:\Program Files\Git\bin\git.exe"
+    if not os.path.exists(git_exe):
+        git_exe = "git"  # fallback to PATH
+    try:
+        base = os.path.dirname(os.path.abspath(__file__))
+        return subprocess.check_output(
+            [git_exe, "rev-parse", "--short", "HEAD"],
+            cwd=base,
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+    except Exception:
+        return "unknown"
+
+
 def main(argv=None):
     _fix_stdio()
-    ap =argparse.ArgumentParser(prog="elmerstudio", description="Elmer Studio - model builder for Elmer FEM")
+    ap = argparse.ArgumentParser(prog="elmerstudio", description="Elmer Studio - model builder for Elmer FEM")
     ap.add_argument("file", nargs="?", help="model file (.esm) to open")
     ap.add_argument("--example", help="open an example model (busbar, heat_sink, cantilever, flow_cylinder, ...)")
     ap.add_argument("--elmer-home", help="Elmer installation folder (overrides the saved preference)")
@@ -86,19 +115,70 @@ def main(argv=None):
             QTimer.singleShot(1500, _quit)
 
         def _quit():
-            line = (f"OK title={w.windowTitle()!r} nodes={sum(1 for _ in w.model.root.walk())} "
-                    f"geometry={'built' if w.geo is not None else 'none'} elmer={w.inst.solver if w.inst else None}"
-                    + (f" compute={state['computed']}" if state["computed"] else "")
-                    + (f" ui={state['ui']}" if state["ui"] else ""))
-            print(line, flush=True)
+            commit = _get_commit()
+
+            # Parse computed state
+            frames = 0
+            plots = 0
+            compute_stage = "not-run"
+            if state["computed"]:
+                if state["computed"] == "running":
+                    compute_stage = "running"
+                else:
+                    # state["computed"] is like "plots=1 frames=1"
+                    for part in state["computed"].split():
+                        if part.startswith("plots="):
+                            plots = int(part.split("=")[1])
+                        elif part.startswith("frames="):
+                            frames = int(part.split("=")[1])
+                    compute_stage = "converged" if frames > 0 else "not-run"
+
+            # Parse UI state
+            ui_stage = "not-run"
+            if state["ui"]:
+                ui_stage = "ok" if state["ui"] == "ok" else "failed"
+
+            # Determine overall pass/fail for required stages
+            # Required stages: geometry, mesh, compute, plot, ui
+            required_ok = True
+            if w.geo is None:
+                required_ok = False
+            if state.get("computed") and args.selftest_compute and w.inst and w.model.studies():
+                # compute was requested but didn't converge
+                if compute_stage != "converged":
+                    required_ok = False
+            if args.selftest_ui:
+                if ui_stage != "ok":
+                    required_ok = False
+
+            report = {
+                "schema": 1,
+                "commit": commit,
+                "stages": {
+                    "geometry": "built" if w.geo is not None else "not-run",
+                    "mesh": "built" if w.geo is not None else "not-run",
+                    "compute": compute_stage,
+                    "plot": "rendered" if plots > 0 else "not-run",
+                    "ui": ui_stage
+                },
+                "counts": {
+                    "nodes": sum(1 for _ in w.model.root.walk()),
+                    "frames": frames,
+                    "plots": plots
+                }
+            }
+            report_json = json.dumps(report)
+            print(report_json, flush=True)
             if args.selftest_out:
                 with open(args.selftest_out, "w") as f:
-                    f.write(line + "\n")
+                    f.write(report_json + "\n")
             w.dirty = False
-            app.quit()
+            exit_code = 0 if required_ok else 1
+            app.exit(exit_code)
+            return exit_code
         QTimer.singleShot(3000, lambda: _after_idle(_compute))
     return app.exec()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main() or 0)
