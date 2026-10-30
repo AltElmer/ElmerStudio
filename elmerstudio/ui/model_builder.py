@@ -101,6 +101,7 @@ class ModelBuilder(QWidget):
         self._history: list[int] = []
         self._hist_pos = -1
         self._navigating = False
+        self._validity_labels: dict[int, str] = {}   # node id -> validity label (e.g. "not converged: ...")
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(0)
@@ -236,6 +237,7 @@ class ModelBuilder(QWidget):
         self.tree.clear()
         self._items.clear()
         self._nodes.clear()
+        self._validity_labels.clear()
         root_item = self._make_item(self.model.root, None)
         self.tree.addTopLevelItem(root_item)
         self._fill(root_item, self.model.root)
@@ -293,6 +295,10 @@ class ModelBuilder(QWidget):
             notes.append("Default feature: applies wherever no later feature overrides it; it cannot be deleted.")
         if node.meta.get("needs_update"):
             notes.append("Needs update: compute the study again to see the current settings.")
+        # Validity label for solution datasets (kept-unconverged marker)
+        vlabel = self._validity_labels.get(id(node))
+        if vlabel and vlabel != "converged":
+            notes.append(f"Status: {vlabel}")
         notes += [text for _lv, text in issues]
         f = it.font(0)
         f.setItalic(not node.is_active())
@@ -302,6 +308,14 @@ class ModelBuilder(QWidget):
         tip = nt.description if nt and nt.description else (nt.title if nt else node.kind)
         it.setToolTip(0, tip + ("\n\n" + "\n".join(notes) if notes else ""))
         it.setData(0, Qt.AccessibleDescriptionRole, " ".join(notes))
+
+    def set_validity_label(self, node: Node, label: str):
+        """Set a validity label for a solution dataset node (e.g. "not converged: ..." or "converged")."""
+        self._validity_labels[id(node)] = label
+        # Re-decorate if the node is currently in the tree
+        it = self._items.get(id(node))
+        if it is not None:
+            self._decorate(it, node)
 
     def update_marks(self):
         """Re-decorate every node (after an edit that changes no structure)."""

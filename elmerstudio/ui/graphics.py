@@ -709,14 +709,9 @@ class GraphicsView(QWidget):
             except Exception as exc:
                 self.status.emit(f"Annotation error: {exc}")
         if scene.title:
-            import vtk
-            t = vtk.vtkTextActor()
-            t.SetInput(scene.title)
-            _font(t.GetTextProperty(), theme.plot_pt("plot_title"))
-            t.GetTextProperty().SetVerticalJustificationToTop()
-            t.GetPositionCoordinate().SetCoordinateSystemToNormalizedViewport()
-            t.SetPosition(0.008, 0.985)
-            p.add_actor(t, name="title")
+            # Use pyvista's add_text for proper integration with QtInteractor
+            p.add_text(scene.title, position="upper_left", font_size=theme.plot_pt("plot_title"),
+                       color=_text_rgb, name="title")
         self.info.setText("")
         if bounds is not None:
             bb = (bounds[0], bounds[2], bounds[4], bounds[1], bounds[3], bounds[5])

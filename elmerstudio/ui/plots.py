@@ -670,6 +670,10 @@ def build_scene(pg: Node, sol, fi: int, sdim: int, axi=False, revolution=None, v
         sc.title = pg.get("title", "")
     elif tt == "auto":
         head = fr_label + "    " if fr_label else ""
+        # Add validity label for unconverged solutions
+        validity = getattr(group_sol, "validity_label", None)
+        if validity and validity != "converged":
+            head = f"[{validity}] " + head
         sc.title = head + "   ".join(titles)
     return sc
 
@@ -1165,6 +1169,9 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities,
     # rows: (leading cells, solution, frame index)
     head = {"study.time": f"Time ({sol.meta.get('tunit', 's')})", "study.freq": "freq (Hz)",
             "study.eigen": "eigfreq (Hz)"}.get(sol.kind)
+    # Check if solution has a validity label (not converged)
+    validity = getattr(sol, "validity_label", None)
+    has_validity_marker = validity and validity != "converged"
     entries = []
     if sweep and node.get("solnum", "last") == "all":
         fac = units.unit_info(sweep_unit)[0] if sweep_unit else 1.0
@@ -1179,6 +1186,9 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities,
         for fi in frames:
             entries.append(([sol.frames[fi].value] if head else [], sol, fi))
         cols = [head] if head else []
+    # Add validity column if solution is not converged
+    if has_validity_marker:
+        cols.append("Solution Status")
     # 2D axisymmetric: integrate in the revolved geometry (COMSOL's default), so the measure gains a dimension
     rev = bool(node.get("revolved", True)) and sol.sdim == 2 and bool(sol.meta.get("axi"))
     idim = sol.sdim + 1 if rev else sol.sdim
@@ -1230,6 +1240,9 @@ def evaluate_derived(node: Node, model, sol: Solution, sel_frames, ctx_entities,
             row.extend(vals + [float("nan")] * (npt - len(vals)))
             if kind in ("eval.max", "eval.min"):
                 row.append("(" + ", ".join(f"{c:.4g}" for c in (loc or [])[:s.sdim]) + ")" if loc else "")
+        # Add validity marker for this solution
+        if has_validity_marker:
+            row.append(validity)
         rows.append(row)
     return cols, rows
 

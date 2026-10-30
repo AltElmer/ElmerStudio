@@ -263,6 +263,20 @@ class Solution:
         """CATALOG plus this solution's own entries (species named per interface, from the SIF build)."""
         return CATALOG + [tuple(e) for e in (self.meta.get("catalog") or [])]
 
+    @property
+    def validity_label(self) -> str:
+        """Short status label for display: "converged" for normal solutions, or "not converged: <diagnostics>"
+        for solutions that were kept despite not converging. Used in plots, tree, tables, and exports."""
+        status = self.meta.get("status", "converged")
+        if status == "not converged":
+            diags = self.meta.get("diagnostics", [])
+            if diags:
+                return f"not converged: {diags[0]}"
+            return "not converged"
+        if status == "failed":
+            return "failed"
+        return "converged"
+
     def _bflux(self, expr) -> bool:
         """True if *expr* reads a flux density reconstructed from nodal reaction loads."""
         extra = [a for a, _s, c, *_r in (self.meta.get("catalog") or []) if c in ("bflux", "-bflux")]

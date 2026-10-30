@@ -862,8 +862,22 @@ class MainWindow(QMainWindow):
             self.update_status()
             self._update_tabs()
             self.tree.update_marks()
+            self._update_solution_dataset_validity()
         except RuntimeError:            # the window is being destroyed
             pass
+
+    def _update_solution_dataset_validity(self):
+        """Set validity labels on solution dataset nodes in the tree."""
+        try:
+            for dset in self.datasets():
+                if dset.kind != "dset.solution":
+                    continue
+                sol = self.solution_of(dset)
+                if sol is not None and hasattr(sol, "validity_label"):
+                    label = sol.validity_label
+                    self.tree.set_validity_label(dset, label)
+        except Exception:
+            pass  # never break the UI for this
 
     def _units(self) -> dict:
         """Unit messages of the whole model (COMSOL's orange), recomputed once per model revision."""
@@ -3218,11 +3232,24 @@ class MainWindow(QMainWindow):
                 P = sol.topo.nodes * sol.scale
                 cols = [P[:, 0], P[:, 1]] + ([P[:, 2]] if sol.sdim == 3 else []) + [sol.evaluate(e, fi) for e in exprs]
                 hdr = "x,y," + ("z," if sol.sdim == 3 else "") + ",".join(exprs)
+                # Add solution validity marker to header
+                validity = getattr(sol, "validity_label", None)
+                if validity and validity != "converged":
+                    hdr = f"% Solution Status: {validity}\n" + hdr
                 np.savetxt(fn, np.column_stack(cols), delimiter=",", header=hdr, comments="% ")
             elif node.kind == "export.vtu":
-                import shutil
                 sol = self.solution_of(self._dataset_for(node))
-                shutil.copy(sol.frames[sol.frame_index("last")].file, fn)
+                src_file = sol.frames[sol.frame_index("last")].file
+                # Add solution validity marker to VTU field data
+                validity = getattr(sol, "validity_label", None)
+                if validity and validity != "converged":
+                    import pyvista as pv
+                    grid = pv.read(src_file)
+                    grid.field_data["SolutionStatus"] = np.array([validity])
+                    grid.save(fn)
+                else:
+                    import shutil
+                    shutil.copy(src_file, fn)
             elif node.kind == "export.report":
                 self.write_report(fn, node.get("images", True))
             self.messages.add(f"Exported: {fn}")
