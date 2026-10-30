@@ -50,6 +50,9 @@ def elmer():
 
 @pytest.fixture(scope="session")
 def nastran():
+    import platform
+    if platform.system() == "Darwin":
+        pytest.skip("NASTRAN-95 macOS arm64 binary not supported in CI")
     from elmerstudio.core.backends.nastran.install import find_nastran
     inst = find_nastran()
     if inst is None:
