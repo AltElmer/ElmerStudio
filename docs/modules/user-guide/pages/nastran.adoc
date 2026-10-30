@@ -1,145 +1,116 @@
 = NASTRAN-95 backend
-:description: Solving Structural Mechanics and Heat Transfer with NASTRAN-95 instead of ElmerSolver, what is supported, what is refused and why.
+:description: Solving Solid Mechanics and Heat Transfer with NASTRAN-95 instead of ElmerSolver: what is mapped, how accurate it is, what is refused and why.
 
-A study can be solved by *NASTRAN-95* (finite elements, MSC/NASTRAN compatible input decks) instead of ElmerSolver. You build the model exactly as for Elmer: geometry, materials, physics features, mesh settings, study. Only the study's *Solver backend* setting changes. The results come back into the same Results machinery, with the same variable names and SI units as an Elmer solution, so plots, derived values, selections and export work unchanged.
+A study can be solved by *NASTRAN-95*, the public-domain release of NASA's structural analysis program, instead of ElmerSolver. You build the model exactly as for Elmer: geometry, materials, physics features, mesh, study. Only the study's *Solver backend* setting changes. The results come back into the same Results machinery, with the same variable names and SI units as an Elmer solution, so plots, derived values, selections and export work unchanged.
 
-NASTRAN-95 covers a well-defined subset. Anything it cannot represent faithfully is refused before anything runs, with a sentence saying why and what to use instead. Elmer Studio never falls back to Elmer silently.
+The same model means the same problem: loads, constraints, the 2D plane strain or plane stress setting and the per-unit-depth convention of 2D models are translated so that NASTRAN-95 solves what Elmer would. Anything that cannot be translated faithfully is refused before anything runs, with a sentence saying why. Elmer Studio never falls back to Elmer silently, and never drops a feature it cannot map.
 
 == Choosing the backend
 
 Select the study node and set *Solver backend* (section _Study Settings_) to *NASTRAN-95*. The default is *Elmer*, and models saved before this setting existed open with Elmer.
 
-When the model cannot be solved by NASTRAN-95, *Compute* is unavailable and its tooltip says why ("Unavailable: ..."), and the study node carries an error mark with the same sentence. Reasons that need the geometry are reported when you click *Compute*, before anything runs.
+When the model cannot be solved by NASTRAN-95, *Compute* is unavailable and its tooltip says why ("Unavailable: ..."), and the study node carries an error mark with the same sentence. Reasons that need the geometry or the mesh are reported when you click *Compute*, before anything runs.
 
-NASTRAN-95 is found through:
+NASTRAN-95 is looked up in this order:
 
-* the *NASTRAN installation folder* in Preferences (Settings > NASTRAN installation folder), which must contain `nastran.exe` and an `rf/` directory;
-* `NASTRAN_HOME` environment variable (Windows native folder);
-* `NASTRAN_WSL_HOME` environment variable (WSL path to a verified build, e.g. `/home/<user>/NASTRAN-95`);
-* standard locations on PATH and in common install folders;
-* on Windows, a WSL build if no native one is found.
+. `NASTRAN_WSL_HOME` (Windows): the Linux path of a NASTRAN-95 build inside WSL, the folder that holds `dist/bin/nastran` and `rf/`, for example `/home/<user>/NASTRAN-95`;
+. the *NASTRAN-95 installation folder* in menu:File[Preferences...];
+. the environment variables `NASTRAN_ROOT`, `NASTRAN_EXE`, `NASTRAN95_ROOT` and `NASTRAN_HOME`;
+. common install folders, such as an unpacked release in your Downloads folder, and `nastran` on the `PATH`;
+. on Windows, a build found inside WSL.
 
-With the NASTRAN study selected, menu:Study[Show NASTRAN Input Files] lists the generated Bulk Data deck without running anything: the Executive Control deck, the Case Control deck, and the Bulk Data section with all GRID, MAT, element, SPC, and load cards.
+A folder is accepted when it holds the `nastran` executable (also under `dist/bin/`) and the rigid formats folder `rf/`. Releases for Windows and Linux are published at https://github.com/AltElmer/NASTRAN-95/releases[AltElmer/NASTRAN-95].
 
-== What is supported
+With the NASTRAN study selected, menu:Study[Show NASTRAN Input Deck] shows the generated deck without running anything: the Executive Control and Case Control decks and the Bulk Data with all GRID, material, element, SPC and load cards. *Save As...* writes it to a `.bdf` file you can run by hand.
+
+== What is mapped
 
 [cols="1,3",options="header"]
 |===
 |Model |NASTRAN-95
-|*Solid Mechanics*, linear statics |`SOL 1` (DISP), linear elastic, 2D plane stress and 3D
-|*Solid Mechanics*, normal modes |`SOL 3` (DISP), real eigenvalues via GIV (2D) or INV (3D)
-|*Solid Mechanics*, transient |`SOL 9` (DISP), not yet implemented
-|*Heat Transfer in Solids*, steady conduction |`HEAT 1`, linear isotropic
-|*Heat Transfer in Solids*, transient |`HEAT 9`, not yet implemented
-|2D geometry |Plane stress: CTRIM6 (6-node quadratic triangle) for structural; CTRIA3 for thermal
-|3D geometry |CTETRA (4-node linear tetra), CHEXA (8-node hexa), CPENTA (6-node wedge) from 10-node tet split
+|*Solid Mechanics*, Stationary |`APP DISP`, `SOL 1` (linear statics), linear elastic material
+|*Solid Mechanics*, Eigenfrequency |`APP DISP`, `SOL 3` (normal modes): the lowest _Desired number of eigenfrequencies_ modes by the FEER method, mass normalized, with their mode shapes
+|*Heat Transfer in Solids*, Stationary |`APP HEAT`, `SOL 1` (steady conduction), linear isotropic material, fixed temperatures
+|2D components |Per unit depth, as in Elmer. Plane strain (the default of the interface) or plane stress, from the interface's 2D approximation setting
+|3D components |Solid elements
 |Parametric sweeps |One NASTRAN run per parameter value
 |===
 
 === Feature mapping
 
-NASTRAN-95 uses free-field card format (comma-separated, no column alignment required). All values are in SI base units; the deck is self-consistent with the model's parameter definitions.
-
-[cols="2,2,3",options="header"]
+[cols="2,3",options="header"]
 |===
-|Studio feature |Structural |Thermal
-|Material: Structural Steel (E, ν, ρ) |`MAT1, MID, E, , ν, ρ` |—
-|Material: Thermal (k, ρ, C~p~) |— |`MAT4, MID, k, C~p~, ρ`
-|2D element property (plane stress) |`PTRIM6, PID, MID, t` (6-node tri) |`PSHELL, PID, MID, t` (CTRIA3)
-|3D element property |MID referenced directly on element card |MID referenced directly on element card
-|Fixed constraint (3D solid) |`SPC1, SID, 123` (DOFs 1,2,3) + `PS=456` on GRID |—
-|Fixed constraint (2D solid) |`SPC1, SID, 123456` (DOFs 1-6) + `PS=3456` on GRID |—
-|Enforced displacement |`SPC, SID, G, C, D` per DOF |—
-|Temperature boundary |— |`SPC, SID, G, 1, T`
-|Nodal force |`FORCE, SID, G, 0, F, nx, ny, nz` |—
-|Gravity |`GRAV, SID, 0, g, gx, gy, gz` |—
+|Studio feature |NASTRAN-95 cards
+|Linear Elastic Material (E, ν, ρ) |`MAT1`; in 2D plane strain with E/(1-ν²) and ν/(1-ν), which gives NASTRAN's plane stress membrane the plane strain stiffness
+|Heat Transfer in Solids (k, ρ, C~p~) |`MAT4`
+|Fixed Constraint |`SPC1` on the boundary's grid points, displacement components 1, 2 (and 3 in 3D)
+|Prescribed Displacement |`SPC` with the prescribed value, for each direction that is switched on
+|Roller, Symmetry |`SPC1` on the normal component; the boundary must be perpendicular to the x, y or z axis
+|Boundary Load: force per unit area, total force, pressure |`FORCE` cards: the load integrated over the boundary into consistent nodal forces of the elements NASTRAN solves; a pressure acts along the inward normal, as in Elmer
+|Body Load |`FORCE` cards: the force per unit volume integrated over the selected domains
+|Gravity |`GRAV` with the material density; it must act on the whole model
+|Temperature |`SPC` with the temperature on the boundary's grid points
+|Thermal Insulation, Symmetry (heat), Free |Nothing to write: they are the natural boundary condition
 |===
 
-=== Element and property cards
+=== Elements
 
-*Structural 2D (plane stress):*
-- 6-node quadratic triangle (gmsh order: 3 corners + 3 mid-sides) → `CTRIM6` with `PTRIM6`
-- Property: `PTRIM6, PID, MID, t, MID, 1.0, MID` (membrane, bending, shear)
+Every mesh node becomes a `GRID` card (grid ID = node number). NASTRAN-95 has no quadratic triangle or tetrahedron that passes the patch test, so the quadratic elements of the Studio mesh are split into linear ones that keep all the nodes:
 
-*Structural 3D:*
-- 10-node quadratic tet → split into 8 linear `CTETRA` (all 10 nodes kept, `GRID` cards for every node)
-- 20-node quadratic hex → `CHEXA` (corners only)
-- 15-node quadratic wedge → `CPENTA` (corners only)
-- 3D solid elements reference `MID` directly; no `PSOLID` card
-- `GRID` cards include `PS=456` to constrain rotational DOFs 4,5,6 (zero stiffness in CTETRA/CHEXA/CPENTA)
+* a 6-node triangle into 4 `CTRIA3` (with `PSHELL`, unit thickness);
+* a 10-node tetrahedron into 8 `CTETRA`;
+* linear triangles, quadrilaterals, tetrahedra, hexahedra and prisms map one to one to `CTRIA3`, `CQUAD4`, `CTETRA`, `CHEXA` and `CPENTA`.
 
-*Thermal 2D:*
-- 6-node quadratic triangle → split into 4 linear `CTRIA3` with `PSHELL`
-- Property: `PSHELL, PID, MID, t`
+Quadratic quadrilaterals, hexahedra and prisms (from mapped or swept meshes) and pyramids are refused: use a free triangular or tetrahedral mesh. In 2D the grid points carry `PS=3456` (a plane membrane), in 3D `PS=456` (solid elements have no rotational stiffness).
 
-*Thermal 3D:*
-- Same 3D elements as structural, reference `MID` directly
-- No `PSOLID`; `CTETRA`/`CHEXA`/`CPENTA` use `MAT4` directly
-- `GRID` cards without `PS` (no structural DOFs)
+NASTRAN-95's own 6-node membrane `CTRIM6` is not used: on coarse free meshes it does not reproduce a uniform stress state, with element stresses off by 30 to 50 percent in pure tension.
 
-=== Normal modes (SOL 3)
+=== Accuracy
 
-The `EIGR` card requests the first N positive eigenvalues:
-- 2D: `EIGR, SID, GIV, , , NEIG, NEIG` — Givens method with ND=NEIG prints first N roots
-- 3D: `EIGR, SID, INV, 0.0, 1000.0, NEIG, NEIG` — Inverse power method, iterative, avoids Givens time estimate explosion
-- `+EIG1, MASS` normalization for modal mass
+Linear elements are exact for uniform stress and linear temperature fields and converge more slowly than Elmer's quadratic elements in bending. Measured on the same models solved by both backends:
 
-The parser extracts from the `REAL EIGENVALUES` table: MODE, EXTRACTION ORDER, EIGENVALUE, RADIAN FREQUENCY, CYCLIC FREQUENCY (Hz), GENERALIZED MASS, GENERALIZED STIFFNESS. Only rows with `gen_mass ≈ 1.0` and `gen_stiff ≈ eigenvalue` are kept (padded zeros after extracted modes are discarded).
+[cols="3,2,2",options="header"]
+|===
+|Model |Element size |NASTRAN-95 vs Elmer
+|2D bar in tension (plane strain or plane stress) |50 mm |0.1 %
+|2D block on rollers in tension |50 mm |1 %
+|2D steady conduction, fixed end temperatures |100 mm |2·10^-4^ K
+|2D cantilever under pressure, tip deflection |25 mm (2 elements through the 50 mm depth) |10.5 % stiffer
+|same |12.5 mm (4 elements) |2.0 % stiffer; peak von Mises stress 7 % lower
+|2D cantilever, first three eigenfrequencies |12.5 mm |1.0 % higher; mode shapes identical (correlation 1.000)
+|3D cantilever, tip deflection |50 mm (1 element through the depth) |40 % stiffer
+|===
 
-=== Mesh
-
-The Studio mesh (Gmsh) provides quadratic elements (10-node tets, 6-node triangles). NASTRAN-95 accepts only linear elements, so the backend splits them:
-
-- 10-node tet → 8 linear CTETRA (4 corner tets + 4 interior tets from mid-edge nodes)
-- 6-node triangle → 4 linear CTRIA3 (structural: CTRIM6; thermal: CTRIA3)
-- 20-node hex → linear CHEXA (corners only)
-- 15-node wedge → linear CPENTA (corners only)
-
-All mesh nodes are emitted as `GRID` cards (node ID = mesh index + 1). No renumbering or mid-side node dropping is done.
-
-Cell counts come from the Mesh node's *element size* settings, same as for Elmer. The Mesh node's *Distribution* and *Size* children are respected.
+For bending, refine the mesh through the thickness: four or more linear elements through the depth in 2D, and more in 3D, where linear tetrahedra are stiffer still.
 
 === Results
 
-Each solution folder holds the NASTRAN case (`nastran/` with `case.inp`, `case.out`), the logs, and the same files as an Elmer run: `meta.json`, `model.json`, `mesh.npz` and `results/case_t*.vtu`. The mesh topology is the split mesh (CTETRA, CHEXA, CPENTA, CTRIM6, CTRIA3).
+Each solution folder holds the NASTRAN case (`nastran/case.inp`, with `case.out` for a native build), the solver output in `solver.log`, and the same files as an Elmer run: `meta.json`, `model.json`, `mesh.npz` and `results/case_t0001.vtu`. The result mesh is the Studio mesh, so results can be compared node by node with an Elmer solution of the same model.
 
-Variables (Elmer names in parentheses):
-* Structural: `u`, `v`, `w` (displacement x,y,z), `disp_mag` (magnitude), `vonmises` (von Mises stress), `sxx`, `syy`, `szz`, `sxy`, `syz`, `sxz` (stress components)
-* Thermal: `T` (temperature), `t` (alias for T)
+Variables (Elmer names, so the usual expressions such as `solid.disp` and `solid.mises` work):
 
-Stresses are element-averaged to nodes (each node gets the mean of its incident elements' von Mises values). The 3D von Mises is computed from the six stress components printed by NASTRAN for solid elements.
+* Solid Mechanics: `displacement` (`u`, `v`, `w`), `disp_mag` and `vonmises`. The von Mises stress is the element value averaged at the nodes; in 2D plane strain it includes the out-of-plane stress ν(σ~1~ + σ~2~).
+* Eigenfrequency: the eigenfrequencies and, for each mode, its mode shape (`displacement EigenMode1`, ...), selected by the mode in plots as for an Elmer solution. Stresses are not computed for modes.
+* Heat Transfer: `temperature` (`T`).
 
-=== Convergence
+=== Status
 
-The log is judged with the same statuses as Elmer runs:
-
-* *converged*: `* * * END OF JOB * * *` reached, no `USER FATAL MESSAGE` or `SYSTEM FATAL MESSAGE`, and at least one result variable (displacement, temperature, eigenvalue) was produced.
-* *not converged*: NASTRAN exited with a non-zero code but produced some output (rare; usually fatal errors are caught first).
-* *failed*: NASTRAN wrote a `USER FATAL MESSAGE` or `SYSTEM FATAL MESSAGE`, did not finish within the time limit (30 min, `ELMERSTUDIO_NASTRAN_TIMEOUT`), or produced no results.
-
-The timeout and the WSL temp-dir copy-back are handled by the NASTRAN runner; the study's Messages report the wall time and any diagnostic.
+* *converged*: `END OF JOB` reached, no `USER FATAL MESSAGE` or `SYSTEM FATAL MESSAGE`, and displacements, temperatures or mode shapes were produced.
+* *failed*: a fatal message (it is shown in Messages), a non-zero exit code, no results, or no end within the time limit (30 min, `ELMERSTUDIO_NASTRAN_TIMEOUT` in seconds).
 
 === What is refused
 
-Each of these stops *Compute* before any file is written, with the reason:
+Each of these stops *Compute* before anything runs, with the reason:
 
-* physics other than Solid Mechanics and Heat Transfer in Solids, and more than one physics interface in a study step;
-* multiphysics couplings;
-* eigenfrequency and frequency-domain studies in transient or non-linear modes;
+* physics other than Solid Mechanics and Heat Transfer in Solids, more than one physics interface in a study step, and multiphysics couplings;
+* study steps other than Stationary and Eigenfrequency (Time Dependent and Frequency Domain have no NASTRAN-95 deck yet);
 * 2D axisymmetric components;
-* geometry that requires curved boundary representation beyond the mesh's quadratic elements (NASTRAN-95 accepts only straight-sided elements);
-* Solid Mechanics: volume force with non-constant density, properties that differ between domains in a way NASTRAN cannot map;
-* Heat Transfer: Surface-to-Ambient Radiation, convection boundary, temperature-dependent properties;
-* a boundary condition on an interior boundary (would need MPC or rigid element);
-* a physics interface that does not cover every domain of the component;
-* mesh Size nodes on boundaries, edges or points; a Distribution spanning more than one block interval, or two that conflict;
-* a study that solves several components with different backends.
-
-=== Limitations
-
-* *3D normal modes (SOL 3) accuracy*: The inverse power method (INV) used for 3D models with coarse tetrahedral meshes yields the first bending frequency within ~30% of Euler-Bernoulli theory. For the 3D cantilever (L=1.0, H=0.05, W=0.01), measured f1 ≈ 51.2 Hz vs. theory 40.8 Hz (25.7% error). This is due to shear locking and mesh coarseness in thin-beam tetrahedral meshes. Refine the mesh or use hexahedral elements for better accuracy. The f2/f1 ratio remains within 15% of theory.
-* *von Mises stress at boundaries*: Nodal averaging may slightly underestimate stress at boundary nodes with fewer connected elements. The interior stress field is accurate.
+* features without a NASTRAN-95 card, for example Heat Flux, Spring Foundation and heat sources;
+* a Roller or Symmetry on a boundary that is not perpendicular to a coordinate axis;
+* Gravity on part of the model, or with its own density;
+* a study step that takes its initial values from another study;
+* elements that would leave grid points without stiffness (see <<elements>>).
 
 === Out of scope
 
-Non-linear analysis, transient structural/thermal (SOL 9, HEAT 9), frequency response (SOL 11), buckling (SOL 5), optimization (SOL 200), superelements, fluid-structure interaction, piezoelectric, and parallel DMAP runs. Use Elmer for these, or run the exported deck by hand.
+Non-linear analysis, transient analysis (rigid formats 9 and HEAT 9), frequency response, buckling, superelements and DMAP alters. Use Elmer for these, or edit the saved deck and run NASTRAN-95 by hand.

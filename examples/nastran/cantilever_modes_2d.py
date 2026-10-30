@@ -35,10 +35,11 @@ def main():
 
     mn = m.component.child("mesh")
     mn.props["sequence"] = "user"
-    m.create("mesh.size", mn, mode="custom", hmax="0.05", hmin="0.02")
+    m.create("mesh.size", mn, mode="custom", hmax="0.0125", hmin="0.005")
 
     geo = build_geometry(m, display=False)
     ph = m.component.child("physics.solid")
+    ph.props["plane"] = "stress"        # beam theory uses E
 
     bnd_left = geo.select("boundary", xmax=0)
     assert bnd_left
@@ -73,19 +74,17 @@ def main():
         project.save(m, out_esm, wd)
         print(f"Saved project: {out_esm}")
 
-        # Write offscreen PNG of first mode shape
+        # Write offscreen PNG of the first mode shape (deformed, colored by the displacement magnitude)
         import pyvista as pv
         from elmerstudio.core.results import Topology
         plotter = pv.Plotter(off_screen=True)
         g = Topology(mesh_result=sol.topo).bulk_grid()
-        # First mode displacement
-        if "u" in sol.names(0):
-            disp = sol.names(0)["u"]
-            if disp.ndim == 1:
-                g.point_data["mode1_mag"] = np.abs(disp)
-            else:
-                g.point_data["mode1_mag"] = np.linalg.norm(disp, axis=1)
-            plotter.add_mesh(g, scalars="mode1_mag", cmap="viridis")
+        mode1 = sol.names(0)
+        disp = np.column_stack([mode1["u"], mode1["v"], np.zeros_like(mode1["u"])])
+        g.point_data["mode1_mag"] = np.linalg.norm(disp, axis=1)
+        g.points = g.points + 0.2 * disp / np.abs(disp).max()
+        plotter.add_mesh(g, scalars="mode1_mag", cmap="viridis")
+        plotter.view_xy()
         png_path = os.path.join(os.path.dirname(__file__), "cantilever_modes_2d.png")
         plotter.screenshot(png_path)
         plotter.close()

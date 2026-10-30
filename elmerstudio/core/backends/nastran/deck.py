@@ -1,22 +1,21 @@
 """Model -> NASTRAN-95 card deck: refusal rules, planning, and Bulk Data writer.
 
 Supports:
-- Solid Mechanics (physics.solid): Linear Statics (SOL 1), Normal Modes (SOL 3), Transient (SOL 9)
-- Heat Transfer in Solids (physics.ht): Steady Heat Conduction (HEAT 1)
-- Elements: CTRIA3, CQUAD4, CTETRA, CHEXA, CPENTA, CROD
-- Properties & Materials: PSHELL, PSOLID, PROD, MAT1, MAT4
-- BCs & Loads: SPC1, SPC, FORCE, GRAV
+- Solid Mechanics (physics.solid): Linear Statics (SOL 1), Normal Modes (SOL 3)
+- Heat Transfer in Solids (physics.ht): Steady Heat Conduction (HEAT 1, fixed temperatures)
+- Elements: CTRIA3, CQUAD4 (2D, unit depth), CTETRA, CHEXA, CPENTA (3D)
+- Properties & Materials: PSHELL, MAT1, MAT4
+- BCs & Loads: SPC1, SPC, FORCE (consistent nodal loads of boundary and body loads), GRAV
 """
 from __future__ import annotations
 
-import math
 import os
 from dataclasses import dataclass, field
 
 import numpy as np
 
 from ... import units
-from ...builder import physics_nodes, step_components, study_steps
+from ...builder import physics_nodes, study_steps
 from ...model import Model, Node, is_axisymmetric
 from ...physics import COUPLINGS, FEATURES, physics_def
 
@@ -28,7 +27,7 @@ SUPPORTED_FEATURES = {
         "solid.gravity", "solid.free"
     },
     "ht": {
-        "ht.solid", "ht.init", "ht.temperature", "ht.heatflux", "ht.insulation", "ht.symmetry"
+        "ht.solid", "ht.init", "ht.temperature", "ht.insulation", "ht.symmetry"
     }
 }
 
@@ -36,10 +35,31 @@ STEP_MAP = {
     "study.stationary": 1,
     "study.stat": 1,
     "study.eigen": 3,
-    "study.freq": 8,
-    "study.time": 9,
-    "study.trans": 9,
 }
+
+# Linear NASTRAN cells for each gmsh element type, as (card, node positions in the gmsh row).  A 6-node triangle
+# becomes 4 CTRIA3 and a 10-node tetrahedron 8 CTETRA, so every mesh node stays a grid point.  The deck numbers
+# its elements through this table and the result converter maps element stresses back through the same table.
+TRI6_SPLIT = ((0, 3, 5), (3, 1, 4), (5, 4, 2), (3, 4, 5))
+TET10_SPLIT = ((0, 4, 6, 7), (4, 1, 5, 8), (6, 5, 2, 9), (7, 8, 9, 3),
+               (4, 6, 7, 8), (4, 5, 8, 9), (6, 5, 9, 8), (7, 8, 9, 5))
+BULK_CELLS = {
+    2: [("CTRIA3", (0, 1, 2))],
+    3: [("CQUAD4", (0, 1, 2, 3))],
+    9: [("CTRIA3", c) for c in TRI6_SPLIT],
+    4: [("CTETRA", (0, 1, 2, 3))],
+    11: [("CTETRA", c) for c in TET10_SPLIT],
+    5: [("CHEXA", tuple(range(8)))],
+    6: [("CPENTA", tuple(range(6)))],
+}
+# Boundary elements split the same way (a 3-node edge of a 6-node triangle is two 2-node edges of its CTRIA3s).
+BOUNDARY_CELLS = {1: ((0, 1),), 8: ((0, 2), (2, 1)), 2: ((0, 1, 2),), 9: TRI6_SPLIT, 3: ((0, 1, 2, 3),)}
+# Not CTRIM6 (NASTRAN-95's 6-node membrane): it fails the constant stress patch test on coarse free meshes, with
+# vertex stresses 30-50% off in uniform tension, so 6-node triangles are split into constant strain CTRIA3s.  These
+# are exact for uniform states and converge like linear triangles in bending (a finer mesh than Elmer's needs).
+_GMSH_NAMES = {1: "2-node line", 8: "3-node line", 10: "9-node quadrilateral", 16: "8-node quadrilateral",
+               17: "20-node hexahedron", 12: "27-node hexahedron", 18: "15-node prism", 13: "18-node prism",
+               7: "pyramid", 14: "pyramid", 19: "pyramid"}
 
 
 class NastranRefusal(RuntimeError):
@@ -69,7 +89,7 @@ def _check(model: Model, study: Node):
 
     for step in steps:
         if step.kind not in STEP_MAP:
-            _fail(f"{step.label} has step type {step.kind}, which is not mapped to NASTRAN-95.")
+            _fail(f"{step.label} is not a Stationary or Eigenfrequency step, the only study steps mapped to NASTRAN-95.")
         if str(step.get("initsol", "") or ""):
             _fail(f"{step.label} takes its initial values from another study's solution.")
 
@@ -100,6 +120,11 @@ def _check_component(model: Model, study: Node, comp: Node):
                 if f.kind in FEATURES and FEATURES[f.kind].section == "post":
                     continue
                 _fail(f"{f.label} ({ph.label}) is not mapped to NASTRAN-95.")
+            for f in ph.children:
+                if f.enabled and f.kind == "solid.gravity" and f.get("rho_src", "mat") != "mat":
+                    # GRAV multiplies the acceleration by the density on MAT1, which comes from the material model
+                    _fail(f"{f.label} ({ph.label}) uses its own density; NASTRAN-95 applies gravity with the "
+                          f"material's density only.")
 
     mp = comp.child("multiphysics")
     for c in (mp.children if mp is not None and mp.enabled else []):
@@ -111,16 +136,15 @@ def _check_component(model: Model, study: Node, comp: Node):
 class NastranPlan:
     physics: str              # solid | ht
     app: str                  # DISP | HEAT
-    sol: int                  # 1 | 3 | 8 | 9
+    sol: int                  # 1 | 3
     title: str
     spc_id: int = 1
     load_id: int = 1
     eigr_id: int = 1
     neig: int = 6
-    thickness: float = 0.01   # default 2D shell thickness
-    transient: bool = False
-    dt: float = 0.01
-    nsteps: int = 100
+    thickness: float = 1.0    # 2D: per unit depth, as Elmer solves 2D models
+    plane_strain: bool = False                              # 2D Solid Mechanics in plane strain (set by write_deck)
+    domain_nu: dict = field(default_factory=dict)           # domain -> Poisson's ratio of the model (set by write_deck)
 
 
 def plan_deck(model: Model, study: Node, step: Node) -> NastranPlan:
@@ -142,10 +166,6 @@ def plan_deck(model: Model, study: Node, step: Node) -> NastranPlan:
     )
     if step.kind == "study.eigen":
         plan.neig = int(step.get("neig", 6) or 6)
-    elif step.kind == "study.time":
-        plan.transient = True
-        plan.dt = float(step.get("step", 0.01) or 0.01)
-        plan.nsteps = int(step.get("nsteps", 100) or 100)
     return plan
 
 
@@ -185,6 +205,56 @@ def _fmt8(v: float) -> str:
     return f"{v:.1e}".replace("e+0", "+").replace("e-0", "-")
 
 
+def _measure_normal(pts: np.ndarray, sdim: int) -> tuple[float, np.ndarray]:
+    """Length (2D) or area (3D) of a linear boundary cell and its unit normal (orientation not fixed)."""
+    if len(pts) == 2:
+        t = pts[1] - pts[0]
+        a = float(np.linalg.norm(t))
+        return a, np.array([t[1], -t[0], 0.0]) / (a or 1.0)
+    c = np.cross(pts[2] - pts[0], pts[3] - pts[1]) if len(pts) == 4 else np.cross(pts[1] - pts[0], pts[2] - pts[0])
+    a = 0.5 * float(np.linalg.norm(c))
+    return a, c / (2 * a or 1.0)
+
+
+_TET_OF = {4: ((0, 1, 2, 3),), 5: ((0, 1, 3, 4), (1, 2, 3, 6), (1, 4, 5, 6), (3, 4, 6, 7), (1, 3, 4, 6)),
+           6: ((0, 1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5))}
+
+
+def _bulk_cells(mesh, nodes: np.ndarray, thickness: float):
+    """(node indices, area*thickness or volume, domain) of every linear NASTRAN cell, in element-ID order."""
+    for dom, blocks in mesh.bulk.items():
+        for gt, conn in blocks:
+            for row in conn:
+                for card, pos in BULK_CELLS[gt]:
+                    ids = [int(row[p]) for p in pos]
+                    p = nodes[ids]
+                    if card in ("CTRIA3", "CQUAD4"):
+                        m = _measure_normal(p, 3)[0] * thickness
+                    else:
+                        m = sum(abs(np.linalg.det(np.array([p[t[1]] - p[t[0]], p[t[2]] - p[t[0]], p[t[3]] - p[t[0]]])))
+                                for t in _TET_OF[len(ids) if len(ids) != 8 else 5]) / 6.0
+                    yield ids, m, dom
+
+
+_FACES = {2: ((0, 1), (1, 2), (2, 0)), 9: ((0, 1), (1, 2), (2, 0)), 3: ((0, 1), (1, 2), (2, 3), (3, 0)),
+          4: ((0, 1, 2), (0, 1, 3), (0, 2, 3), (1, 2, 3)), 11: ((0, 1, 2), (0, 1, 3), (0, 2, 3), (1, 2, 3)),
+          5: ((0, 1, 2, 3), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)),
+          6: ((0, 1, 2), (3, 4, 5), (0, 1, 4, 3), (1, 2, 5, 4), (2, 0, 3, 5))}
+
+
+def _face_parents(mesh, nodes: np.ndarray, sdim: int) -> dict:
+    """Corner node set of every element side -> centroid of the element it belongs to (boundary sides are unique)."""
+    out = {}
+    for blocks in mesh.bulk.values():
+        for gt, conn in blocks:
+            ncorner = {2: 3, 9: 3, 3: 4, 4: 4, 11: 4, 5: 8, 6: 6}[gt]
+            for row in conn:
+                c = nodes[row[:ncorner]].mean(0)
+                for face in _FACES[gt]:
+                    out[frozenset(int(row[k]) for k in face)] = c
+    return out
+
+
 def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: dict | None = None):
     """Generate NASTRAN Bulk Data card deck and write to out_path."""
     # 1. Executive Control Deck
@@ -197,10 +267,18 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         "CEND",
     ]
 
-    # Grid coordinates – keep ALL nodes (quadratic mid-sides are used by CTRIM6).
+    # Grid coordinates: every mesh node, quadratic mid-side nodes included (they are corners of the split cells).
     nodes = np.asarray(mesh.nodes, float) * getattr(mesh, "scale", 1.0)
     sdim = getattr(mesh, "sdim", 3)
-    # PS=3456 for 2D solid (constrains 1-2-3-4-5-6 in plane); omit for HEAT
+    if sdim == 2:
+        nodes = nodes.copy()
+        nodes[:, 2] = 0.0
+    for blocks in mesh.bulk.values():
+        for gt, _conn in blocks:
+            if gt not in BULK_CELLS:
+                raise NastranRefusal(f"The mesh has {_GMSH_NAMES.get(gt, f'type {gt}')} elements, which are not "
+                                     f"mapped to NASTRAN-95: use a free triangular (2D) or tetrahedral (3D) mesh.")
+    # PS=3456 for 2D solid (plane membrane: no out-of-plane translation, no rotations); omit for HEAT
     # For 3D solid: add PS=456 to constrain rotations 4,5,6 (no stiffness from CTETRA/CHEXA)
     if sdim == 2 and plan.physics == "solid":
         default_spc = "3456"
@@ -220,6 +298,10 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
     # Materials and Properties per domain
     comp = model.component
     active_ph = next((ph for ph in comp.children if ph.kind.startswith("physics.") and ph.enabled), None)
+    # Elmer solves 2D Solid Mechanics in plane strain unless the interface says plane stress.  NASTRAN-95's
+    # membrane is plane stress; plane strain is the same in-plane problem with E/(1-nu^2) and nu/(1-nu).
+    plan.plane_strain = (sdim == 2 and plan.physics == "solid" and active_ph is not None
+                         and active_ph.get("plane", "strain") != "stress")
 
     mat_cards = []
     prop_cards = []
@@ -282,6 +364,9 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
                             pass
 
         if plan.physics == "solid":
+            plan.domain_nu[dom_id] = nu
+            if plan.plane_strain:
+                E, nu = E / (1 - nu * nu), nu / (1 - nu)
             mat_cards.append(f"MAT1,{mid},{_fmt8(E)},,{_fmt8(nu)},{_fmt8(rho)}")
             if sdim == 2:
                 prop_cards.append(f"PSHELL,{mid},{mid},{_fmt8(plan.thickness)},{mid},1.0,{mid}")
@@ -295,89 +380,19 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
     elem_cards = []
     eid = 1
     for dom_id, blocks in mesh.bulk.items():
-        pid = domain_mids.get(dom_id, 1)          # property ID for 2D elements (PSHELL/PTRIM6/PROD)
-        mid = domain_mids.get(dom_id, 1)          # material ID for 3D elements (CTETRA/CHEXA/CPENTA)
+        pid = domain_mids.get(dom_id, 1)          # PSHELL ID for 2D elements, MAT ID for 3D solids (same number)
         for gt, conn in blocks:
-            if gt == 9:
-                # 6-node quadratic triangle
-                # Elmer/gmsh order: corners [n1,n2,n3], mids [n4(1-2),n5(2-3),n6(3-1)]
-                # CTRIM6 needs: corner, mid, corner, mid, corner, mid (counter-clockwise)
-                for row in conn:
-                    n = row + 1  # 1-based
-                    # Split each 6-node quadratic triangle into 4 linear CTRIA3
-                    # sub-triangles. Keeps ALL nodes in the deck; no renumbering or
-                    # reverse mapping needed. CTRIA3 is a shell element (PSHELL) so
-                    # it captures both membrane and bending behaviour.
-                    elem_cards.append(f"CTRIA3,{eid},{pid},{n[0]},{n[3]},{n[5]}")
+            for row in conn + 1:                  # 1-based grid IDs
+                for card, pos in BULK_CELLS[gt]:
+                    elem_cards.append(f"{card},{eid},{pid}," + ",".join(str(row[p]) for p in pos))
                     eid += 1
-                    elem_cards.append(f"CTRIA3,{eid},{pid},{n[3]},{n[1]},{n[4]}")
-                    eid += 1
-                    elem_cards.append(f"CTRIA3,{eid},{pid},{n[5]},{n[4]},{n[2]}")
-                    eid += 1
-                    elem_cards.append(f"CTRIA3,{eid},{pid},{n[3]},{n[4]},{n[5]}")
-                    eid += 1
-            elif gt == 10:              # quadratic quad -> CQUAD4 (corners only)
-                for row in conn:
-                    n = row + 1
-                    elem_cards.append(f"CQUAD4,{eid},{pid},{n[0]},{n[1]},{n[2]},{n[3]}")
-                    eid += 1
-            elif gt == 11:              # quadratic tetra (10-node) -> 8 linear CTETRA
-                # gmsh/Elmer order: corners [0,1,2,3], mids [4(0-1),5(1-2),6(2-0),7(0-3),8(1-3),9(2-3)]
-                # Split into 8 linear CTETRA keeping all 10 nodes
-                for row in conn:
-                    n = row + 1  # 1-based
-                    # 4 corner tets (each corner + its 3 adjacent mids)
-                    elem_cards.append(f"CTETRA,{eid},{mid},{n[0]},{n[4]},{n[6]},{n[7]}")
-                    eid += 1
-                    elem_cards.append(f"CTETRA,{eid},{mid},{n[4]},{n[1]},{n[5]},{n[8]}")
-                    eid += 1
-                    elem_cards.append(f"CTETRA,{eid},{mid},{n[6]},{n[5]},{n[2]},{n[9]}")
-                    eid += 1
-                    elem_cards.append(f"CTETRA,{eid},{mid},{n[7]},{n[8]},{n[9]},{n[3]}")
-                    eid += 1
-                    # 4 interior tets (partition the central octahedron of mid-edge nodes)
-                    elem_cards.append(f"CTETRA,{eid},{mid},{n[4]},{n[6]},{n[7]},{n[8]}")
-                    eid += 1
-                    elem_cards.append(f"CTETRA,{eid},{mid},{n[4]},{n[5]},{n[8]},{n[9]}")
-                    eid += 1
-                    elem_cards.append(f"CTETRA,{eid},{mid},{n[6]},{n[5]},{n[9]},{n[8]}")
-                    eid += 1
-                    elem_cards.append(f"CTETRA,{eid},{mid},{n[7]},{n[8]},{n[9]},{n[5]}")
-                    eid += 1
-            elif gt == 17:              # quadratic hexa -> CHEXA (corners only)
-                for row in conn:
-                    n = row + 1
-                    elem_cards.append(f"CHEXA,{eid},{mid},{n[0]},{n[1]},{n[2]},{n[3]},{n[4]},{n[5]},{n[6]},{n[7]}")
-                    eid += 1
-            else:
-                c = conn + 1
-                if gt == 1:
-                    for row in c:
-                        elem_cards.append(f"CROD,{eid},{pid},{row[0]},{row[1]}")
-                        eid += 1
-                elif gt == 2:
-                    for row in c:
-                        elem_cards.append(f"CTRIA3,{eid},{pid},{row[0]},{row[1]},{row[2]}")
-                        eid += 1
-                elif gt in (3, 16):
-                    for row in c:
-                        elem_cards.append(f"CQUAD4,{eid},{pid},{row[0]},{row[1]},{row[2]},{row[3]}")
-                        eid += 1
-                elif gt == 4:
-                    for row in c:
-                        elem_cards.append(f"CTETRA,{eid},{mid},{row[0]},{row[1]},{row[2]},{row[3]}")
-                        eid += 1
-                elif gt == 5:
-                    for row in c:
-                        elem_cards.append(f"CHEXA,{eid},{mid},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}")
-                        eid += 1
-                elif gt == 6:
-                    for row in c:
-                        elem_cards.append(f"CPENTA,{eid},{mid},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]}")
-                        eid += 1
 
     spc_cards: list[str] = []
     load_cards: list[str] = []
+    forces: dict[int, np.ndarray] = {}           # grid ID -> nodal force vector (N)
+
+    def add_force(nid: int, vec):
+        forces[nid] = forces.get(nid, np.zeros(3)) + vec
 
     bnd_nodes: dict[int, set[int]] = {}
     for bnd_id, blocks in mesh.bnd.items():
@@ -386,75 +401,138 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
             s.update((conn.ravel() + 1).tolist())
         bnd_nodes[bnd_id] = s
 
+    def selected(f, level):
+        sel = f.selection
+        pool = mesh.bnd if level == "boundary" else mesh.bulk
+        if sel is None:
+            return []
+        return sorted(pool) if sel.all else [e for e in sel.entities if e in pool]
+
+    def boundary_cells(ents):
+        """(grid IDs, area, unit normal, parent element key) of the linear boundary cells."""
+        out = []
+        for b in ents:
+            for gt, conn in mesh.bnd.get(b, []):
+                if gt not in BOUNDARY_CELLS:
+                    raise NastranRefusal(f"Boundary {b} has {_GMSH_NAMES.get(gt, f'type {gt}')} elements, which are "
+                                         f"not mapped to NASTRAN-95.")
+                for row in conn:
+                    corners = frozenset(int(x) for x in row[: (2 if gt in (1, 8) else 4 if gt == 3 else 3)])
+                    for pos in BOUNDARY_CELLS[gt]:
+                        ids = [int(row[p]) for p in pos]
+                        a, n = _measure_normal(nodes[ids], sdim)
+                        out.append(([i + 1 for i in ids], a * (plan.thickness if sdim == 2 else 1.0), n, corners))
+        return out
+
+    parent = None
+
+    def outward(cells):
+        """Turn each normal away from the bulk element that owns the boundary element."""
+        nonlocal parent
+        if parent is None:
+            parent = _face_parents(mesh, nodes, sdim)
+        for ids, a, n, corners in cells:
+            c = parent.get(corners)
+            if c is not None and np.dot(n, nodes[[i - 1 for i in ids]].mean(0) - c) < 0:
+                n = -n
+            yield ids, a, n
+
+    def axis_dof(f, ents) -> str:
+        """The DOF normal to a boundary that is perpendicular to the x, y or z axis (a roller there is an SPC)."""
+        normals = np.array([np.abs(cell[2]) for cell in boundary_cells(ents)])
+        for k in range(sdim):
+            if len(normals) and np.all(normals[:, k] > 1 - 1e-6):
+                return str(k + 1)
+        raise NastranRefusal(f"{f.label} is on a boundary that is not perpendicular to the x, y or z axis; "
+                             f"NASTRAN-95 constrains displacements in the global axes only.")
+
     if active_ph:
         for f in active_ph.children:
             if not f.enabled:
                 continue
-            sel = f.selection
+            bents = selected(f, "boundary")
             target_nodes: set[int] = set()
-            if sel is not None:
-                if sel.all:
-                    for s in bnd_nodes.values():
-                        target_nodes.update(s)
-                else:
-                    for ent in sel.entities:
-                        if ent in bnd_nodes:
-                            target_nodes.update(bnd_nodes[ent])
-                        elif ent in getattr(mesh, "point_nodes", {}):
-                            target_nodes.add(mesh.point_nodes[ent] + 1)
-
-            if not target_nodes:
-                continue
+            for ent in bents:
+                target_nodes.update(bnd_nodes[ent])
+            if f.selection is not None and not f.selection.all:
+                for ent in f.selection.entities:
+                    if ent in getattr(mesh, "point_nodes", {}) and ent not in mesh.bnd:
+                        target_nodes.add(mesh.point_nodes[ent] + 1)
+            node_list = sorted(target_nodes)
+            chunks = [node_list[i:i + 7] for i in range(0, len(node_list), 7)]
 
             if f.kind == "solid.fixed":
-                # 3D solid elements (CTETRA/CHEXA/CPENTA) only have 3 translational DOFs
                 dofs = "12" if sdim == 2 else "123"
-                node_list = sorted(target_nodes)
-                for chunk in [node_list[i:i + 7] for i in range(0, len(node_list), 7)]:
-                    spc_cards.append(f"SPC1,{plan.spc_id},{dofs}," + ",".join(str(n) for n in chunk))
+                spc_cards += [f"SPC1,{plan.spc_id},{dofs}," + ",".join(map(str, c)) for c in chunks]
 
             elif f.kind == "solid.disp":
-                for n in sorted(target_nodes):
-                    for dof_idx, dof_name in enumerate(["u0", "v0", "w0"], start=1):
-                        if dof_idx > sdim:
-                            break
-                        if f.get(f"{dof_name}_active", True):
-                            val = _eval_expr(f.get(dof_name, "0"), model, overrides)
-                            spc_cards.append(f"SPC,{plan.spc_id},{n},{dof_idx},{_fmt8(val)}")
+                for dof_idx, c in enumerate("xyz"[:sdim], start=1):
+                    if f.get(f"on{c}", c == "x"):
+                        val = _eval_expr(f.get(f"u{c}", "0"), model, overrides)
+                        spc_cards += [f"SPC,{plan.spc_id},{n},{dof_idx},{_fmt8(val)}" for n in node_list]
 
-            elif f.kind == "solid.roller":
-                node_list = sorted(target_nodes)
-                for chunk in [node_list[i:i + 7] for i in range(0, len(node_list), 7)]:
-                    spc_cards.append(f"SPC1,{plan.spc_id},2," + ",".join(str(n) for n in chunk))
+            elif f.kind in ("solid.roller", "solid.symmetry") and node_list:
+                dof = axis_dof(f, bents)
+                spc_cards += [f"SPC1,{plan.spc_id},{dof}," + ",".join(map(str, c)) for c in chunks]
 
-            elif f.kind == "solid.bload":
-                n_count = len(target_nodes)
-                if n_count > 0:
-                    Fx = _eval_expr(f.get("Fx", "0"), model, overrides) / n_count
-                    Fy = _eval_expr(f.get("Fy", "0"), model, overrides) / n_count
-                    Fz = _eval_expr(f.get("Fz", "0"), model, overrides) if sdim == 3 else 0.0
-                    mag = math.sqrt(Fx ** 2 + Fy ** 2 + Fz ** 2)
-                    if mag > 1e-30:
-                        nx, ny, nz = Fx / mag, Fy / mag, Fz / mag
-                        for n in sorted(target_nodes):
-                            load_cards.append(f"FORCE,{plan.load_id},{n},0,{_fmt8(mag)},{_fmt8(nx)},{_fmt8(ny)},{_fmt8(nz)}")
+            elif f.kind == "solid.bload" and bents:
+                cells = boundary_cells(bents)
+                t = f.get("type", "force")
+                if t == "pressure":
+                    p = _eval_expr(f.get("p", "0"), model, overrides)
+                    for ids, a, n in outward(cells):          # Elmer's Normal Force -p: p pushes into the body
+                        for i in ids:
+                            add_force(i, -p * n * a / len(ids))
+                else:
+                    if t == "total":
+                        area = sum(cell[1] for cell in cells)
+                        if not area > 0:
+                            raise NastranRefusal(f"{f.label}: total force needs a boundary selection with nonzero area")
+                        trac = np.array([_eval_expr(f.get(f"Ft{c}", "0"), model, overrides) / area
+                                         if k < sdim else 0.0 for k, c in enumerate("xyz")])
+                    else:
+                        trac = np.array([_eval_expr(f.get(f"F{c}", "0"), model, overrides) if k < sdim else 0.0
+                                         for k, c in enumerate("xyz")])
+                    for ids, a, _n, _c in cells:
+                        for i in ids:
+                            add_force(i, trac * a / len(ids))
 
-            elif f.kind in ("solid.gravity", "solid.bodyload"):
-                gx = _eval_expr(f.get("gx", "0"), model, overrides)
-                gy = _eval_expr(f.get("gy", "-9.81"), model, overrides)
-                gz = _eval_expr(f.get("gz", "0"), model, overrides) if sdim == 3 else 0.0
-                g_mag = math.sqrt(gx ** 2 + gy ** 2 + gz ** 2)
+            elif f.kind == "solid.bodyload":
+                fv = np.array([_eval_expr(f.get(f"F{c}", "0"), model, overrides) if k < sdim else 0.0
+                               for k, c in enumerate("xyz")])
+                doms = set(selected(f, "domain"))
+                for row, vol, dom in _bulk_cells(mesh, nodes, plan.thickness):
+                    if dom in doms:
+                        for i in row:
+                            add_force(i + 1, fv * vol / len(row))
+
+            elif f.kind == "solid.gravity":
+                doms = set(selected(f, "domain"))
+                if doms != set(mesh.bulk):
+                    raise NastranRefusal(f"{f.label} acts on part of the model; NASTRAN-95's gravity load acts on all "
+                                         f"of it.")
+                g = np.array([_eval_expr(f.get(f"g{c}", "0"), model, overrides) if k < sdim else 0.0
+                              for k, c in enumerate("xyz")])
+                g_mag = float(np.linalg.norm(g))
                 if g_mag > 1e-30:
-                    load_cards.append(f"GRAV,{plan.load_id},0,{_fmt8(g_mag)},{_fmt8(gx/g_mag)},{_fmt8(gy/g_mag)},{_fmt8(gz/g_mag)}")
+                    load_cards.append(f"GRAV,{plan.load_id},0,{_fmt8(g_mag)},{_fmt8(g[0] / g_mag)},"
+                                      f"{_fmt8(g[1] / g_mag)},{_fmt8(g[2] / g_mag)}")
 
             elif f.kind == "ht.temperature":
                 T_val = _eval_expr(f.get("T0", "293.15[K]"), model, overrides)
-                for n in sorted(target_nodes):
-                    spc_cards.append(f"SPC,{plan.spc_id},{n},1,{_fmt8(T_val)}")
+                spc_cards += [f"SPC,{plan.spc_id},{n},1,{_fmt8(T_val)}" for n in node_list]
+
+    for nid in sorted(forces):
+        vec = forces[nid]
+        mag = float(np.linalg.norm(vec))
+        if mag > 1e-30:
+            nx, ny, nz = vec / mag
+            load_cards.append(f"FORCE,{plan.load_id},{nid},0,{_fmt8(mag)},{_fmt8(nx)},{_fmt8(ny)},{_fmt8(nz)}")
 
     case_lines = [
         f"TITLE = {plan.title}",
         "ECHO = NONE",
+        "MAXLINES = 99999999",          # the default (20000 printed lines) ends larger runs before the results
     ]
     if plan.physics == "ht":
         # NASTRAN-95 HEAT 1: THERMAL = ALL requests temperature output
@@ -479,16 +557,10 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
     bulk_lines.extend(load_cards)
 
     if plan.sol == 3:
-        # EIGR: SID, METHOD, F1, F2, NE, ND, NZ, E, +abc
-        # For 3D: use INV (inverse power) instead of GIV (dense Givens) to avoid huge time estimates
-        # FEER exceeded MAXLINES; INV is iterative and efficient for few modes
-        # For 2D: GIV with ND works fine
-        if sdim == 3:
-            # INV: F1=lower freq bound, F2=upper freq bound, NE=est roots in range, ND=num vectors
-            bulk_lines.append(f"EIGR,{plan.eigr_id},INV,0.0,1000.0,{plan.neig},{plan.neig},,,+EIG1")
-        else:
-            # GIV: set ND (field 7) = number of roots to print; F1/F2 ignored when ND > 0
-            bulk_lines.append(f"EIGR,{plan.eigr_id},GIV,,,{plan.neig},{plan.neig},,,+EIG1")
+        # EIGR: SID, METHOD, F1, F2, NE, ND, NZ, E, +abc.  FEER (tridiagonal reduction) about F1 = 0 gives the
+        # lowest ND modes, as Elmer's eigen solver does, without a frequency window (INV) and without the dense
+        # Givens method, whose time estimate exceeds any limit beyond a few hundred grid points.
+        bulk_lines.append(f"EIGR,{plan.eigr_id},FEER,0.0,,,{plan.neig},,,+EIG1")
         bulk_lines.append("+EIG1,MASS")
 
     bulk_lines.append("ENDDATA")

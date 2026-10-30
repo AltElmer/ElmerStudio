@@ -3452,10 +3452,6 @@ class MainWindow(QMainWindow):
         if self.no_modal:
             return
         dlg.exec()
-        fn, _ = QFileDialog.getSaveFileName(self, "Save As", default)
-        if fn:
-            with open(fn, "w") as f:
-                f.write(text)
 
     def export_case(self):
         study = self._study_of(self.tree.current())

@@ -192,6 +192,14 @@ class NastranStudy:
                 out_content = f.read()
 
         parsed = parse_output(out_content)
+        if P.sol == 3:
+            # FEER prints every root it extracted accurately; the study asks for the lowest neig, as Elmer gives
+            # (renumbered 1..neig in frequency order, which is how Studio indexes the modes of a solution)
+            parsed.eigenvalues = sorted(parsed.eigenvalues, key=lambda e: e["eigenvalue"])[:P.neig]
+            vecs = parsed.eigenvectors
+            parsed.eigenvectors = {i: vecs[e["mode"]] for i, e in enumerate(parsed.eigenvalues, 1) if e["mode"] in vecs}
+            for i, e in enumerate(parsed.eigenvalues, 1):
+                e["mode"] = i
 
         # 5. Determine status
         status = "converged"
@@ -206,12 +214,12 @@ class NastranStudy:
         elif returncode != 0:
             status = "failed"
             diagnostics.append(f"{step.label}: NASTRAN exited with code {returncode}")
-        elif not parsed.displacements and not parsed.temperatures and not parsed.eigenvalues:
+        elif not parsed.displacements and not parsed.temperatures and not parsed.eigenvectors:
             status = "failed"
-            diagnostics.append(f"{step.label}: NASTRAN produced no displacements or eigenvalues")
+            diagnostics.append(f"{step.label}: NASTRAN produced no displacements, temperatures or eigenvectors")
 
         # 6. Convert to ElmerStudio VTU and mesh.npz
-        converter = NastranConverter(mesh, parsed)
+        converter = NastranConverter(mesh, parsed, P)
         if status != "failed":
             pt_data = converter.extract_point_data()
             converter.write_vtu(pt_data, os.path.join(folder, "results", "case_t0001.vtu"))

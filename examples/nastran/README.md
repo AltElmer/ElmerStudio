@@ -1,52 +1,36 @@
-# NASTRAN-95 Backend MWEs
+# NASTRAN-95 examples
 
-These examples demonstrate the NASTRAN-95 solver backend in Elmer Studio.
-Each script builds a model through the Studio API, solves with NASTRAN through Studio,
-prints `measured … theory … error …%`, saves the `.esm` project, and writes an
-offscreen PNG of the result field.
+Four small models solved by the NASTRAN-95 backend, the models of the
+[NASTRAN-95 tutorial](../../docs/modules/tutorials/pages/nastran.adoc). Each script builds the model through
+the Python API, solves it with NASTRAN-95, prints the result next to the closed-form value, saves the `.esm`
+project and writes a picture of the result.
 
-## Results
-
-| Example | Physics | Dimension | Measured | Theory | Error |
-|---------|---------|-----------|----------|--------|-------|
-| `axial_bar_2d.py` | Solid statics | 2D | elongation 1.0019e-04 m | 1.0000e-04 m | 0.19% |
-| `axial_bar_2d.py` | Solid statics | 2D | stress 2.012e+07 Pa | 2.000e+07 Pa | 0.61% |
-| `cantilever_modes_2d.py` | Eigenfrequency | 2D | f1 44.64 Hz | 40.77 Hz | 9.49% |
-| `cantilever_modes_2d.py` | Eigenfrequency | 2D | f2/f1 6.1938 | 6.2669 | 1.17% |
-| `heat_2d.py` | Heat conduction | 2D | max error 2.03e-04 K | 0 K | <1 K |
-| `axial_bar_3d.py` | Solid statics | 3D | elongation 1.0149e-04 m | 1.0000e-04 m | 1.49% |
-| `axial_bar_3d.py` | Solid statics | 3D | stress 1.940e+07 Pa | 2.000e+07 Pa | 3.02% |
-
-*Values above are from the last successful run on this machine. Run the scripts to reproduce.*
+| Script | Model | Closed form | NASTRAN-95 |
+|--------|-------|-------------|------------|
+| `axial_bar_2d.py` | 2D bar, plane stress, 20 MPa on the end | elongation σL/E = 1.000e-4 m, stress 20 MPa | 0.9989e-4 m, 20.00 MPa |
+| `cantilever_modes_2d.py` | 2D cantilever, plane stress, 12.5 mm mesh | f1 = 40.77 Hz, f2/f1 = 6.267 | 41.13 Hz, 6.195 |
+| `heat_2d.py` | 2D plate, 350 K and 300 K on its ends | linear temperature | within 2e-4 K |
+| `axial_bar_3d.py` | 3D bar, total force 10 kN on the end | elongation PL/EA = 1.000e-4 m, stress 20 MPa | 1.014e-4 m, 20.1 MPa |
 
 ## Running
 
+NASTRAN-95 must be found: set its folder in Preferences, `NASTRAN_HOME` to a native build, or on Windows
+`NASTRAN_WSL_HOME` to the Linux path of a build inside WSL (the folder with `dist/bin/nastran` and `rf/`).
+Then, from the repository root:
+
 ```bash
-# From the ElmerStudio root directory
-cd <path to ElmerStudio repo>
-
-# Set NASTRAN environment (choose one)
-export NASTRAN_WSL_HOME=/home/<user>/NASTRAN-95
-# or
-export NASTRAN_HOME=/path/to/native/nastran95
-
-# Run examples with the venv python
-<venv python> examples/nastran/axial_bar_2d.py
-<venv python> examples/nastran/cantilever_modes_2d.py
-<venv python> examples/nastran/heat_2d.py
-<venv python> examples/nastran/axial_bar_3d.py
+python examples/nastran/axial_bar_2d.py
+python examples/nastran/cantilever_modes_2d.py
+python examples/nastran/heat_2d.py
+python examples/nastran/axial_bar_3d.py
 ```
 
-## Outputs
-
-Each script produces:
-- `<name>.esm` — saved Elmer Studio project (reloadable)
-- `<name>.png` — offscreen render of the result field
+Each script writes `<name>.esm` (reopen it in Elmer Studio) and `<name>.png` next to itself.
 
 ## Notes
 
-- The 2D axial bar uses CTRIM6 quadratic triangles (structural) with PSHELL/PTRIM6.
-- The 2D eigenfrequency uses SOL 3 (normal modes) with EIGR method GIV + ND.
-- The 2D heat conduction uses HEAT 1 with THERMAL = ALL output request.
-- The 3D axial bar uses 10-node tet → 8 CTETRA split with PS=456 on GRID cards.
-- All examples use WSL NASTRAN-95 by default; set `NASTRAN_HOME` for native Windows.
+- 2D models are per unit depth, as in Elmer; the loads are Studio's Boundary Load types (force per unit area,
+  total force, pressure).
+- NASTRAN-95's elements are linear: 6-node triangles become 4 CTRIA3 and 10-node tetrahedra 8 CTETRA. They are
+  exact for uniform stress and need a finer mesh than Elmer in bending; see the accuracy table in the user guide
+  page `docs/modules/user-guide/pages/nastran.adoc`.

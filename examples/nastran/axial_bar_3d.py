@@ -48,9 +48,7 @@ def main():
 
     B.add_feature(m, ph, "solid.fixed", bnd_left)
     bload = B.add_feature(m, ph, "solid.bload", bnd_right)
-    bload.props["Fx"] = f"{P}[N]"
-    bload.props["Fy"] = "0[N]"
-    bload.props["Fz"] = "0[N]"
+    bload.props.update({"type": "total", "Ftx": f"{P}[N]", "Fty": "0[N]", "Ftz": "0[N]"})
 
     st = m.studies()[0]
     st.props["backend"] = "nastran"

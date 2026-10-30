@@ -23,13 +23,11 @@ import numpy as np
 
 
 def main():
-    # 2D axial bar: L=1.0m, H=0.05m, thickness=0.01m
+    # 2D axial bar in plane stress, L = 1 m, H = 0.05 m (2D models are per unit depth), pulled by 20 MPa
     L, H = 1.0, 0.05
     E = 2.0e11
-    P = 10000.0
-    A = H * 0.01  # cross-section
-    delta_theory = (P * L) / (E * A)
-    sigma_theory = P / A
+    sigma_theory = 2.0e7
+    delta_theory = sigma_theory * L / E
 
     m = B.new_model("2D", ["solid"], "stationary")
     m.create("geom.rectangle", m.component.child("geometry"), index=0, w=str(L), h=str(H))
@@ -41,6 +39,7 @@ def main():
 
     geo = build_geometry(m, display=False)
     ph = m.component.child("physics.solid")
+    ph.props["plane"] = "stress"
 
     bnd_left = geo.select("boundary", xmax=0)
     bnd_right = geo.select("boundary", xmin=0.99 * L)
@@ -48,8 +47,7 @@ def main():
 
     B.add_feature(m, ph, "solid.fixed", bnd_left)
     bload = B.add_feature(m, ph, "solid.bload", bnd_right)
-    bload.props["Fx"] = f"{P}[N]"
-    bload.props["Fy"] = "0[N]"
+    bload.props.update({"type": "force", "Fx": f"{sigma_theory}[N/m^2]", "Fy": "0[N/m^2]"})
 
     st = m.studies()[0]
     st.props["backend"] = "nastran"
