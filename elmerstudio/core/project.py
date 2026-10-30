@@ -162,6 +162,11 @@ def load(path: str) -> tuple[Model, str]:
                 expected_sha = info.get("sha256")
                 original_path = str(node.props.get(prop, ""))
                 entry = info.get("entry", "")
+                # If manifest has no digest, we cannot verify; record and skip digest check
+                if expected_sha is None:
+                    problems.append(f"digest not available for asset {key}")
+                    # Leave solutions_current unchanged (no evidence of tampering)
+                    continue
                 if os.path.isfile(original_path):
                     # Verify live original matches manifest
                     if os.path.getsize(original_path) != expected_size or _sha256(original_path) != expected_sha:
