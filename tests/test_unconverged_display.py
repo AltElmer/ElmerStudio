@@ -51,6 +51,72 @@ def _converged_model():
     return m, geo
 
 
+
+
+
+
+
+def _transient_nonlinear_model():
+    """Transient nonlinear PDE with c=1+u^2, f=40, u=0 on boundary.
+    Uses pde module in transient mode, very short time and few nonlinear iterations -> not converged."""
+    m = B.new_model("2D", ["pde"], "time")
+    m.create("geom.rectangle", m.component.child("geometry"), index=0, w="1.3", h="0.8")
+    geo = build_geometry(m, display=False)
+    pde = m.component.child("physics.pde")
+    pde.child("pde.cfeq").props.update(c="1+u^2", f="40", da="0")
+    B.add_feature(m, pde, "pde.dir", geo.numbers["boundary"], r="0")
+    # Keep unconverged solutions
+    m.studies()[0].props["nonconv"] = "keep"
+    # Very few nonlinear iterations per time step to ensure non-convergence
+    B.ensure_solver_configs(m, m.studies()[0]).children[0].props.update(nl_maxit=1, nl_tol="1e-10")
+    # Short time range, single step
+    B.study_steps(m.studies()[0])[0].props["times"] = "range(0,0.001,0.001)"
+    return m, geo
+
+
+def _transient_converged_model():
+    """Same transient nonlinear PDE but with enough nonlinear iterations to converge."""
+    m = B.new_model("2D", ["pde"], "time")
+    m.create("geom.rectangle", m.component.child("geometry"), index=0, w="1.3", h="0.8")
+    geo = build_geometry(m, display=False)
+    pde = m.component.child("physics.pde")
+    pde.child("pde.cfeq").props.update(c="1+u^2", f="40", da="0")
+    B.add_feature(m, pde, "pde.dir", geo.numbers["boundary"], r="0")
+    m.studies()[0].props["nonconv"] = "keep"
+    B.ensure_solver_configs(m, m.studies()[0]).children[0].props.update(nl_maxit=20)
+    B.study_steps(m.studies()[0])[0].props["times"] = "range(0,0.001,0.001)"
+    return m, geo
+
+def _transient_unconverged_solution_folder():
+    """Create an unconverged transient solution folder.
+    Returns the solution folder path and the model."""
+    m, geo = _transient_nonlinear_model()
+    st = m.studies()[0]
+    work = tempfile.mkdtemp(prefix="es_transient_unconv_")
+    try:
+        StudyRunner(m, st, work, find_elmer()).run()
+    except StudyNotConverged:
+        pass  # expected
+    # Find the solution folder
+    for root, dirs, files in os.walk(work):
+        if "meta.json" in files:
+            with open(os.path.join(root, "meta.json")) as f:
+                meta = json.load(f)
+            if meta.get("status") == "not converged":
+                return root, m
+    return None, m
+
+
+def _transient_converged_solution_folder():
+    """Create a converged transient solution folder.
+    Returns the solution folder path and the model."""
+    m, geo = _transient_converged_model()
+    st = m.studies()[0]
+    work = tempfile.mkdtemp(prefix="es_transient_conv_")
+    folders = StudyRunner(m, st, work, find_elmer()).run()
+    return folders[0], m
+
+
 def _unconverged_solution_folder():
     """Create an unconverged solution folder by running Elmer with nl_maxit=1.
     Returns the solution folder path and the model."""
@@ -591,7 +657,191 @@ if __name__ == "__main__":
         print("test_csv_export_includes_marker_header: FAIL (expected)")
     except Exception as e:
         print(f"test_csv_export_includes_marker_header: FAIL - {e}")
+# --------------------------------------------------------------------------------------- Transient unconverged tests (changed case)
+def test_transient_plot_title_includes_marker_unconverged(elmer):
+    """Transient plot title should include the unconverged marker for not converged solutions."""
+    m, geo = _transient_nonlinear_model()
+    st = m.studies()[0]
+    work = tempfile.mkdtemp(prefix="es_transient_plot_unconv_")
+    try:
+        StudyRunner(m, st, work, elmer).run()
+    except StudyNotConverged:
+        pass
+    sol_folder = None
+    for root, dirs, files in os.walk(work):
+        if "meta.json" in files:
+            with open(os.path.join(root, "meta.json")) as f:
+                meta = json.load(f)
+            if meta.get("status") == "not converged":
+                sol_folder = root
+                break
+    assert sol_folder is not None
 
+    sol = Solution(sol_folder)
+    pg_node = m.create("pg2d", m.results, index=0)
+    surface = m.create("plot.surface", pg_node, index=0)
+    surface.props["expr"] = "u"
+
+    scene = build_scene(pg_node, sol, 0, sol.sdim)
+    assert "not converged" in scene.title.lower(), f"Transient plot title missing marker: {scene.title}"
+
+
+def test_transient_plot_title_no_marker_converged(elmer):
+    """Transient plot title should NOT include the marker for converged solutions."""
+    m, geo = _transient_converged_model()
+    st = m.studies()[0]
+    work = tempfile.mkdtemp(prefix="es_transient_plot_conv_")
+    folders = StudyRunner(m, st, work, elmer).run()
+    sol = Solution(folders[0])
+
+    pg_node = m.create("pg2d", m.results, index=0)
+    surface = m.create("plot.surface", pg_node, index=0)
+    surface.props["expr"] = "u"
+
+    scene = build_scene(pg_node, sol, 0, sol.sdim)
+    assert "not converged" not in scene.title.lower(), f"Converged transient plot has marker: {scene.title}"
+
+
+def test_transient_tree_node_shows_marker_unconverged():
+    """Transient model builder tree node should show marker for not converged solutions."""
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QSettings
+    from elmerstudio.ui.main_window import MainWindow
+
+    app = QApplication.instance() or QApplication([])
+    for name in ("warning", "critical", "information"):
+        from PySide6.QtWidgets import QMessageBox
+        setattr(QMessageBox, name, staticmethod(lambda *a, **k: 0))
+    w = MainWindow(None, show_new=False)
+    w.no_modal = True
+    w.qs = QSettings(os.path.join(tempfile.mkdtemp(prefix="es_qs_"), "s.ini"), QSettings.IniFormat)
+
+    try:
+        sol_folder, m = _transient_unconverged_solution_folder()
+        assert sol_folder is not None, "No not converged transient solution found"
+
+        workdir = os.path.dirname(os.path.dirname(sol_folder))
+        w._set_model(m, None, workdir)
+        res = m.results
+        dsets = res.child("results.datasets")
+        ds = m.create("dset.solution", dsets, index=0)
+        ds.props["study"] = m.studies()[0].tag
+
+        w.tree.refresh()
+        QApplication.processEvents()
+        import time
+        time.sleep(0.1)
+        QApplication.processEvents()
+
+        item = w.tree._items.get(id(ds))
+        assert item is not None, "Tree item for dset.solution not found"
+
+        text = item.text(0)
+        tooltip = item.toolTip(0)
+        has_marker = "not converged" in text.lower() or "not converged" in tooltip.lower()
+        assert has_marker, f"Transient tree node missing 'not converged' marker. Text: '{text}', Tooltip: '{tooltip}'"
+    finally:
+        w.dirty = False
+        w.stop_job()
+        w.close()
+        app.processEvents()
+
+
+def test_transient_tree_node_no_marker_converged():
+    """Transient model builder tree node should NOT show marker for converged solutions."""
+    pytest.importorskip("PySide6")
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QSettings
+    from elmerstudio.ui.main_window import MainWindow
+
+    app = QApplication.instance() or QApplication([])
+    for name in ("warning", "critical", "information"):
+        from PySide6.QtWidgets import QMessageBox
+        setattr(QMessageBox, name, staticmethod(lambda *a, **k: 0))
+    w = MainWindow(None, show_new=False)
+    w.no_modal = True
+    w.qs = QSettings(os.path.join(tempfile.mkdtemp(prefix="es_qs_"), "s.ini"), QSettings.IniFormat)
+
+    try:
+        sol_folder, m = _transient_converged_solution_folder()
+
+        w._set_model(m, None, os.path.dirname(sol_folder))
+        res = m.results
+        dsets = res.child("results.datasets")
+        ds = m.create("dset.solution", dsets, index=0)
+        ds.props["study"] = m.studies()[0].tag
+
+        w.tree.refresh()
+        QApplication.processEvents()
+        import time
+        time.sleep(0.1)
+        QApplication.processEvents()
+
+        item = w.tree._items.get(id(ds))
+        assert item is not None, "Tree item for dset.solution not found"
+
+        text = item.text(0)
+        tooltip = item.toolTip(0)
+        has_marker = "not converged" in text.lower() or "not converged" in tooltip.lower()
+        assert not has_marker, f"Converged transient tree node has 'not converged' marker. Text: '{text}', Tooltip: '{tooltip}'"
+    finally:
+        w.dirty = False
+        w.stop_job()
+        w.close()
+        app.processEvents()
+
+
+def test_transient_csv_export_includes_marker_header():
+    """Transient CSV exports should include a header line with the unconverged status."""
+    sol_folder, m = _transient_unconverged_solution_folder()
+    assert sol_folder is not None
+    sol = Solution(sol_folder)
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+        fn = f.name
+    try:
+        exprs = ["u"]
+        fi = sol.frame_index("last")
+        import numpy as np
+        P = sol.topo.nodes * sol.scale
+        cols = [P[:, 0], P[:, 1]] + ([P[:, 2]] if sol.sdim == 3 else []) + [sol.evaluate(e, fi) for e in exprs]
+        hdr = "x,y," + ("z," if sol.sdim == 3 else "") + ",".join(exprs)
+        validity = getattr(sol, "validity_label", None)
+        if validity and validity != "converged":
+            hdr = f"% Solution Status: {validity}\n" + hdr
+        np.savetxt(fn, np.column_stack(cols), delimiter=",", header=hdr, comments="% ")
+
+        with open(fn, "r") as f:
+            first_line = f.readline().strip()
+
+        assert "not converged" in first_line.lower(), f"Transient CSV header missing marker: {first_line}"
+    finally:
+        os.unlink(fn)
+
+
+def test_transient_csv_export_no_marker_converged():
+    """Transient CSV exports should NOT include the marker for converged solutions."""
+    sol_folder, m = _transient_converged_solution_folder()
+    sol = Solution(sol_folder)
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+        fn = f.name
+    try:
+        exprs = ["u"]
+        fi = sol.frame_index("last")
+        import numpy as np
+        P = sol.topo.nodes * sol.scale
+        cols = [P[:, 0], P[:, 1]] + ([P[:, 2]] if sol.sdim == 3 else []) + [sol.evaluate(e, fi) for e in exprs]
+        hdr = "x,y," + ("z," if sol.sdim == 3 else "") + ",".join(exprs)
+        np.savetxt(fn, np.column_stack(cols), delimiter=",", header=hdr, comments="% ")
+
+        with open(fn, "r") as f:
+            first_line = f.readline().strip()
+
+        assert "not converged" not in first_line.lower(), f"Converged transient CSV has marker: {first_line}"
+    finally:
+        os.unlink(fn)
     try:
         test_csv_export_no_marker_converged()
         print("test_csv_export_no_marker_converged: FAIL (expected)")
