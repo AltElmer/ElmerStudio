@@ -58,7 +58,7 @@ jobs:
           echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
           tar -xzf "$DEST/$ASSET" -C "$DEST"
           # Archive extracts to a subfolder like nastran95-v1.0.0-linux-x86_64
-          EXTRACTED=$(find "$DEST" -maxdepth 1 -type d -name 'nastran95*' | head -1)
+          EXTRACTED=$(find "$DEST" -mindepth 1 -maxdepth 1 -type d -name 'nastran95-v*' | head -1)
           if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
             NAS_HOME="$EXTRACTED"
           elif [ -f "$EXTRACTED/nastran" ]; then
@@ -134,7 +134,7 @@ jobs:
           echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
           tar -xzf "$DEST/$ASSET" -C "$DEST"
           # Archive extracts to a subfolder like nastran95-v1.0.0-macos-*
-          EXTRACTED=$(find "$DEST" -maxdepth 1 -type d -name 'nastran95*' | head -1)
+          EXTRACTED=$(find "$DEST" -mindepth 1 -maxdepth 1 -type d -name 'nastran95-v*' | head -1)
           if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
             NAS_HOME="$EXTRACTED"
           elif [ -f "$EXTRACTED/nastran" ]; then
