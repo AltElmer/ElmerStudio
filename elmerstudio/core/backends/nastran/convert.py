@@ -112,11 +112,12 @@ class NastranConverter:
                                     szz_g = 0.0
                                 
                                 for p in pos:
-                                    sxx[p] += sxx_g
-                                    syy[p] += syy_g
-                                    sxy[p] += sxy_g
-                                    szz[p] += szz_g
-                                    counts[p] += 1
+                                    global_node = row[p]
+                                    sxx[global_node] += sxx_g
+                                    syy[global_node] += syy_g
+                                    sxy[global_node] += sxy_g
+                                    szz[global_node] += szz_g
+                                    counts[global_node] += 1
                         
                         elif sdim == 3 and card == "CTETRA":
                             # 3D solid: stress components already in basic system
@@ -124,13 +125,14 @@ class NastranConverter:
                             if comp is not None:
                                 sx, sy, sz, tyz, txz, txy = comp
                                 for p in pos:
-                                    sxx[p] += sx
-                                    syy[p] += sy
-                                    szz[p] += sz
-                                    syz[p] += tyz
-                                    sxz[p] += txz
-                                    sxy[p] += txy
-                                    counts[p] += 1
+                                    global_node = row[p]
+                                    sxx[global_node] += sx
+                                    syy[global_node] += sy
+                                    szz[global_node] += sz
+                                    syz[global_node] += tyz
+                                    sxz[global_node] += txz
+                                    sxy[global_node] += txy
+                                    counts[global_node] += 1
                         
                         eid += 1
         

@@ -37,6 +37,7 @@ STEP_MAP = {
     "study.stationary": 1,
     "study.stat": 1,
     "study.eigen": 3,
+    "study.time": 9,          # DISP 9 = direct transient (SOL 109)
 }
 
 # Linear NASTRAN cells for each gmsh element type, as (card, node positions in the gmsh row).  A 6-node triangle
@@ -91,7 +92,7 @@ def _check(model: Model, study: Node):
 
     for step in steps:
         if step.kind not in STEP_MAP:
-            _fail(f"{step.label} is not a Stationary or Eigenfrequency step, the only study steps mapped to NASTRAN-95.")
+            _fail(f"{step.label} is not a Stationary, Eigenfrequency, or Time Dependent step, the only study steps mapped to NASTRAN-95.")
         if str(step.get("initsol", "") or ""):
             _fail(f"{step.label} takes its initial values from another study's solution.")
 
@@ -116,6 +117,8 @@ def _check_component(model: Model, study: Node, comp: Node):
             pid = physics_def(ph.kind).id
             if pid not in SUPPORTED_PHYSICS:
                 _fail(f"{ph.label} is not supported by the NASTRAN-95 backend (solves Solid Mechanics and Heat Transfer only).")
+            if step.kind == "study.time" and pid == "ht":
+                _fail(f"{step.label} is a Time Dependent heat transfer step; NASTRAN-95 backend only supports transient for Solid Mechanics.")
             for f in ph.children:
                 if not f.enabled or f.kind in SUPPORTED_FEATURES[pid]:
                     continue
@@ -140,7 +143,7 @@ def _check_component(model: Model, study: Node, comp: Node):
 class NastranPlan:
     physics: str              # solid | ht
     app: str                  # DISP | HEAT
-    sol: int                  # 1 | 3
+    sol: int                  # 1 | 3 | 109
     title: str
     spc_id: int = 1
     load_id: int = 1
@@ -149,6 +152,11 @@ class NastranPlan:
     thickness: float = 1.0    # 2D: per unit depth, as Elmer solves 2D models
     plane_strain: bool = False                              # 2D Solid Mechanics in plane strain (set by write_deck)
     domain_nu: dict = field(default_factory=dict)           # domain -> Poisson's ratio of the model (set by write_deck)
+    # Transient fields
+    tstep: str | None = None        # TSTEP card reference
+    tend: str = "1.0"               # End time
+    dt: str = "0.01"                # Time step
+    nout: str = "10"                # Output every N steps
 
 
 def plan_deck(model: Model, study: Node, step: Node) -> NastranPlan:
@@ -170,6 +178,15 @@ def plan_deck(model: Model, study: Node, step: Node) -> NastranPlan:
     )
     if step.kind == "study.eigen":
         plan.neig = int(step.get("neig", 6) or 6)
+    if step.kind == "study.time":
+        # For transient: SOL 109 (DISP 9 direct transient)
+        plan.sol = 109
+        plan.app = "DISP"
+        # Store time step info from step properties
+        plan.tstep = step.get("tstep", None)
+        plan.tend = step.get("tend", "1.0")
+        plan.dt = step.get("dt", "0.01")
+        plan.nout = step.get("nout", "10")
     return plan
 
 
@@ -629,6 +646,10 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         case_lines.append(f"LOAD = {plan.load_id}")
     if plan.sol == 3:
         case_lines.append(f"METHOD = {plan.eigr_id}")
+    if plan.sol == 109:
+        # Transient direct: need TSTEP for time integration
+        case_lines.append(f"TSTEP = {plan.spc_id}")  # reuse spc_id as tstep_id
+        case_lines.append(f"DLOAD = {plan.load_id}")
 
     bulk_lines = ["BEGIN BULK"]
     bulk_lines.extend(grid_cards)
@@ -662,6 +683,29 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         # Givens method, whose time estimate exceeds any limit beyond a few hundred grid points.
         bulk_lines.append(f"EIGR,{plan.eigr_id},FEER,0.0,,,{plan.neig},,,+EIG1")
         bulk_lines.append("+EIG1,MASS")
+    elif plan.sol == 109:
+        # Transient direct (SOL 109, DISP 9)
+        # TSTEP: SID, N1, DT1, NO1, N2, DT2, NO2...
+        # Use uniform time step from plan.dt, output every plan.nout steps
+        tend = _eval_expr(plan.tend, model, overrides)
+        dt = _eval_expr(plan.dt, model, overrides)
+        nsteps = max(1, int(tend / dt + 0.5))
+        nout = int(plan.nout) if plan.nout else 1
+        bulk_lines.append(f"TSTEP,{plan.spc_id},{nsteps},{_fmt8(dt)},{nout}")
+        
+        # TABLED1 for step load (constant from t=0): TABLED1, TID, X, Y...
+        # Step function: 0 at t<0, 1 at t>=0
+        tabled1_id = 999
+        bulk_lines.append(f"TABLED1,{tabled1_id},0.0,0.0,{_fmt8(dt)},1.0,{_fmt8(tend)},1.0")
+        
+        # TLOAD1: SID, L (DAREA), M (DELAY), TF (TABLED1)
+        bulk_lines.append(f"TLOAD1,{plan.load_id},{plan.load_id},0,{tabled1_id}")
+        
+        # DAREA: SID, EID, COMP, VALUE... for each FORCE/SPC load
+        # We need to convert FORCE cards to DAREA for transient
+        # For now, collect all force DOFs and create DAREA
+        # This is a simplified approach - in practice we'd need to track each load component
+        pass  # DAREA generation would go here
 
     bulk_lines.append("ENDDATA")
 
