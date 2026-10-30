@@ -350,6 +350,9 @@ class StudyRunner:
         if study_backend(self.study) == "openfoam":
             from .backends.openfoam.runner import FoamStudy
             return FoamStudy(self).run()
+        if study_backend(self.study) == "nastran":
+            from .backends.nastran.runner import NastranStudy
+            return NastranStudy(self).run()
         if self.inst is None:
             raise RuntimeError("Elmer was not found. Set the Elmer installation folder in Preferences.")
         steps = study_steps(self.study)

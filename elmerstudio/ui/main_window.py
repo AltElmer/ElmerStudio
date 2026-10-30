@@ -838,6 +838,24 @@ class MainWindow(QMainWindow):
             why = "OpenFOAM was not found: set OPENFOAM_ROOT to its installation"
         return why
 
+    @property
+    def nastran(self):
+        """The NASTRAN-95 installation (looked up once; None when there is none)."""
+        if not hasattr(self, "_nastran"):
+            from ..core.backends.nastran.install import find_nastran
+            self._nastran = find_nastran(self.qs.value("nastran_home") or None)
+        return self._nastran
+
+    def nastran_unavailable(self, study: Node) -> str | None:
+        """Why *study* cannot be computed with NASTRAN-95, from what is known without building the geometry."""
+        from ..core.backends.nastran.deck import check_model
+        if self.model.component is None:
+            return None
+        why = check_model(self.model, study)
+        if why is None and self.nastran is None:
+            why = "NASTRAN-95 was not found: set NASTRAN_ROOT or configure its folder in Preferences"
+        return why
+
     @staticmethod
     def _set_avail(a: QAction, reason: str | None):
         """Enable *a*, or disable it and say why in its tooltip and status tip."""
@@ -914,6 +932,10 @@ class MainWindow(QMainWindow):
             why = self.foam_unavailable(node)
             if why:
                 out.append(("error", f"OpenFOAM backend: {why}"))
+        if k == "study" and study_backend(node) == "nastran":
+            why = self.nastran_unavailable(node)
+            if why:
+                out.append(("error", f"NASTRAN-95 backend: {why}"))
         if k == "study" and self.model.component is not None:
             text, state, tip = self._solution_state(node)
             if state == "stale":
@@ -1015,11 +1037,19 @@ class MainWindow(QMainWindow):
         st = st or (self.model.studies()[0] if has_study else None)
         if st is not None and study_backend(st) == "openfoam":
             noelmer = self.foam_unavailable(st)
+        elif st is not None and study_backend(st) == "nastran":
+            noelmer = self.nastran_unavailable(st)
         for name in ("compute", "compute2"):
             sa(a[name], nostudy or noelmer)
         foam_st = st is not None and study_backend(st) == "openfoam"
+        nastran_st = st is not None and study_backend(st) == "nastran"
         for name in ("show_sif", "show_sif2"):
-            text = "Show OpenFOAM\nInput Files" if foam_st else "Show Elmer\nInput File"
+            if foam_st:
+                text = "Show OpenFOAM\nInput Files"
+            elif nastran_st:
+                text = "Show NASTRAN\nInput Deck"
+            else:
+                text = "Show Elmer\nInput File"
             if a[name].text() != text:
                 a[name].setText(text)
         for name in ("show_sif", "show_sif2", "export_case", "export_case2", "sweep", "show_solver", "clear_sol"):
@@ -2322,8 +2352,10 @@ class MainWindow(QMainWindow):
         if k == "study" or k.startswith("study."):
             m.addSeparator()
             m.addAction(icons.icon("compute"), "Compute", lambda: self.compute(self._study_of(node)))
-            m.addAction(icons.icon("sif"), "Show OpenFOAM Input Files" if study_backend(self._study_of(node)) == "openfoam"
-                        else "Show Elmer Input File", lambda: self.show_sif(self._study_of(node)))
+            sb = study_backend(self._study_of(node))
+            sif_text = ("Show NASTRAN Input Deck" if sb == "nastran"
+                        else ("Show OpenFOAM Input Files" if sb == "openfoam" else "Show Elmer Input File"))
+            m.addAction(icons.icon("sif"), sif_text, lambda: self.show_sif(self._study_of(node)))
             if k == "study":
                 m.addAction(icons.icon("solver_config"), "Show Default Solver", self.show_default_solver)
         if k.startswith("pg"):
@@ -2885,6 +2917,12 @@ class MainWindow(QMainWindow):
                 self.messages.add(f"{study.label}: OpenFOAM backend: {why}", "error")
                 QMessageBox.warning(self, APP_NAME, f"{study.label} cannot be computed with OpenFOAM:\n\n{why}")
                 return
+        elif study_backend(study) == "nastran":
+            why = self.nastran_unavailable(study)
+            if why:
+                self.messages.add(f"{study.label}: NASTRAN-95 backend: {why}", "error")
+                QMessageBox.warning(self, APP_NAME, f"{study.label} cannot be computed with NASTRAN-95:\n\n{why}")
+                return
         elif self.inst is None:
             QMessageBox.warning(self, APP_NAME, "Elmer was not found. Set its installation folder in File > Preferences.")
             return
@@ -3321,6 +3359,9 @@ class MainWindow(QMainWindow):
         if study_backend(study) == "openfoam":
             self.show_foam_inputs(study)
             return
+        if study_backend(study) == "nastran":
+            self.show_nastran_inputs(study)
+            return
         try:
             QApplication.setOverrideCursor(Qt.WaitCursor)
             mesh, sif = self._sif_for(study)
@@ -3380,7 +3421,37 @@ class MainWindow(QMainWindow):
             return
         dlg.exec()
 
-    def _save_text(self, text, default):
+    def show_nastran_inputs(self, study: Node):
+        """The NASTRAN-95 input deck for a study (a dry run: nothing is solved)."""
+        from ..core.backends.nastran.runner import preview_files
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            files = preview_files(self.model, study)
+        except Exception as exc:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self, APP_NAME, str(exc))
+            return
+        QApplication.restoreOverrideCursor()
+        text = "\n".join(body for rel, body in files)
+        self._last_sif = text
+        self._last_nastran_files = [rel for rel, _b in files]
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"NASTRAN Input Deck - {study.label}")
+        dlg.resize(760, 680)
+        v = QVBoxLayout(dlg)
+        te = QPlainTextEdit(text)
+        te.setReadOnly(True)
+        te.setObjectName("MessagesView")
+        te.setLineWrapMode(QPlainTextEdit.NoWrap)
+        v.addWidget(te)
+        bb = QDialogButtonBox(QDialogButtonBox.Close)
+        save = bb.addButton("Save As...", QDialogButtonBox.ActionRole)
+        save.clicked.connect(lambda: self._save_text(text, "case.bdf"))
+        bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
+        if self.no_modal:
+            return
+        dlg.exec()
         fn, _ = QFileDialog.getSaveFileName(self, "Save As", default)
         if fn:
             with open(fn, "w") as f:
@@ -3456,6 +3527,30 @@ class MainWindow(QMainWindow):
         row.setContentsMargins(0, 0, 0, 0)
         f.addRow("Elmer installation or build folder:", w)
         f.addRow("", info)
+        row_nas = QHBoxLayout()
+        le_nas = QLineEdit(self.nastran.root if self.nastran else (self.qs.value("nastran_home") or ""))
+        b_nas = QPushButton("Browse...")
+        b_nas.clicked.connect(lambda: (lambda d: d and le_nas.setText(d))(QFileDialog.getExistingDirectory(dlg, "NASTRAN-95 installation folder")))
+        det_nas = QPushButton("Detect")
+        info_nas = QLabel(self.nastran.describe() if self.nastran else "")
+
+        def detect_nas():
+            from ..core.backends.nastran.install import find_nastran
+            inst_n = find_nastran(le_nas.text().strip() or None)
+            if inst_n:
+                le_nas.setText(inst_n.root)
+                info_nas.setText(inst_n.describe())
+            else:
+                info_nas.setText("<span style='color:#c0392b'>NASTRAN-95 not found</span>")
+        det_nas.clicked.connect(detect_nas)
+        row_nas.addWidget(le_nas, 1)
+        row_nas.addWidget(b_nas)
+        row_nas.addWidget(det_nas)
+        w_nas = QWidget()
+        w_nas.setLayout(row_nas)
+        row_nas.setContentsMargins(0, 0, 0, 0)
+        f.addRow("NASTRAN-95 installation folder:", w_nas)
+        f.addRow("", info_nas)
         cb = QCheckBox("Save solutions in the model file")
         cb.setChecked(self.qs.value("save_solutions", True, bool))
         f.addRow("", cb)
@@ -3514,6 +3609,14 @@ class MainWindow(QMainWindow):
                 self.messages.add(f"Elmer: {inst.solver} {elmer_version(inst)}; {_caps_text(inst)}")
             else:
                 QMessageBox.warning(self, APP_NAME, "ElmerSolver was not found in that folder.")
+            from ..core.backends.nastran.install import find_nastran
+            nas = find_nastran(le_nas.text().strip() or None)
+            if nas:
+                self.nastran = nas
+                self.qs.setValue("nastran_home", nas.root)
+                self.messages.add(f"NASTRAN-95: {nas.describe()}")
+            elif le_nas.text().strip():
+                QMessageBox.warning(self, APP_NAME, "NASTRAN-95 was not found in that folder.")
             self.qs.setValue("save_solutions", cb.isChecked())
 
     def open_docs(self):

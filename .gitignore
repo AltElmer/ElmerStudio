@@ -5,6 +5,7 @@ __pycache__/
 build/
 dist/
 *.esm.part
+examples/**/*.esm
 tools/icon_sheet_*.png
 .venv-build/
 packaging/icons/

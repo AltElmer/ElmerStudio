@@ -46,3 +46,12 @@ def elmer():
     if inst is None:
         pytest.skip("Elmer (ElmerSolver) not installed")
     return inst
+
+
+@pytest.fixture(scope="session")
+def nastran():
+    from elmerstudio.core.backends.nastran.install import find_nastran
+    inst = find_nastran()
+    if inst is None:
+        pytest.skip("NASTRAN-95 not installed (set NASTRAN_HOME or place nastran on PATH)")
+    return inst
