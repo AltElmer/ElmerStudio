@@ -81,8 +81,15 @@ class GraphicsView(QWidget):
             import pyvista as pv
             pv.global_theme.allow_empty_mesh = True
             if offscreen:
-                # Use base pyvista Plotter for offscreen rendering (works reliably)
-                self.plotter = pv.Plotter(off_screen=True)
+                # Use QtInteractor for interactive features (focus, picking) - works in offscreen Qt
+                from pyvistaqt import QtInteractor
+                self.plotter = QtInteractor(self, auto_update=False)
+                self.plotter.enable_anti_aliasing("ssaa") if hasattr(self.plotter, "enable_anti_aliasing") else None
+                if self.plotter.interactor is not None:
+                    v.addWidget(self.plotter.interactor, 1)
+                # Also create a base pyvista Plotter for reliable offscreen rendering (screenshots, animation)
+                pv.allow_new_attributes(True)
+                self._render_plotter = pv.Plotter(off_screen=True)
             else:
                 # Use QtInteractor for interactive mode
                 from pyvistaqt import QtInteractor
@@ -90,6 +97,7 @@ class GraphicsView(QWidget):
                 self.plotter.enable_anti_aliasing("ssaa") if hasattr(self.plotter, "enable_anti_aliasing") else None
                 if self.plotter.interactor is not None:
                     v.addWidget(self.plotter.interactor, 1)
+                self._render_plotter = None
         except Exception as exc:  # no usable OpenGL
             self._ok = False
             self.plotter = None
@@ -1011,6 +1019,27 @@ class GraphicsView(QWidget):
             except Exception:
                 pass
 
+    def _sync_render_plotter(self):
+        """Synchronize the render plotter with the main plotter's scene for offscreen rendering."""
+        if not hasattr(self, '_render_plotter') or self._render_plotter is None:
+            return
+        # Clear the render plotter
+        self._render_plotter.clear()
+        # Copy actors from main plotter to render plotter
+        for name, actor_info in self._actors.items():
+            if isinstance(actor_info, tuple) and len(actor_info) >= 2:
+                mesh, kwargs = actor_info[0], actor_info[1]
+                self._render_plotter.add_mesh(mesh, **kwargs)
+        for idx, actor in self._result_actors.items():
+            mesh = actor.GetMapper().GetInput()
+            if mesh:
+                self._render_plotter.add_mesh(mesh)
+        # Copy camera position
+        self._render_plotter.camera_position = self.plotter.camera_position
+        # Copy background
+        bg = self.plotter.background_color
+        self._render_plotter.set_background(bg, top=bg)
+
     def snapshot(self, path, w=None, h=None):
         """Write an image in the export theme (white by default, whatever the working theme is), then go back."""
         if not self._ok:
@@ -1021,14 +1050,20 @@ class GraphicsView(QWidget):
         if export != working:
             self.set_theme(export)
         try:
-            # Ensure the scene is rendered before screenshot
-            self.plotter.render()
-            # Enable offscreen rendering on the VTK render window
-            ren_win = self.plotter.ren_win
-            if ren_win is not None:
-                ren_win.SetOffScreenRendering(1)
-                ren_win.MakeCurrent()
-            self.plotter.screenshot(path, window_size=size)
+            # Use dedicated render plotter for offscreen rendering, regular plotter for interactive
+            if hasattr(self, '_render_plotter') and self._render_plotter is not None:
+                # Offscreen mode: use base pyvista Plotter for reliable rendering
+                self._sync_render_plotter()
+                self._render_plotter.render()
+                self._render_plotter.screenshot(path, window_size=size)
+            else:
+                # Interactive mode: use QtInteractor
+                self.plotter.render()
+                ren_win = self.plotter.ren_win
+                if ren_win is not None:
+                    ren_win.SetOffScreenRendering(1)
+                    ren_win.MakeCurrent()
+                self.plotter.screenshot(path, window_size=size)
         finally:
             if export != working:
                 self.set_theme(working)
