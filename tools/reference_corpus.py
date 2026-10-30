@@ -1,11 +1,11 @@
 """Capture the desktop reference corpus: the twelve task states of the COMSOL-parity review, at fixed window sizes.
 
-    python tools/reference_corpus.py [outdir] [--sizes 1366x768,1920x1080]
+    python tools/reference_corpus.py [outdir] [--sizes 1366x768,1920x1080] [--without-elmer] [--require-solved]
     QT_SCALE_FACTOR=1.5 python tools/reference_corpus.py out150     # another display scaling
 
 For every state it writes a screenshot and a JSON record: the selected node, the active entity level, the enabled
 commands, the focus, the model revision, the expected next action, and the COMSOL documentation page that describes
-the same state (the COMSOL Multiphysics Reference Manual, 6.3 at doc.comsol.com). No COMSOL installation or licence
+the same state (the COMSOL Multiphysics Reference Manual, 6.4 at doc.comsol.com). No COMSOL installation or licence
 is needed or used: the reference is the vendor's documentation, and the record keeps that apart from Elmer Studio's
 own design choices (the "design" field), e.g. Escape restoring a field, which the manual does not describe. Compare the two by eye, state by state; tests/test_desktop.py
 and the packaged app's --selftest-ui check the behaviour automatically.
@@ -25,7 +25,23 @@ sys.path.insert(0, ROOT)
 warnings.filterwarnings("ignore")
 os.environ.setdefault("ELMERSTUDIO_RECOVERY_DIR", tempfile.mkdtemp(prefix="es_corpus_recovery_"))
 
-DOC = "https://doc.comsol.com/6.3/doc/com.comsol.help.comsol/"
+DOC = "https://doc.comsol.com/6.4/doc/com.comsol.help.comsol/"
+
+
+def settle(app, w, cond=lambda: True, t=180):
+    """Wait for condition with timeout; raises TimeoutError if condition not met."""
+    t0 = time.time()
+    while time.time() - t0 < t and (w.busy() or not cond()):
+        app.processEvents()
+        time.sleep(0.02)
+    # After loop, check if condition was met
+    if w.busy() or not cond():
+        raise TimeoutError(f"settle() timed out after {t}s waiting for condition")
+    for _ in range(25):
+        app.processEvents()
+        time.sleep(0.01)
+
+
 STATES = [
     ("01_new_model_wizard", "New model and the wizard's space dimension page", "comsol_ref_modeling.19.003.html",
      "Pick a space dimension, then physics and a study"),
@@ -54,10 +70,31 @@ STATES = [
 ]
 
 
+def _evaluate_temperature(w, ev):
+    """Evaluate temperature expression and return value if available."""
+    try:
+        if w.solution_of(w._dataset_for(ev)) is not None:
+            w.evaluate_node(ev)
+            # Get the table result - it's stored in a separate table node with meta["source"] == ev.tag
+            tables = w.model.results.child("results.tables")
+            if tables is not None:
+                for t in tables.children:
+                    if t.meta.get("source") == ev.tag:
+                        rows = t.props.get("rows", [])
+                        if rows and len(rows[0]) > 0:
+                            val = rows[0][0]
+                            return float(val)
+    except Exception:
+        pass
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("outdir", nargs="?", default=os.path.join(ROOT, ".tmp", "reference_corpus"))
     ap.add_argument("--sizes", default="1366x768,1920x1080")
+    ap.add_argument("--without-elmer", action="store_true", help="Force Elmer to be unavailable")
+    ap.add_argument("--require-solved", action="store_true", help="Exit nonzero if any state is unavailable or checks fail")
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
     sizes = [tuple(int(v) for v in s.split("x")) for s in args.sizes.split(",")]
@@ -76,36 +113,32 @@ def main():
     w = MainWindow(None, show_new=False)
     w.no_modal = True
     w.qs = QSettings(os.path.join(tempfile.mkdtemp(), "s.ini"), QSettings.IniFormat)
+    if args.without_elmer:
+        w.inst = None
     w.show()
 
-    def settle(cond=lambda: True, t=180):
-        t0 = time.time()
-        while time.time() - t0 < t and (w.busy() or not cond()):
-            app.processEvents()
-            time.sleep(0.02)
-        for _ in range(25):
-            app.processEvents()
-            time.sleep(0.01)
-
     def model(sdim="3D", physics=("ht",)):
-        settle()
+        settle(app, w)
         m = B.new_model(sdim, list(physics), "stationary")
         w._set_model(m, None, project.new_workdir())
         return m
 
     index = []
+    require_solved_failures = []
 
-    def capture(key, extra_widget=None):
+    def capture(key, extra_widget=None, availability="available", checks=None, reason=None):
         title, page, nxt = next((t, p, n) for k, t, p, n in STATES if k == key)
         for (W, H) in sizes:
             w.resize(W, H)
-            settle()
+            settle(app, w)
             png = f"{key}_{W}x{H}.png"
-            (extra_widget or w).grab().save(os.path.join(args.outdir, png))
+            if availability == "available" or not args.require_solved:
+                (extra_widget or w).grab().save(os.path.join(args.outdir, png))
             cur = w.tree.current()
             fw = app.focusWidget() or w.focusWidget()
             rec = {"state": key, "title": title, "size": [W, H], "scale": os.environ.get("QT_SCALE_FACTOR", "1"),
-                   "image": png, "selected_node": cur.label if cur else None,
+                   "image": png if availability == "available" or not args.require_solved else None,
+                   "selected_node": cur.label if cur else None,
                    "selected_kind": cur.kind if cur else None, "entity_level": w.graphics.level,
                    "layout": w.layout_mode, "ribbon_tab": w.ribbon.current_tab(),
                    "enabled_commands": sorted(n for n, a in w.act.items() if a.isEnabled()),
@@ -116,16 +149,21 @@ def main():
                    "status": [b.text() for b in (w.st_geo, w.st_mesh, w.st_sol) if b.isVisible()],
                    "expected_next_action": nxt, "reference": DOC + page,
                    "design": "Elmer Studio design choice where the reference is silent; see "
-                             "docs/modules/ROOT/pages/comsol-users.adoc"}
+                             "docs/modules/ROOT/pages/comsol-users.adoc",
+                   "availability": availability, "checks": checks or []}
+            if reason:
+                rec["reason"] = reason
             with open(os.path.join(args.outdir, f"{key}_{W}x{H}.json"), "w", encoding="utf-8") as f:
                 json.dump(rec, f, indent=1)
             index.append(rec)
+        if availability == "unavailable" and args.require_solved:
+            require_solved_failures.append(key)
         print("captured", key, flush=True)
 
     # 1 wizard
     wz = ModelWizard(w)
     wz.show()
-    settle()
+    settle(app, w)
     capture("01_new_model_wizard", wz)
     wz.close()
     # 2 parameters
@@ -144,21 +182,21 @@ def main():
     ext.props["dist"] = "H"
     w.tree.refresh(select=ext)
     w.build_geometry()
-    settle(lambda: w.geo is not None)
+    settle(app, w, lambda: w.geo is not None)
     capture("03_workplane_extrude")
     # 4 boolean + parameter edit
     cyl = m.create("geom.cylinder", g, index=2, r="H/4", h="H")
     dif = m.create("geom.difference", g, index=3)
     dif.props["input"], dif.props["tools"] = [ext.tag], [cyl.tag]
     w.build_geometry()
-    settle(lambda: not w.geo_stale)
+    settle(app, w, lambda: not w.geo_stale)
     w.tree.refresh(select=params)
     w.set_prop(params, "table", [{"name": "W", "expr": "4*H", "descr": "width"},
                                  {"name": "H", "expr": "10[mm]", "descr": "height"}], rebuild=True)
     w.tree.select(g)
     capture("04_boolean_stale")
     w.build_geometry()
-    settle(lambda: not w.geo_stale)
+    settle(app, w, lambda: not w.geo_stale)
     # 5 material missing a property
     mat = w.create_node("material", m.component.child("materials"))
     mat.selection.all = True
@@ -166,11 +204,11 @@ def main():
     capture("05_material_missing")
     w.delete_node(mat)
     w.add_library_material("Copper")                  # the first material: all domains
-    settle()
+    settle(app, w)
     # 6 boundary selection, hidden face
     feat = B.add_feature(m, m.component.child("physics.ht"), "ht.temperature", [], T0="350[K]")
     w.tree.refresh(select=feat)
-    settle()
+    settle(app, w)
     try:
         import numpy as np
         b = w.geo.bbox
@@ -192,20 +230,31 @@ def main():
     w.set_prop(m.component.child("mesh"), "size", "fine", rebuild=True)
     w.tree.select(m.component.child("mesh"))
     w.show_mesh(quality=True)
-    settle(lambda: w.mesh is not None and not w.mesh_stale)
+    settle(app, w, lambda: w.mesh is not None and not w.mesh_stale)
     capture("07_mesh_quality")
     # 8 solve
     st = m.studies()[0]
+    solved = False
     if w.inst is not None:
         w.compute(st)
-        settle(lambda: not w.busy(), 600)
+        settle(app, w, lambda: not w.busy(), 600)
         if w.central.indexOf(w.conv) >= 0:
             w.central.setCurrentWidget(w.conv)
-    capture("08_solved_convergence")
+        solved = True
+    else:
+        # Elmer absent: explicitly capture "not computed" state
+        w.tree.select(st)
+        w.update_status()
+        settle(app, w)
+    if solved:
+        capture("08_solved_convergence")
+    else:
+        capture("08_solved_convergence", availability="unavailable", reason="Elmer not available",
+                checks=[{"name": "solver_ran", "passed": False}])
     w.central.setCurrentIndex(0)
     # 9 invalid input
     w.tree.select(feat)
-    settle()
+    settle(app, w)
     e = w.settings.editor("T0")
     if e is not None:
         e.setFocus()
@@ -219,13 +268,24 @@ def main():
     pgs = w.plot_groups()
     if pgs:
         w.tree.select(pgs[0])
-    capture("10_results_navigation")
+    if solved:
+        capture("10_results_navigation")
+    else:
+        capture("10_results_navigation", availability="unavailable", reason="No solution computed",
+                checks=[{"name": "solution_exists", "passed": False}])
     # 11 derived value
     ev = w.create_node("eval.global", m.results.child("results.derived"))
-    ev.props["expr"] = "T"
-    if w.solution_of(w._dataset_for(ev)) is not None:
-        w.evaluate_node(ev)
-    capture("11_derived_table")
+    ev.props["exprs"] = [{"expr": "T", "unit": "K", "descr": "Temperature"}]
+    if solved:
+        temp_val = _evaluate_temperature(w, ev)
+        if temp_val is not None and temp_val > 0:
+            capture("11_derived_table", checks=[{"name": "nonzero_temperature", "passed": True, "value": temp_val}])
+        else:
+            capture("11_derived_table", availability="unavailable", reason="Temperature evaluation failed or zero",
+                    checks=[{"name": "nonzero_temperature", "passed": False, "value": temp_val}])
+    else:
+        capture("11_derived_table", availability="unavailable", reason="No solution computed",
+                checks=[{"name": "solution_exists", "passed": False}])
     # 12 recovery: a checkpoint of a session that is gone, offered in the Recovery Files window
     s = recovery.Session(os.environ["ELMERSTUDIO_RECOVERY_DIR"])
     s.checkpoint(m.to_dict(), os.path.join(tempfile.gettempdir(), "busbar.esm"), None, "busbar.esm")
@@ -239,7 +299,7 @@ def main():
     def grab_exec(dlg, *a):
         dlg.resize(720, 320)
         dlg.show()
-        settle()
+        settle(app, w)
         shown["dlg"] = dlg
         capture("12_recovery", dlg)
         return 0
@@ -250,6 +310,9 @@ def main():
     with open(os.path.join(args.outdir, "index.json"), "w", encoding="utf-8") as f:
         json.dump(index, f, indent=1)
     print(f"{len(index)} records in {args.outdir}")
+    if require_solved_failures:
+        print(f"REQUIRE_SOLVED failed for states: {', '.join(require_solved_failures)}", file=sys.stderr)
+        sys.exit(1)
     w.dirty = False
     w.close()
 
