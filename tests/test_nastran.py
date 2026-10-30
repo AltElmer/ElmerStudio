@@ -95,11 +95,21 @@ def test_refusals_without_geometry():
     err = check_model(m, m.studies()[0])
     assert err is not None and "Stationary or Eigenfrequency" in err
 
-    # A heat flux boundary is not mapped (it would be dropped)
+    # Heat flux boundary is now mapped (general and convective)
     m = B.new_model("2D", ["ht"], "stationary")
     m.create("ht.heatflux", m.component.child("physics.ht"))
+    assert check_model(m, m.studies()[0]) is None
+
+    # Heat source and radiation are still refused
+    m = B.new_model("2D", ["ht"], "stationary")
+    m.create("ht.source", m.component.child("physics.ht"))
     err = check_model(m, m.studies()[0])
-    assert err is not None and "Heat Flux" in err
+    assert err is not None and "heat sources and radiation not supported" in err
+
+    m = B.new_model("2D", ["ht"], "stationary")
+    m.create("ht.radiation", m.component.child("physics.ht"))
+    err = check_model(m, m.studies()[0])
+    assert err is not None and "heat sources and radiation not supported" in err
 
     # Supported models pass:
     m = B.new_model("2D", ["solid"], "stationary")

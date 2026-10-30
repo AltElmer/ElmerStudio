@@ -2,10 +2,11 @@
 
 Supports:
 - Solid Mechanics (physics.solid): Linear Statics (SOL 1), Normal Modes (SOL 3)
-- Heat Transfer in Solids (physics.ht): Steady Heat Conduction (HEAT 1, fixed temperatures)
+- Heat Transfer in Solids (physics.ht): Steady Heat Conduction (HEAT 1, fixed temperatures, heat flux, convection)
 - Elements: CTRIA3, CQUAD4 (2D, unit depth), CTETRA, CHEXA, CPENTA (3D)
 - Properties & Materials: PSHELL, MAT1, MAT4
 - BCs & Loads: SPC1, SPC, FORCE (consistent nodal loads of boundary and body loads), GRAV
+- Heat flux: CHBDY (LINE, AREA3, AREA4), PHBDY, QBDY1, ambient SPC for convection
 """
 from __future__ import annotations
 
@@ -27,7 +28,8 @@ SUPPORTED_FEATURES = {
         "solid.gravity", "solid.free"
     },
     "ht": {
-        "ht.solid", "ht.init", "ht.temperature", "ht.insulation", "ht.symmetry"
+        "ht.solid", "ht.init", "ht.temperature", "ht.insulation", "ht.symmetry",
+        "ht.heatflux"
     }
 }
 
@@ -119,6 +121,8 @@ def _check_component(model: Model, study: Node, comp: Node):
                     continue
                 if f.kind in FEATURES and FEATURES[f.kind].section == "post":
                     continue
+                if f.kind in ("ht.source", "ht.radiation"):
+                    _fail(f"{f.label} ({ph.label}) is not mapped to NASTRAN-95 (heat sources and radiation not supported).")
                 _fail(f"{f.label} ({ph.label}) is not mapped to NASTRAN-95.")
             for f in ph.children:
                 if f.enabled and f.kind == "solid.gravity" and f.get("rho_src", "mat") != "mat":
@@ -446,6 +450,83 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         raise NastranRefusal(f"{f.label} is on a boundary that is not perpendicular to the x, y or z axis; "
                              f"NASTRAN-95 constrains displacements in the global axes only.")
 
+    # Heat flux tracking: collect all ht.heatflux features first
+    ht_flux_features = []
+    if active_ph and plan.physics == "ht":
+        for f in active_ph.children:
+            if f.enabled and f.kind == "ht.heatflux":
+                ht_flux_features.append(f)
+
+    # CHBDY/PHBDY/QBDY1/MAT4 tracking for heat flux
+    chbdy_eid = 1
+    chbdy_cards: list[str] = []
+    phbdy_cards: list[str] = []
+    qbdy1_cards: list[str] = []
+    mat4_conv_cards: list[str] = []  # MAT4 for convection (film coefficient)
+    ambient_grid_map: dict[int, int] = {}  # boundary grid ID -> ambient grid ID
+    next_ambient_grid = len(nodes) + 1
+    chbdy_to_mat4: dict[int, int] = {}  # CHBDY EID -> MAT4 MID
+
+    # Process heat flux features
+    for f in ht_flux_features:
+        if not f.enabled:
+            continue
+        flux_type = f.get("type", "general")
+        bents = selected(f, "boundary")
+        cells = boundary_cells(bents)
+        for ids, area, normal in outward(cells):
+            # Create CHBDY element for this boundary cell
+            if sdim == 2:
+                # 2D: LINE element (2 nodes)
+                if len(ids) != 2:
+                    continue
+                chbdy_type = "LINE"
+            else:
+                # 3D: AREA3 (3 nodes) or AREA4 (4 nodes)
+                if len(ids) == 3:
+                    chbdy_type = "AREA3"
+                elif len(ids) == 4:
+                    chbdy_type = "AREA4"
+                else:
+                    continue
+            
+            if flux_type == "convective":
+                # Convection: CHBDY with ambient points (GA1, GA2...), PHBDY referencing MAT4 with film coefficient
+                # Create ambient grid points for each node of the CHBDY
+                ambient_ids = []
+                for gid in ids:
+                    if gid not in ambient_grid_map:
+                        ambient_grid_map[gid] = next_ambient_grid
+                        next_ambient_grid += 1
+                    ambient_ids.append(ambient_grid_map[gid])
+                
+                # Create MAT4 for convection if not already created for this feature
+                # Use a unique MID per feature for convection
+                mat4_mid = 2000 + len(mat4_conv_cards)
+                h = _eval_expr(f.get("h", "10"), model, overrides)
+                # MAT4: MID, K (film coefficient), CP (thermal capacity per unit area, 0 for steady)
+                mat4_conv_cards.append(f"MAT4,{mat4_mid},{_fmt8(h)},0.0")
+                chbdy_to_mat4[chbdy_eid] = mat4_mid
+                
+                # CHBDY with ambient points
+                ga_str = ",".join(str(aid) for aid in ambient_ids)
+                chbdy_cards.append(f"CHBDY,{chbdy_eid},,{chbdy_type}," + 
+                                   ",".join(str(gid) for gid in ids) + 
+                                   "," + ga_str + ",")
+                # PHBDY references the MAT4 MID for convection
+                phbdy_cards.append(f"PHBDY,{chbdy_eid},{mat4_mid},,,,,,")
+            else:
+                # General heat flux: CHBDY + PHBDY + QBDY1
+                chbdy_cards.append(f"CHBDY,{chbdy_eid},,{chbdy_type}," + 
+                                   ",".join(str(gid) for gid in ids) + ",")
+                phbdy_cards.append(f"PHBDY,{chbdy_eid},,,,,,,")
+                # QBDY1 for this CHBDY
+                q0 = _eval_expr(f.get("q0", "0"), model, overrides)
+                qbdy1_cards.append(f"QBDY1,{plan.load_id},{_fmt8(q0)},{chbdy_eid}")
+            
+            chbdy_eid += 1
+
+    # Solid mechanics boundary conditions
     if active_ph:
         for f in active_ph.children:
             if not f.enabled:
@@ -556,6 +637,24 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
     bulk_lines.extend(elem_cards)
     bulk_lines.extend(spc_cards)
     bulk_lines.extend(load_cards)
+    bulk_lines.extend(chbdy_cards)
+    bulk_lines.extend(phbdy_cards)
+    bulk_lines.extend(qbdy1_cards)
+    bulk_lines.extend(mat4_conv_cards)
+
+    # Ambient grid points for convection: create GRID and SPC for each
+    for gid, ambient_id in ambient_grid_map.items():
+        # Place ambient point at same location as the boundary grid point
+        pt = nodes[gid - 1]
+        x, y, z = pt[0], pt[1], pt[2] if sdim == 3 else 0.0
+        bulk_lines.append(f"GRID,{ambient_id},,{_fmt8(x)},{_fmt8(y)},{_fmt8(z)}")
+        # SPC to set Text temperature - use the Text from the first ht.heatflux feature
+        T_ext = 293.15
+        for f in ht_flux_features:
+            if f.get("type", "general") == "convective":
+                T_ext = _eval_expr(f.get("Text", "293.15[K]"), model, overrides)
+                break
+        bulk_lines.append(f"SPC,{plan.spc_id},{ambient_id},1,{_fmt8(T_ext)}")
 
     if plan.sol == 3:
         # EIGR: SID, METHOD, F1, F2, NE, ND, NZ, E, +abc.  FEER (tridiagonal reduction) about F1 = 0 gives the
