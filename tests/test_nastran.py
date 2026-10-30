@@ -43,10 +43,9 @@ def _run_study(m, st=None, events=None):
 
 
 # =========================================================================== 1. Discovery
-def test_nastran_install_discovery():
-    inst = find_nastran()
-    assert inst is not None, "NASTRAN-95 must be found on this machine"
-    
+def test_nastran_install_discovery(nastran):
+    inst = nastran                      # the fixture skips where NASTRAN-95 is not installed (CI runners)
+
     # Verify the executable exists (handle WSL paths correctly)
     if inst.kind == "wsl":
         import subprocess
