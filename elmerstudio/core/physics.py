@@ -372,7 +372,7 @@ def _solid_solvers(ph, ctx):
          "Variable": f"-dofs {ctx.sdim} Displacement", "Calculate Stresses": True, "Displace Mesh": False}
     if ctx.sdim == 2 and not ctx.axi and ph.get("plane", "strain") == "stress":
         ctx.equation_extra["Plane Stress"] = True
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20))))
     if ctx.step.kind == "study.time":
         # second order in time: Elmer's Bossak scheme (its default for such systems, alpha = -0.05)
         s["Timestepping Method"] = "Bossak"
@@ -449,7 +449,7 @@ feature("es.scharge", "Space Charge Density", "scd", "feature_domain", "domain",
 def _es_solvers(ph, ctx):
     s = {"Equation": "Electrostatics", "Procedure": ("StatElecSolve", "StatElecSolver"), "Variable": "Potential",
          "Calculate Electric Field": True, "Calculate Electric Flux": True, "Calculate Electric Energy": True}
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20))))
     return [s]
 
 
@@ -492,7 +492,7 @@ feature("ec.ncd", "Normal Current Density", "ncd", "feature_boundary", "boundary
 def _ec_solvers(ph, ctx):
     s = {"Equation": "Static Current", "Procedure": ("StatCurrentSolve", "StatCurrentSolver"), "Variable": "Potential",
          "Variable DOFs": 1, "Calculate Volume Current": True, "Calculate Joule Heating": True}
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20))))
     return [s]
 
 
@@ -809,7 +809,7 @@ feature("mf.pmc", "Perfect Magnetic Conductor", "pmc", "feature_boundary", "boun
 
 def _mf_solvers(ph, ctx):
     s = {"Equation": "MgDyn2D", "Procedure": ("MagnetoDynamics2D", "MagnetoDynamics2D"), "Variable": "Az"}
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20))))
     calc = {"Equation": "MgDyn2D Fields", "Procedure": ("MagnetoDynamics", "MagnetoDynamicsCalcFields"),
             "Potential Variable": "Az", "Calculate Magnetic Field Strength": True,
             "Calculate Current Density": True, "Calculate Nodal Fields": True, "Calculate Elemental Fields": False,
@@ -1040,7 +1040,7 @@ feature("acpr.efc", "Exterior Field Calculation", "efc", "far_field", "boundary"
 def _acpr_solvers(ph, ctx):
     s = {"Equation": "Helmholtz Equation", "Procedure": ("HelmholtzSolve", "HelmholtzSolver"),
          "Variable": "-dofs 2 Pressure Wave"}
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20))))
     return [s]
 
 
@@ -1247,7 +1247,7 @@ def _tds_solvers(ph, ctx):
         if ph.get("stab", False):
             ctx.warnings.append(f"{ph.label}: a first-order reaction rate constant; the species transport is solved "
                                 "without streamline diffusion")
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20))))
     flux = {"Equation": f"Species Flux{sp}", "Procedure": ("FluxSolver", "FluxSolver"), "Calculate Flux": True,
             "Flux Variable": var,
             "Flux Coefficient": f"{var} Diffusivity" if tds_stabilized(ph) else "Diffusion Coefficient",
@@ -1321,7 +1321,7 @@ feature("pde.flux", "Flux/Source", "flux", "feature_boundary", "boundary", "bc",
 
 def _pde_solvers(ph, ctx):
     s = {"Equation": "Coefficient Form PDE", "Procedure": ("ModelPDE", "AdvDiffSolver"), "Variable": ctx.pde_var(ph)}
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 20))))
     return [s]
 
 

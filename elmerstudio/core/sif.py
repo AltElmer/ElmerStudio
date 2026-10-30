@@ -173,6 +173,7 @@ class SifContext:
         self.n_nodes = n_nodes
         self.equation_extra: dict = {}
         self.nonlinear: set[str] = set()
+        self.phys_nonlinear: dict[str, set[str]] = {}  # physics tag -> set of nonlinear variables
         self.warnings: list[str] = []
         self._current_physics: Node | None = None
         self.active = self._active_physics()
@@ -367,9 +368,13 @@ class SifContext:
 
     def _mark_dep(self, variables):
         if self._current_physics is not None:
+            tag = self._current_physics.tag
+            if tag not in self.phys_nonlinear:
+                self.phys_nonlinear[tag] = set()
             for v in variables:
                 if not v.startswith("Coordinate") and v != "Time":
                     self.nonlinear.add(v)
+                    self.phys_nonlinear[tag].add(v)
 
     def material_for(self, domain: int) -> Node | None:
         mats = self.comp.child("materials")
@@ -938,11 +943,13 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
         own = {inst[1]} if inst else {v for (v, _l, _u) in pd.depvars.values()}
         phys_depvars[ph.tag] = {v.lower() for v in own}
     # Cross-dependencies: physics A depends on physics B's variables
-    # Build dependency graph: tag -> set of other tags whose variables it depends on
+    # Build dependency graph using per-physics nonlinear variables tracked in _mark_dep
     phys_deps = {tag: set() for tag in phys_depvars}
     for tag, depvars in phys_depvars.items():
+        # Variables this physics depends on from its own nonlinear set
+        own_nonlinear = ctx.phys_nonlinear.get(tag, set())
         for other_tag, other_depvars in phys_depvars.items():
-            if other_tag != tag and (ctx.nonlinear & other_depvars):
+            if other_tag != tag and (own_nonlinear & other_depvars):
                 phys_deps[tag].add(other_tag)
     # Detect cyclic dependencies (two-way coupling): A depends on B and B depends on A
     phys_cross = {tag: False for tag in phys_depvars}

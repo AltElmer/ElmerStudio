@@ -205,6 +205,153 @@ def test_judge_coupling_one_way_converged():
     assert len(newton_msgs) == 2, f"Expected 2 Newton problems, got {msgs}"
 
 
+def test_judge_coupling_segregated_converged():
+    """Segregated coupling with ss_maxit > 1: one Newton step per coupling iteration is normal.
+    
+    The PDE's last relative change is 2.88e-07 (< ss_tol 1e-6). The coupling loop
+    converged at SS ITER=7. This should be converged."""
+    conv = [
+        (1, "physics_a", "NS", 1e-5, 1),
+        (1, "physics_a", "SS", 0.5, 1),
+        (1, "physics_b", "NS", 1e-5, 1),
+        (1, "physics_b", "SS", 0.5, 2),
+        (2, "physics_a", "NS", 1e-5, 1),
+        (2, "physics_a", "SS", 0.3, 2),
+        (2, "physics_b", "NS", 1e-5, 1),
+        (2, "physics_b", "SS", 0.3, 3),
+        (3, "physics_a", "NS", 1e-5, 1),
+        (3, "physics_a", "SS", 1e-6, 3),
+        (3, "physics_b", "NS", 1e-5, 1),
+        (3, "physics_b", "SS", 1e-6, 4),
+        (4, "physics_a", "NS", 1e-5, 1),
+        (4, "physics_a", "SS", 2.88e-7, 4),
+        (4, "physics_b", "NS", 1e-5, 1),
+        (4, "physics_b", "SS", 2.88e-7, 5),
+    ]
+    spec = {
+        "ss_maxit": 30,
+        "solvers": [
+            {"equation": "physics_a", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+            {"equation": "physics_b", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+        ]
+    }
+    msgs = convergence_problems(conv, spec)
+    # Should NOT flag Newton loops (in coupling with ss_maxit > 1)
+    newton_msgs = [m for m in msgs if "nonlinear iterations" in m]
+    assert len(newton_msgs) == 0, f"Expected no Newton problems, got {msgs}"
+    # Should NOT flag coupling (converged at iteration 4 < ss_maxit)
+    coupling_msgs = [m for m in msgs if "coupling" in m]
+    assert len(coupling_msgs) == 0, f"Expected no coupling problem, got {msgs}"
+
+
+def test_judge_coupling_segregated_not_converged():
+    """Segregated coupling with ss_maxit forced to 2 so coupling cannot converge.
+    
+    Same model but ss_maxit=2, coupling stops at 2 with high relc -> not converged."""
+    conv = [
+        (1, "physics_a", "NS", 1e-5, 1),
+        (1, "physics_a", "SS", 0.5, 1),
+        (1, "physics_b", "NS", 1e-5, 1),
+        (1, "physics_b", "SS", 0.5, 2),
+        (2, "physics_a", "NS", 1e-5, 1),
+        (2, "physics_a", "SS", 0.3, 2),
+        (2, "physics_b", "NS", 1e-5, 1),
+        (2, "physics_b", "SS", 0.3, 2),
+    ]
+    spec = {
+        "ss_maxit": 2,
+        "solvers": [
+            {"equation": "physics_a", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+            {"equation": "physics_b", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+        ]
+    }
+    msgs = convergence_problems(conv, spec)
+    # Should flag coupling (stopped at ss_maxit=2 with rel > ss_tol)
+    coupling_msgs = [m for m in msgs if "coupling" in m]
+    assert len(coupling_msgs) == 1, f"Expected 1 coupling problem, got {msgs}"
+    assert "maximum 2" in coupling_msgs[0]
+
+
+def test_judge_cross_depends_self_nonlinear_independent():
+    """Two physics, each nonlinear only in own field, no cross-dep -> cross_depends=False."""
+    conv = [
+        (1, "physics_a", "NS", 1e-5, 1),
+        (1, "physics_a", "SS", 2.0, 1),
+        (1, "physics_b", "NS", 1e-5, 1),
+        (1, "physics_b", "SS", 2.0, 1),
+    ]
+    spec = {
+        "ss_maxit": 1,
+        "solvers": [
+            {"equation": "physics_a", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+            {"equation": "physics_b", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+        ]
+    }
+    msgs = convergence_problems(conv, spec)
+    # No coupling flag (no cross_depends cycle)
+    coupling_msgs = [m for m in msgs if "coupling" in m]
+    assert len(coupling_msgs) == 0, f"Expected no coupling problem, got {msgs}"
+    # Newton loops flagged (is_nonlinear=True, nl_maxit=1, rel=2.0 > nl_tol)
+    newton_msgs = [m for m in msgs if "nonlinear iterations" in m]
+    assert len(newton_msgs) == 2, f"Expected 2 Newton problems, got {msgs}"
+
+
+def test_judge_cross_depends_two_way():
+    """Two physics with real two-way dependency -> both cross_depends=True."""
+    conv = [
+        (1, "physics_a", "NS", 1e-5, 1),
+        (1, "physics_a", "SS", 2.0, 1),
+        (1, "physics_b", "NS", 1e-5, 1),
+        (1, "physics_b", "SS", 2.0, 1),
+    ]
+    spec = {
+        "ss_maxit": 1,
+        "solvers": [
+            {"equation": "physics_a", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": True},
+            {"equation": "physics_b", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": True},
+        ]
+    }
+    msgs = convergence_problems(conv, spec)
+    # Should flag coupling (cross_depends cycle)
+    coupling_msgs = [m for m in msgs if "coupling" in m]
+    assert len(coupling_msgs) == 1, f"Expected 1 coupling problem, got {msgs}"
+    assert "maximum 1" in coupling_msgs[0]
+    assert "relative change up to 2" in coupling_msgs[0]
+
+
+def test_judge_cross_depends_one_way():
+    """One-way chain: A depends on B, B doesn't depend on A -> cross_depends=False for both.
+    
+    Per the correction: one-way chain -> both False (no cycle means no cross_depends)."""
+    conv = [
+        (1, "physics_a", "NS", 1e-5, 1),
+        (1, "physics_a", "SS", 2.0, 1),
+        (1, "physics_b", "NS", 1e-5, 1),
+        (1, "physics_b", "SS", 2.0, 1),
+    ]
+    spec = {
+        "ss_maxit": 1,
+        "solvers": [
+            {"equation": "physics_a", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+            {"equation": "physics_b", "post": False, "nl_maxit": 1, "nl_tol": 1e-7, "ss_tol": 1e-6,
+             "is_nonlinear": True, "cross_depends": False},
+        ]
+    }
+    msgs = convergence_problems(conv, spec)
+    # No coupling flag (no cross_depends cycle - both False)
+    coupling_msgs = [m for m in msgs if "coupling" in m]
+    assert len(coupling_msgs) == 0, f"Expected no coupling problem, got {msgs}"
+
+
 # --------------------------------------------------------------------------------------- integration tests with real ElmerSolver
 @pytest.mark.integration
 def test_nonlinear_maxit_1_real_run_not_converged(elmer):
@@ -282,4 +429,22 @@ if __name__ == "__main__":
     print("test_judge_nonlinear_maxit_80_is_converged: PASS")
     test_judge_linear_one_pass_is_converged()
     print("test_judge_linear_one_pass_is_converged: FAIL (expected - this is the bug)")
-    print("Unit tests done - 3 failing as expected before fix")
+    test_judge_navier_stokes_no_is_nonlinear_not_converged()
+    print("test_judge_navier_stokes_no_is_nonlinear_not_converged: PASS")
+    test_judge_navier_stokes_is_nonlinear_false_not_converged()
+    print("test_judge_navier_stokes_is_nonlinear_false_not_converged: PASS")
+    test_judge_coupling_two_way_not_converged()
+    print("test_judge_coupling_two_way_not_converged: PASS")
+    test_judge_coupling_one_way_converged()
+    print("test_judge_coupling_one_way_converged: PASS")
+    test_judge_coupling_segregated_converged()
+    print("test_judge_coupling_segregated_converged: PASS")
+    test_judge_coupling_segregated_not_converged()
+    print("test_judge_coupling_segregated_not_converged: PASS")
+    test_judge_cross_depends_self_nonlinear_independent()
+    print("test_judge_cross_depends_self_nonlinear_independent: PASS")
+    test_judge_cross_depends_two_way()
+    print("test_judge_cross_depends_two_way: PASS")
+    test_judge_cross_depends_one_way()
+    print("test_judge_cross_depends_one_way: PASS")
+    print("Unit tests done - 14 tests")

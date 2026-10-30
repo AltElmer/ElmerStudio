@@ -341,10 +341,13 @@ def convergence_problems(conv, spec) -> list[str]:
         rec = nl_bad.setdefault(eq, [0, 0, 0.0, sp["nl_maxit"], sp["nl_tol"]])
         rec[1] += 1
         # A Newton loop is not converged when it reaches its maximum iterations without meeting
-        # the tolerance, if either nl_maxit > 1 (the original exemption for linear one-pass solves)
-        # OR the equation is inherently nonlinear (is_nonlinear=True). Missing is_nonlinear means
-        # old behavior (nl_maxit > 1 only).
-        if (sp["nl_maxit"] > 1 or sp.get("is_nonlinear", False)) and it >= sp["nl_maxit"] and rel > sp["nl_tol"]:
+        # the tolerance, if:
+        # - nl_maxit > 1 (original exemption for linear one-pass solves), OR
+        # - the equation is inherently nonlinear (is_nonlinear=True) AND
+        #   NOT in a segregated coupling loop with ss_maxit > 1 (where one Newton step per
+        #   coupling iteration is normal and the coupling criterion decides)
+        in_coupling = eq in has_ss and ss_maxit > 1
+        if (sp["nl_maxit"] > 1 or (sp.get("is_nonlinear", False) and not in_coupling)) and it >= sp["nl_maxit"] and rel > sp["nl_tol"]:
             rec[0] += 1
             rec[2] = max(rec[2], rel)
 
