@@ -1,0 +1,274 @@
+# Elmer Studio Capability Ledger
+# Generated from core/physics.py and test evidence.
+# Each entry: physics interface, formulation, study types, material laws, mesh, coupling, backend/version, status, linked test IDs.
+
+capabilities:
+  - id: ht
+    name: "Heat Transfer in Solids"
+    category: "Heat Transfer"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "conduction": {equation: "rho*Cp*dT/dt + div(q) = Q, q = -k*grad(T)", material: ["k", "rho", "Cp"]}
+      - "convection": {equation: "rho*Cp*dT/dt + rho*Cp*u·grad(T) + div(q) = Q", material: ["k", "rho", "Cp"], coupling: "spf"}
+    studies: ["stationary", "time"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings:
+      - "Thermal Expansion (solid)"
+      - "Nonisothermal Flow (spf)"
+      - "Electromagnetic Heating (ec)"
+    backends:
+      - name: "Elmer HeatSolver"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_heat_sink_tutorial", "test_examples_build_and_generate_sif[heat_sink]"]
+      - name: "OpenFOAM v2606 (chtMultiRegionFoam)"
+        version: "v2606"
+        status: "partly qualified"
+        evidence: ["test_gui_openfoam.py::test_choose_openfoam_compute_plot"]
+        limitations: ["laminar only, one physics per step, blockMesh only, no turbulence"]
+    features:
+      domain: ["ht.solid", "ht.fluid", "ht.source", "ht.init"]
+      boundary: ["ht.temperature", "ht.heatflux", "ht.radiation", "ht.insulation", "ht.symmetry"]
+    result_variables: ["T", "ht.tfluxMag", "ht.tflux"]
+    notes: "Convection requires prescribed velocity or coupled flow (spf). Heat flux and radiation are boundary conditions."
+
+  - id: solid
+    name: "Solid Mechanics"
+    category: "Structural Mechanics"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "linear_elastic": {equation: "div(S) = F, S = C:epsilon(u)", material: ["E", "nu", "rho"]}
+      - "plane_stress": {dimension: "2D", note: "Plane stress approximation for thin structures"}
+      - "plane_strain": {dimension: "2D", note: "Plane strain approximation (default)"}
+    studies: ["stationary", "time", "eigen", "freq"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings:
+      - "Thermal Expansion (ht)"
+      - "Electromagnetic Heating (ec)"
+    backends:
+      - name: "Elmer StressSolver"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_wrench_tutorial", "test_assembly_pairs.py::test_temperature_is_continuous_across_the_pair"]
+      - name: "OpenFOAM (solidDisplacementFoam)"
+        version: "N/A"
+        status: "not qualified"
+        evidence: []
+    features:
+      domain: ["solid.lemm", "solid.damp", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init"]
+      boundary: ["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring", "solid.free"]
+    result_variables: ["solid.disp", "solid.mises", "solid.stress", "solid.strain"]
+    notes: "Frequency domain stresses not computed (Elmer gives real part only). Roller/Symmetry must be on axis-aligned boundaries. No contact, nonlinear materials, or prestressed harmonic."
+
+  - id: es
+    name: "Electrostatics"
+    category: "AC/DC"
+    subcategory: "Electric Fields and Currents"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "dielectric": {equation: "div(D) = rho_v, D = eps0*epsr*E, E = -grad(V)", material: ["epsr"]}
+    studies: ["stationary", "time"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings:
+      - "Identity pairs (continuity for V)"
+    backends:
+      - name: "Elmer StatElecSolver"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_examples_build_and_generate_sif[capacitor]"]
+    features:
+      domain: ["es.ccm", "es.scharge", "es.init"]
+      boundary: ["es.ground", "es.pot", "es.scd", "es.zc"]
+    result_variables: ["V", "es.normE", "es.normD"]
+    notes: "Conflicts with ec (Electric Currents) on same component."
+
+  - id: ec
+    name: "Electric Currents"
+    category: "AC/DC"
+    subcategory: "Electric Fields and Currents"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "conduction": {equation: "div(J) = Q, J = sigma*E, E = -grad(V)", material: ["sigma"]}
+    studies: ["stationary", "time"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings:
+      - "Electromagnetic Heating (ht)"
+      - "Identity pairs (continuity for V)"
+    backends:
+      - name: "Elmer StatCurrentSolver"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_examples_build_and_generate_sif[busbar]"]
+    features:
+      domain: ["ec.cc", "ec.init"]
+      boundary: ["ec.ground", "ec.pot", "ec.ncd", "ec.ins"]
+    result_variables: ["V", "ec.normJ", "ec.J"]
+    notes: "Conflicts with es (Electrostatics) on same component."
+
+  - id: cd
+    name: "Secondary Current Distribution"
+    category: "Electrochemistry"
+    subcategory: "Primary and Secondary Current Distribution"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "primary": {equation: "electrode potential = E_eq", backend: "StatCurrentSolve"}
+      - "secondary": {equation: "div(i_l) = Q_l, i_l = -sigma_l*grad(phi_l), -n·i_l = i_loc(eta)", backend: "HeatSolve or ModelPDE"}
+    studies: ["stationary", "time"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings:
+      - "Heat Transfer (ht) for ModelPDE backend"
+    backends:
+      - name: "Elmer StatCurrentSolve (primary)"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_tutorial_electrochemistry.py"]
+      - name: "Elmer HeatSolve (Robin form, kinetics)"
+        version: "9.0+"
+        status: "partly qualified"
+        evidence: ["test_tutorial_electrochemistry.py"]
+        limitations: ["Butler-Volmer, Tafel, linearized, user-defined kinetics; no double-layer capacitance, no total-power electrode condition"]
+      - name: "Elmer ModelPDE (AdvDiffSolver, Robin form)"
+        version: "9.0+"
+        status: "partly qualified"
+        evidence: ["test_tutorial_electrochemistry.py"]
+        limitations: ["used when ht already uses HeatSolve"]
+    features:
+      domain: ["cd.elyte", "cd.source", "cd.init"]
+      boundary: ["cd.es", "cd.pot", "cd.ncd", "cd.ins", "cd.sym"]
+    result_variables: ["cd.phil", "cd.IlMag", "cd.es1.Itot", "cd.es1.vdis"]
+    notes: "No electrode (solid-phase) domain, no total-power electrode condition, no double-layer capacitance. Total current works in Stationary for one electrode per component."
+
+  - id: mf
+    name: "Magnetic Fields"
+    category: "AC/DC"
+    subcategory: "Electromagnetic Fields"
+    dimensions: ["2D", "2Daxi"]
+    formulations:
+      - "magnetostatics": {equation: "curl(H) = J, B = curl(A), B = mu0*mur*H", material: ["mur", "sigma"]}
+    studies: ["stationary", "time"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings: []
+    backends:
+      - name: "Elmer MagnetoDynamics2D"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_examples_build_and_generate_sif[coil]", "test_click_evaluate.py::test_click_on_2d_magnetic_flux_density"]
+    features:
+      domain: ["mf.al", "mf.ecd", "mf.init"]
+      boundary: ["mf.mi", "mf.pot", "mf.pmc"]
+    result_variables: ["Az", "mf.normB", "mf.normH"]
+    notes: "2D and 2D axisymmetric only (no 3D A-V formulation). Out-of-plane current density only."
+
+  - id: spf
+    name: "Laminar Flow"
+    category: "Fluid Flow"
+    subcategory: "Single-Phase Flow"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "navier_stokes": {equation: "rho(u·grad)u = div(-pI + mu(grad u + grad u^T)) + F, div(u) = 0", material: ["rho", "mu"]}
+    studies: ["stationary", "time"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings:
+      - "Nonisothermal Flow (ht)"
+    backends:
+      - name: "Elmer FlowSolve (NavierStokesSolver)"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_examples_build_and_generate_sif[flow_cylinder]"]
+      - name: "OpenFOAM v2606 (simpleFoam/pimpleFoam)"
+        version: "v2606"
+        status: "partly qualified"
+        evidence: ["test_gui_openfoam.py::test_choose_openfoam_compute_plot"]
+        limitations: ["laminar only, blockMesh only, no turbulence, no conjugate heat transfer between regions"]
+    features:
+      domain: ["spf.fp", "spf.init"]
+      boundary: ["spf.wall", "spf.inlet", "spf.outlet"]
+    result_variables: ["spf.U", "spf.p", "spf.normU"]
+    notes: "Boundary layers meshed in 2D/2Daxi only (gmsh limitation). No turbulence models."
+
+  - id: acpr
+    name: "Pressure Acoustics, Frequency Domain"
+    category: "Acoustics"
+    subcategory: "Pressure Acoustics"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "helmholtz": {equation: "-(omega^2/c^2)p - div(grad p) = Q, c = sqrt(K/rho)", material: ["rho", "K", "c"]}
+    studies: ["frequency"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings: []
+    backends:
+      - name: "Elmer HelmholtzSolver"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_tutorial_acoustics.py::test_pulsating_sphere_radiation_and_exterior_field", "test_tutorial_acoustics.py::test_spherical_scatterer_benchmark"]
+    features:
+      domain: ["acpr.fp", "acpr.source", "acpr.init"]
+      boundary: ["acpr.impedance", "acpr.soundhard", "acpr.radiation", "acpr.pressure"]
+    result_variables: ["acpr.p_t", "acpr.Lp", "acpr.normE"]
+    notes: "Exterior field via Exterior Field Calculation (Kirchhoff-Helmholtz). No BEM, no PML. 2D exterior field not available."
+
+  - id: tds
+    name: "Transport of Diluted Species"
+    category: "Chemical Species Transport"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "convection_diffusion": {equation: "d(c)/dt + div(-D*grad c + c*u) = R", material: ["D"]}
+    studies: ["stationary", "time"]
+    material_laws: ["constant", "user-defined", "library (20 C)"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings:
+      - "Flow (spf) for velocity field"
+      - "Heat Transfer (ht) for temperature-dependent D"
+    backends:
+      - name: "Elmer AdvDiffSolver (ModelPDE)"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_pde_instances.py::test_tds_transport"]
+    features:
+      domain: ["tds.fp", "tds.source", "tds.init"]
+      boundary: ["tds.conc", "tds.flux", "tds.ins"]
+    result_variables: ["tds.c", "tds.flux"]
+    notes: "Migrating species read grad(phil) from cd interface. Identity pairs not yet supported for TDS."
+
+  - id: pde
+    name: "Coefficient Form PDE"
+    category: "Mathematics"
+    subcategory: "PDE Interfaces"
+    dimensions: ["3D", "2D", "2Daxi"]
+    formulations:
+      - "coefficient": {equation: "ea*d^2u/dt^2 + da*du/dt + div(c*grad u + alpha*u - gamma) + beta*grad u + a*u = f", material: ["c", "alpha", "beta", "a", "da", "ea", "f", "gamma"]}
+    studies: ["stationary", "time", "eigen", "freq"]
+    material_laws: ["user-defined coefficients"]
+    mesh: ["gmsh (tetra/prism)", "ElmerGrid (blocks)"]
+    couplings:
+      - "Identity pairs (continuity for u)"
+    backends:
+      - name: "Elmer ModelPDE (AdvDiffSolver/ElasticSolve/etc.)"
+        version: "9.0+"
+        status: "qualified"
+        evidence: ["test_pde_instances.py::test_coefficient_form_pde"]
+    features:
+      domain: ["pde.coeff"]
+      boundary: ["pde.dirichlet", "pde.neumann", "pde.robin"]
+    result_variables: ["pde.u", "pde.flux"]
+    notes: "General-purpose PDE interface. Elmer solver auto-selected based on equation type."
+
+# Capability summary for documentation generation
+summary:
+  total_physics: 10
+  qualified_backends: 10
+  partly_qualified_backends: 5
+  not_qualified_backends: 1
+  backends:
+    - "Elmer 9.0+"
+    - "OpenFOAM v2606 (WSL)"
+  last_updated: "2026-10-30"
+  generated_by: "tools/capability_ledger.py"

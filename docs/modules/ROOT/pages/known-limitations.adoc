@@ -80,3 +80,8 @@ The OpenFOAM backend (see xref:user-guide:openfoam.adoc[OpenFOAM backend]) is de
 * no conductive heat flux (`ht.tflux`) in the results;
 * equally spaced output times with a fixed time step;
 * verified with OpenFOAM v2606 under WSL. The Windows (msys) launcher for the ESI v2106 tree and a native Linux install are implemented but not verified.
+
+
+== Per-physics limitations
+
+See xref:capabilities.adoc[Physics capabilities] for limitations specific to each physics interface and backend.

@@ -65,3 +65,9 @@ The complete list is on xref:known-limitations.adoc[Known limitations].
 * kbd:[Esc] in a Settings field puts back the applied value. COMSOL's manual doesn't describe this key, so this is Elmer Studio's own choice.
 * Entity numbers follow position, so numbers in COMSOL instructions usually match.
 * Parameters with units, sweeps, couplings and Global Evaluations work as you expect.
+
+
+== Physics capability reference
+
+The full versioned capability ledger is on xref:capabilities.adoc[Physics capabilities].
+Each interface lists its formulations, studies, material laws, mesh support, couplings, backends, and test evidence.
