@@ -419,6 +419,50 @@ def test_nonlinear_changed_variant_real_run_not_converged(elmer):
     assert "maximum" in str(exc.value).lower() or "converge" in str(exc.value).lower()
 
 
+# --------------------------------------------------------------------------------------- compiler-level cross_depends tests
+@pytest.mark.integration
+@pytest.mark.parametrize("case_name,heat_k,pde_c,expected_cross", [
+    ("two-way", "400*(1+0.01*u)", "1+0.001*T", True),
+    ("one-way", "400", "1+0.001*T", False),
+    ("independent", "400*(1+0.001*T)", "1+u^2", False),
+])
+def test_cross_depends_topology(elmer, case_name, heat_k, pde_c, expected_cross):
+    """Real compiler test: cross_depends from SIF for three topologies of heat + PDE."""
+    m = B.new_model("2D", ["ht", "pde"], "stationary")
+    m.create("geom.rectangle", m.component.child("geometry"), index=0, w="1", h="0.5")
+    geo = build_geometry(m, display=False)
+    B.add_material(m, "Copper", all_domains=True)
+    ht = m.component.child("physics.ht")
+    m.component.child("materials").children[0].props.setdefault("values", {})["k"] = heat_k
+    B.add_feature(m, ht, "ht.temperature", geo.select("boundary", xmax=0), T0="300")
+    B.add_feature(m, ht, "ht.temperature", geo.select("boundary", xmin=1), T0="310")
+    pde = m.component.child("physics.pde")
+    pde.child("pde.cfeq").props.update(c=pde_c, f="40", da="0")
+    B.add_feature(m, pde, "pde.dir", geo.numbers["boundary"], r="0")
+    st = m.studies()[0]
+    work = tempfile.mkdtemp(prefix=f"es_topo_{case_name}_")
+    try:
+        StudyRunner(m, st, work, elmer).run()
+    except StudyNotConverged:
+        pass  # The topology test cares about cross_depends, not convergence status
+    except Exception:
+        pass  # Other errors - still check cross_depends
+    
+    # Read cross_depends from meta.json
+    import json
+    got = {}
+    for root, _d, files in os.walk(work):
+        if "meta.json" in files:
+            meta = json.load(open(os.path.join(root, "meta.json")))
+            for s in meta.get("convergence", {}).get("solvers", []):
+                got[s["equation"]] = s.get("cross_depends")
+    
+    # Check both heat equation and coefficient form pde
+    main = {e: v for e, v in got.items() if e in ("heat equation", "coefficient form pde")}
+    assert set(main.values()) == {expected_cross}, \
+        f"{case_name}: cross_depends={main}, expected all {expected_cross}"
+
+
 if __name__ == "__main__":
     # Run unit tests without Elmer
     test_judge_nonlinear_maxit_1_is_not_converged()
