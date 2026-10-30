@@ -11,6 +11,7 @@ Supports:
 from __future__ import annotations
 
 import os
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -701,11 +702,31 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         # TLOAD1: SID, L (DAREA), M (DELAY), TF (TABLED1)
         bulk_lines.append(f"TLOAD1,{plan.load_id},{plan.load_id},0,{tabled1_id}")
         
-        # DAREA: SID, EID, COMP, VALUE... for each FORCE/SPC load
-        # We need to convert FORCE cards to DAREA for transient
-        # For now, collect all force DOFs and create DAREA
-        # This is a simplified approach - in practice we'd need to track each load component
-        pass  # DAREA generation would go here
+        # DAREA: SID, EID, COMP, VALUE... for each grid point force component
+        # Convert FORCE cards to DAREA entries
+        # DAREA format: DAREA, SID, EID, C1, V1, C2, V2...
+        # Group forces by grid point and component
+        force_by_grid = defaultdict(lambda: defaultdict(float))
+        for nid, vec in forces.items():
+            for comp_idx, val in enumerate(vec, start=1):
+                if abs(val) > 1e-30:
+                    force_by_grid[nid][comp_idx] += val
+        
+        # Also include SPC forces (non-zero prescribed displacements) as DAREA
+        # For simplicity, we only handle FORCE loads here; SPC loads are enforced via SPC cards
+        
+        dareas_by_grid = defaultdict(list)
+        for gid, comps in force_by_grid.items():
+            for comp, val in comps.items():
+                dareas_by_grid[gid].append((comp, val))
+        
+        if dareas_by_grid:
+            dare_area_id = plan.load_id  # reuse load_id for DAREA set
+            for gid, comps in dareas_by_grid.items():
+                line = f"DAREA,{dare_area_id},{gid}"
+                for comp, val in comps:
+                    line += f",{comp},{_fmt8(val)}"
+                bulk_lines.append(line)
 
     bulk_lines.append("ENDDATA")
 
