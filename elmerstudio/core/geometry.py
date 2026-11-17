@@ -807,11 +807,29 @@ class GeometryBuilder:
             if not os.path.isfile(path):
                 raise GeometryError(f"{f.label}: file not found: {path}")
             out = occ.importShapes(path, highestDimOnly=True)
+            if not out:
+                raise GeometryError(f"{f.label}: nothing imported from {path}")
+            top_dim = max(d for d, _t in out)
+            imported = sum(1 for d, _t in out if d == top_dim)
             if f.get("heal", True):
+                healed = None
                 try:
-                    out = occ.healShapes(out) or out
+                    healed = occ.healShapes(out)
                 except Exception:
-                    pass
+                    healed = None
+                if healed:
+                    kept = sum(1 for d, _t in healed if d == top_dim)
+                    htop = max((d for d, _t in healed), default=0)
+                    # keep the repair only if it preserves the highest-dimension entities
+                    # (volumes in 3D, faces in 2D); otherwise healShapes would drop the
+                    # solids/curves and leave the import with 0 domains.
+                    if htop == top_dim and kept >= imported:
+                        out = healed
+                    else:
+                        self.messages.append(
+                            f"{f.label}: repair dropped the {top_dim}D entities "
+                            f"({imported} imported -> {kept} at dimension {htop}); "
+                            "keeping the imported geometry")
             self.objects[f.tag] = out
         elif k == "geom.boxsel":
             self.selections.append(f)
