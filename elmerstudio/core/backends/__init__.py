@@ -3,7 +3,8 @@
 The choice is the study's ``backend`` property; models without it are Elmer studies."""
 from __future__ import annotations
 
-BACKENDS = [("elmer", "Elmer"), ("openfoam", "OpenFOAM (blockMesh)"), ("nastran", "NASTRAN-95")]
+BACKENDS = [("elmer", "Elmer"), ("openfoam", "OpenFOAM (blockMesh)"), ("nastran", "NASTRAN-95"),
+            ("opencourant", "OpenCourant (explicit dynamics)")]
 
 
 def study_backend(study) -> str:

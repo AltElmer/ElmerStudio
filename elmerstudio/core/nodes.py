@@ -158,11 +158,12 @@ register(NodeType("variables", "Variables", "var", "variables", props=[
 ]))
 
 # --------------------------------------------------------------------------- study
-STEP_KINDS = ["study.stationary", "study.time", "study.eigen", "study.freq"]
+STEP_KINDS = ["study.stationary", "study.time", "study.eigen", "study.freq", "study.explicit"]
 register(NodeType("study", "Study", "std", "study", deletable=True, can_disable=False,
                   children=STEP_KINDS + ["study.sweep"], props=[
                       Prop("backend", "Solver backend:", "choice", "elmer",
-                           choices=[("elmer", "Elmer"), ("openfoam", "OpenFOAM (blockMesh)"), ("nastran", "NASTRAN-95")],
+                           choices=[("elmer", "Elmer"), ("openfoam", "OpenFOAM (blockMesh)"),
+                                    ("nastran", "NASTRAN-95"), ("opencourant", "OpenCourant (explicit dynamics)")],
                            section="Study Settings",
                            tip="OpenFOAM solves Laminar Flow and Heat Transfer in Solids on unions of axis-aligned "
                                "rectangles or blocks, meshed by blockMesh; NASTRAN-95 solves stationary and "
@@ -213,6 +214,21 @@ register(NodeType("study.freq", "Frequency Domain", "freq", "frequency_domain", 
          section="Study Settings"),
     Prop("freqs", "Frequencies:", "string", "500", section="Study Settings",
          tip="A single value, a list, or range(start,step,stop)"),
+    _phys_tbl]))
+register(NodeType("study.explicit", "Explicit Dynamics", "expd", "explicit_dynamics", props=[
+    Prop("end_time", "End time:", "string", "1.0", section="Study Settings", unit="s",
+         tip="Simulation end time (s)"),
+    Prop("output_interval", "Output interval:", "string", "0.1", section="Study Settings", unit="s",
+         tip="Time between written animation frames"),
+    Prop("time_step", "Time step (mass scaling):", "string", "0.001", section="Study Settings", unit="s",
+         tip="/DT/NODA/CST constant time step; OpenCourant mass-scales to meet it"),
+    Prop("materials", "Materials:", "physics_table", {}, section="Explicit Dynamics",
+         tip="Elastic-plastic materials: Johnson-Cook /MAT/LAW2 or bilinear /MAT/LAW36"),
+    Prop("initial_velocity", "Initial velocity:", "string", "", section="Explicit Dynamics",
+         tip="[vx vy vz] applied to the whole body at t = 0"),
+    Prop("rigid_walls", "Rigid walls:", "physics_table", {}, section="Explicit Dynamics",
+         tip="/RWALL definitions"),
+    Prop("contact", "Surface contact (/INTER/TYPE7):", "bool", False, section="Explicit Dynamics"),
     _phys_tbl]))
 register(NodeType("study.sweep", "Parametric Sweep", "param", "parametric_sweep", props=[
     Prop("stype", "Sweep type:", "choice", "specified",

@@ -353,6 +353,9 @@ class StudyRunner:
         if study_backend(self.study) == "nastran":
             from .backends.nastran.runner import NastranStudy
             return NastranStudy(self).run()
+        if study_backend(self.study) == "opencourant":
+            from .backends.opencourant import OpCourantStudy
+            return OpCourantStudy(self.inst).run_opencourant(self)
         if self.inst is None:
             raise RuntimeError("Elmer was not found. Set the Elmer installation folder in Preferences.")
         steps = study_steps(self.study)
