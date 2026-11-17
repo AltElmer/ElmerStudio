@@ -797,6 +797,21 @@ feature("mf.ecd", "External Current Density", "ecd", "feature_domain", "domain",
         props=[Prop("Jz", "External current density, out-of-plane component:", default="1e6", unit="A/m^2",
                     section="External Current Density", symbol="J_e,z")],
         equation=r"$\mathbf{J} = \mathbf{J}_e$")
+feature("mf.coil", "Coil excitation", "coil", "feature_domain", "domain", "bodyforce",
+        lambda n, ctx, d: _mf_coil(n, ctx, d),
+        props=[
+            Prop("type", "Coil type:", "choice", "stranded",
+                 choices=[("stranded", "Stranded (current-driven)"), ("massive", "Massive (voltage-driven)")],
+                 section="Coil"),
+            Prop("Jz", "Current density (out of plane):", default="1e6", unit="A/m^2", section="Coil",
+                 symbol="J_e,z"),
+            Prop("I", "Coil current:", default="1", unit="A", section="Coil", symbol="I",
+                 visible=lambda p: p.get("type") == "stranded"),
+            Prop("V", "Coil voltage:", default="1", unit="V", section="Coil", symbol="V",
+                 visible=lambda p: p.get("type") == "massive"),
+            Prop("N", "Number of turns:", default="1", unit="1", section="Coil", symbol="N"),
+        ],
+        equation=r"$\nabla\times\mathbf H=\mathbf J_z,\quad \mathbf J_z=N\,I/A_c\ (stranded),\quad \nabla\times\mathbf H=\sigma\mathbf E\ (massive)$"),
 feature("mf.mi", "Magnetic Insulation", "mi", "default_feature", "boundary", "bc",
         lambda n, ctx, d=None: {"Az": 0.0}, default=True, equation=r"$\mathbf{n}\times\mathbf{A} = \mathbf{0}$")
 feature("mf.pot", "Magnetic Potential", "mpot", "feature_boundary", "boundary", "bc",
@@ -807,8 +822,23 @@ feature("mf.pmc", "Perfect Magnetic Conductor", "pmc", "feature_boundary", "boun
         equation=r"$\mathbf{n}\times\mathbf{H} = \mathbf{0}$")
 
 
+def _mf_coil(n, ctx, d=None):
+    """Current density body force for a coil.  Stranded coils prescribe a current density
+    (and enable potential calculation so the terminal voltage can be post-processed);
+    massive coils prescribe a current density driven by the coil voltage."""
+    out = {"Current Density": ctx.value(n.get("Jz", "1e6"))}
+    if n.get("type", "stranded") == "stranded":
+        out["Calculate Potential"] = True
+    return out
+
+
 def _mf_solvers(ph, ctx):
-    s = {"Equation": "MgDyn2D", "Procedure": ("MagnetoDynamics2D", "MagnetoDynamics2D"), "Variable": "Az"}
+    harmonic = ctx.step.kind == "study.freq"
+    if harmonic:
+        s = {"Equation": "MgDyn2D", "Procedure": ("MagnetoDynamics2D", "MagnetoDynamics2DHarmonic"),
+             "Variable": "Az[Az re:1 Az im:1]", "Linear System Complex": True}
+    else:
+        s = {"Equation": "MgDyn2D", "Procedure": ("MagnetoDynamics2D", "MagnetoDynamics2D"), "Variable": "Az"}
     s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
     calc = {"Equation": "MgDyn2D Fields", "Procedure": ("MagnetoDynamics", "MagnetoDynamicsCalcFields"),
             "Potential Variable": "Az", "Calculate Magnetic Field Strength": True,
@@ -820,6 +850,7 @@ def _mf_solvers(ph, ctx):
 define_physics(PhysicsDef(
     "mf", "Magnetic Fields", "physics_mf", "AC/DC", "Electromagnetic Fields",
     dims=("2D", "2Daxi"),
+    studies=("stationary", "time", "freq"),
     depvars={"Az": ("Az", "Magnetic vector potential, z component", "Wb/m")},
     defaults=[("mf.al", "domain"), ("mf.init", "domain"), ("mf.mi", "boundary")],
     domain=["mf.al", "mf.ecd", "mf.init"], boundary=["mf.mi", "mf.pot", "mf.pmc"],
@@ -829,6 +860,74 @@ define_physics(PhysicsDef(
          "contour": "Az"}],
     description="Magnetostatics with out-of-plane currents (2D, 2D axisymmetric). Elmer MagnetoDynamics2D.",
     equation=r"$\nabla\times(\mu_0^{-1}\mu_r^{-1}\nabla\times\mathbf{A}) = \mathbf{J}_e$"))
+
+
+def _cir_solvers(ph, ctx):
+    harmonic = ctx.step.kind == "study.freq"
+    cad = {"Equation": "CircuitsAndDynamics",
+           "Procedure": ("CircuitsAndDynamics", "CircuitsAndDynamicsHarmonic" if harmonic else "CircuitsAndDynamics"),
+           "Variable": "V",
+           **projection_linsys(ctx)}
+    out = {"Equation": "CircuitsOutput", "Procedure": ("CircuitsAndDynamics", "CircuitsOutput"),
+           "Calculate Currents": True, "Calculate Voltages": True, "Calculate Impedances": True,
+           "__post__": True}
+    # register lumped components (children of the `cir` physics node) as Elmer `Component` sections
+    for child in ph.children:
+        ctype = {"cir.resistor": "Resistor", "cir.inductor": "Inductor", "cir.capacitor": "Capacitor",
+                 "cir.vsource": "Voltage Source", "cir.isource": "Current Source"}.get(child.kind)
+        if not ctype:
+            continue
+        prop = {"cir.resistor": ("R", "Resistance"), "cir.inductor": ("L", "Inductance"),
+                "cir.capacitor": ("C", "Capacitance"), "cir.vsource": ("V0", "Voltage"),
+                "cir.isource": ("I0", "Current")}[child.kind]
+        val = child.get(prop[0])
+        if val is None:
+            continue
+        try:
+            number = float(ctx.value(val))
+        except Exception:
+            m = re.match(r"\s*([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)", str(val))
+            number = float(m.group(1)) if m else 0.0
+        key = (ctype, prop[1], number)
+        if key in ctx._seen_components:
+            continue
+        ctx._seen_components.add(key)
+        ctx.components.append({"Name": child.label or ctype, "Component Type": ctype, prop[1]: number})
+    return [cad, out]
+
+
+
+
+feature("cir.resistor", "Resistor", "resistor", "feature_domain", "domain", "bodyforce",
+        lambda n, ctx, d: {},
+        props=[Prop("R", "Resistance:", default="10", unit="ohm", section="Resistor")],
+        equation=r"$V = R\,I$")
+feature("cir.inductor", "Inductor", "inductor", "feature_domain", "domain", "bodyforce",
+        lambda n, ctx, d: {},
+        props=[Prop("L", "Inductance:", default="1e-3", unit="H", section="Inductor")],
+        equation=r"$V = L\,\frac{dI}{dt}$")
+feature("cir.capacitor", "Capacitor", "capacitor", "feature_domain", "domain", "bodyforce",
+        lambda n, ctx, d: {},
+        props=[Prop("C", "Capacitance:", default="1e-6", unit="F", section="Capacitor")],
+        equation=r"$I = C\,\frac{dV}{dt}$")
+feature("cir.vsource", "Voltage Source", "vsource", "feature_domain", "domain", "bodyforce",
+        lambda n, ctx, d: {},
+        props=[Prop("V0", "Voltage:", default="1", unit="V", section="Voltage Source")],
+        equation=r"$V = V_0$")
+feature("cir.isource", "Current Source", "isource", "feature_domain", "domain", "bodyforce",
+        lambda n, ctx, d: {},
+        props=[Prop("I0", "Current:", default="1", unit="A", section="Current Source")],
+        equation=r"$I = I_0$")
+
+
+define_physics(PhysicsDef(
+    "cir", "Electrical Circuit", "physics_cir", "AC/DC", "Electric Circuits",
+    dims=("0D", "2D", "2Daxi", "3D"),
+    depvars={},
+    defaults=[], domain=[], boundary=[], mat_props=[], solvers=_cir_solvers,
+    description="Lumped electrical circuit (resistor, inductor, capacitor, voltage/current source) coupled to "
+                "Elmer fields via CircuitsAndDynamics / CircuitsAndDynamicsHarmonic.",
+    equation=r"$\sum I = 0,\quad \sum V = 0$"))
 
 
 # =========================================================================== Laminar Flow

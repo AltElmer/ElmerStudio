@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from . import units
-from .builder import ensure_solver_configs, physics_nodes, study_steps
+from .builder import ensure_solver_configs, physics_nodes
 from .materials import MATPROPS
 from .model import Model, Node, is_axisymmetric, space_dim
 from .physics import COUPLINGS, FEATURES, instance_variable, physics_def
@@ -174,6 +174,8 @@ class SifContext:
         self.equation_extra: dict = {}
         self.nonlinear: set[str] = set()
         self.warnings: list[str] = []
+        self.components: list[dict] = []          # Elmer Circuit components (cir)
+        self._seen_components: set[tuple] = set()
         self._current_physics: Node | None = None
         self.active = self._active_physics()
         self.fields = self._fields()
@@ -872,9 +874,13 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
         if not freqs:
             raise SifError("Frequency Domain: no frequencies given")
         meta["freqs"] = freqs
+        is_mf = any(physics_def(p.kind).id == "mf" for p in ctx.active)
         if len(freqs) == 1:
-            sim.update({"Simulation Type": "Steady State", "Steady State Max Iterations": 1, "Output Intervals": [1],
-                        "Frequency": float(freqs[0])})
+            sim.update({"Simulation Type": "Steady State", "Steady State Max Iterations": 1, "Output Intervals": [1]})
+            if is_mf:                                   # MagnetoDynamics2DHarmonic expects angular frequency
+                sim["Angular Frequency"] = 2 * math.pi * freqs[0]
+            else:
+                sim["Frequency"] = float(freqs[0])
         else:
             rows = "\n".join(f"      {i + 1} {fmt_num(f)}" for i, f in enumerate(freqs))
             sim.update({"Simulation Type": "Scanning", "Timestep Intervals": [len(freqs)], "Timestep Sizes": ["1"],
@@ -941,7 +947,7 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     w("Simulation")
     for k, v in sim.items():
         if k == "Coordinate Mapping":
-            w(f"  Coordinate Mapping(3) = 1 2 3")
+            w("  Coordinate Mapping(3) = 1 2 3")
         elif isinstance(v, list):
             w(f"  {k}({len(v)}) = " + " ".join(str(x) for x in v))
         else:
@@ -984,6 +990,12 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             for line in str(e).splitlines():
                 if line.strip():
                     w("  " + line.strip())
+        w("End\n")
+    # Elmer Circuit components (CircuitsAndDynamics): written after the solvers
+    for i, comp in enumerate(ctx.components, 1):
+        w(f"Component {i}")
+        for k, v in comp.items():
+            w(kw_line(k, v))
         w("End\n")
     for i, kw in enumerate(eq_sections, 1):
         w(f"Equation {i}")
