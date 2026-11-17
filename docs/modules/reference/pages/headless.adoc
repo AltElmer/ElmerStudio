@@ -1,0 +1,75 @@
+:page-toclevels: 2
+:description: Run ElmerStudio headlessly from the command line or a Python script
+
+= Headless CLI and Python API
+
+ElmerStudio can run a study without opening the Qt main window, either from the
+shell (``python -m elmerstudio run ...``) or directly from Python
+(``elmerstudio.core.headless.run_headless``). This is useful for batch sweeps,
+CI, and remote execution.
+
+== Run a model from the shell
+
+[source,bash]
+----
+python -m elmerstudio run my_model.esm --study std1 --json summary.json \
+    --export table:results.csv --export plot:results.png
+----
+
+Positional argument:
+
+* ``<model.esm>`` — an ElmerStudio model file (`.esm`).
+* ``--example KEY`` — run a built-in example instead (e.g. ``capacitor``,
+  ``busbar``, ``coil``). Use ``--example`` without a value to list them.
+* ``--study TAG`` — study tag/label to run (default: first study).
+* ``--param K=V`` — global parameter override, repeatable (e.g. ``--param V0=2[V]``).
+* ``--export KIND:PATH`` — ``table:<csv>`` writes a derived-values table,
+  ``plot:<png>`` renders the last frame to a PNG. Repeatable.
+* ``--json FILE`` — write the structured JSON summary (model, study, solver
+  status, derived values, exports). Defaults to stdout.
+
+The exit code is `0` when the solve converges, non-zero otherwise or on bad
+arguments. Errors are reported as JSON on stderr (or to ``--json``).
+
+== Derived-value table
+
+The `table` export writes one row per output frame:
+
+``frame, time, <quantity> mean, <quantity> max, <quantity> min,
+<quantity> volint (m^3)``
+
+using the solution's default scalar field (for electrostatics that is the
+electric potential). The same table is embedded in the JSON summary under
+``derived``.
+
+== Python API
+
+[source,python]
+----
+from elmerstudio.core.headless import run_headless
+
+rc = run_headless([
+    "--example", "capacitor",
+    "--study", "std1",
+    "--param", "V0=2[V]",
+    "--export", "table:results.csv",
+    "--export", "plot:results.png",
+    "--json", "summary.json",
+])
+assert rc == 0
+----
+
+``run_headless`` accepts an argv list (like `sys.argv[1:]`) and returns the
+process exit code. On success it prints/writes a JSON summary with these keys:
+
+* ``ok`` — whether the solve converged.
+* ``model`` — label, file/example, studies, global parameters.
+* ``study`` — tag and label of the study that ran.
+* ``solve`` — status, output folders, frame count, diagnostics.
+* ``derived`` — columns and rows of the derived-value table.
+* ``exports`` — paths written for ``table`` and ``plot`` exports.
+
+== Negative controls
+
+Invalid ``--param`` (not ``K=V``), a missing model file, or an unknown
+``--example`` all exit non-zero with a JSON error on stderr.

@@ -22,5 +22,6 @@
 ** xref:derived-values.adoc[Derived values]
 ** xref:plots.adoc[Plot groups and plots]
 ** xref:export.adoc[Export]
+** xref:headless.adoc[Headless CLI and Python API]
 ** xref:result-variables.adoc[Result variables]
 ** xref:expressions.adoc[Expressions and units]

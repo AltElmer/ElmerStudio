@@ -22,6 +22,11 @@ def _fix_stdio():
 
 def main(argv=None):
     _fix_stdio()
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "run":
+        from .core.headless import run_headless
+        return run_headless(argv[1:])
     ap =argparse.ArgumentParser(prog="elmerstudio", description="Elmer Studio - model builder for Elmer FEM")
     ap.add_argument("file", nargs="?", help="model file (.esm) to open")
     ap.add_argument("--example", help="open an example model (busbar, heat_sink, cantilever, flow_cylinder, ...)")
