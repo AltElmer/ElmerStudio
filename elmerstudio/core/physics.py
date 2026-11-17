@@ -314,6 +314,45 @@ feature("solid.bodyload", "Body Load", "bl", "feature_domain", "domain", "bodyfo
         props=vec_props("F", "F_V", "N/m^3", "Force"), equation=r"$\mathbf{F}_V$")
 
 
+def _solid_prestress(n, ctx, d):
+    return {"Geometric Stiffness": True}
+
+
+def _solid_prestrain(n, ctx, d):
+    return {"Initial Strain": True,
+            "Initial Strain Tensor": f"{ctx.value(n.get('Exx','0'))} {ctx.value(n.get('Eyy','0'))} {ctx.value(n.get('Ezz','0'))}"}
+
+
+def _solid_membrane(n, ctx, d):
+    return {"Membrane Formulation": True, "Bending Stiffness": 0.0}
+
+
+def _solid_cable(n, ctx, d=None):
+    return {"Cable": True, "Tension Only": True}
+
+
+_feature_visible_z = lambda cc: (lambda p: cc != "z" or p.get("__sdim", 3) == 3)
+
+
+feature("solid.prestress", "Pre Stress", "prestress", "feature_domain", "domain", "equation",
+        _solid_prestress,
+        props=[Prop(f"S{c}", f"S_{c}:", default="0", unit="Pa", section="Pre Stress", symbol="S",
+                    visible=_feature_visible_z(c)) for c in "xyz"],
+        equation=r"$\mathbf{S}_0$ (initial stress / prestress, activates geometric stiffness)")
+feature("solid.prestrain", "Pre Strain", "prestrain", "feature_domain", "domain", "equation",
+        _solid_prestrain,
+        props=[Prop(f"E{c}", f"E0_{c}:", default="0", unit="", section="Pre Strain", symbol="E0",
+                    visible=_feature_visible_z(c)) for c in "xyz"],
+        equation=r"$\boldsymbol{\epsilon}_0$ (initial / prestrain)")
+feature("solid.membrane", "Membrane (zero bending stiffness)", "mem", "feature_domain", "domain", "equation",
+        _solid_membrane,
+        equation=r"$\mathbf{S} = \mathbf{C}_m:\boldsymbol{\epsilon}_m$ (membrane, no bending)")
+feature("solid.cable", "Cable (1D, tension-only)", "cable", "feature_boundary", "boundary", "bc",
+        _solid_cable,
+        equation=r"$T \ge 0$ only (cable carries tension, no compression)")
+
+
+
 def _solid_gravity(n, ctx, d):
     rho = ctx.matnum(n, "rho", d, src_key="rho_src")
     return {f"Stress Bodyforce {i + 1}": ctx.value(f"({rho})*({n.get('g' + c, '0')})") for i, c in enumerate("xyz"[:ctx.sdim])}
@@ -372,7 +411,19 @@ def _solid_solvers(ph, ctx):
          "Variable": f"-dofs {ctx.sdim} Displacement", "Calculate Stresses": True, "Displace Mesh": False}
     if ctx.sdim == 2 and not ctx.axi and ph.get("plane", "strain") == "stress":
         ctx.equation_extra["Plane Stress"] = True
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    nl = nonlin(maxit=1)
+    if ph.get("geometric_nonlinearity") == "large_deflection":
+        # Geometrically nonlinear (large-deflection) analysis: follower/normal pressure,
+        # dead loads disabled, and a nonlinear (Newton) solution strategy.
+        s["Large Deflection"] = True
+        s["Nonlinear Elasticity"] = True
+        s["Dead Loads"] = False
+        nl = nonlin(maxit=10)
+    if ph.get("prestressed"):
+        # Prestressed / geometrically stiffened system (prestressed eigenfrequency,
+        # linear buckling with Stability Analysis = True).
+        s["Geometric Stiffness"] = True
+    s.update(ctx.solver_settings(ph, nl))
     if ctx.step.kind == "study.time":
         # second order in time: Elmer's Bossak scheme (its default for such systems, alpha = -0.05)
         s["Timestepping Method"] = "Bossak"
@@ -409,15 +460,65 @@ define_physics(PhysicsDef(
              "v": ("Displacement 2", "Displacement field, y component", "m"),
              "w": ("Displacement 3", "Displacement field, z component", "m")},
     defaults=[("solid.lemm", "domain"), ("solid.init", "domain"), ("solid.free", "boundary")],
-    domain=["solid.lemm", "solid.damp", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init"],
-    boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring", "solid.free"],
+    domain=["solid.lemm", "solid.damp", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init",
+            "solid.prestress", "solid.prestrain", "solid.membrane"],
+    boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring",
+              "solid.free", "solid.cable"],
     mat_props=["E", "nu", "rho"], solvers=_solid_solvers, plots=_solid_plots,
     description="Linear elastic stress analysis: stationary, transient (Bossak), eigenfrequencies and frequency "
                 "response with Rayleigh damping. Elmer StressSolver.",
     equation=r"$-\nabla\cdot\mathbf{S} = \mathbf{F}_V,\quad \mathbf{S}=\mathbf{C}:\boldsymbol{\epsilon}(\mathbf{u})$"),
     extra_props=[Prop("plane", "2D approximation:", "choice", "strain",
                       choices=[("strain", "Plane strain"), ("stress", "Plane stress")], section="2D Approximation",
-                      visible=lambda p: p.get("__sdim", 3) == 2 and not p.get("__axi", False))])
+                      visible=lambda p: p.get("__sdim", 3) == 2 and not p.get("__axi", False)),
+                 Prop("geometric_nonlinearity", "Geometric nonlinearity:", "choice", "linear",
+                      choices=[("linear", "Linear (small strain)"), ("large_deflection", "Large deflection")],
+                      section="Geometric Nonlinearity",
+                      tip="Large Deflection = True, follower/normal pressure, dead loads disabled"),
+                 Prop("prestressed", "Prestressed (geometric stiffness):", "bool", False,
+                      section="Geometric Nonlinearity",
+                      tip="Geometric Stiffness = True for prestressed eigenfrequency / linear buckling")])
+
+
+# =========================================================================== Shell Mechanics
+def _shell_solvers(ph, ctx):
+    s = _solid_solvers(ph, ctx)[0]
+    s["Equation"] = "Shell"
+    s["Procedure"] = ("ShellSolve", "ShellSolver")
+    return [s]
+
+
+def _shell_plots(ph, sdim, study):
+    return _solid_plots(ph, sdim, study)
+
+
+_shell_common_props = [Prop("plane", "2D approximation:", "choice", "strain",
+                            choices=[("strain", "Plane strain"), ("stress", "Plane stress")],
+                            section="2D Approximation",
+                            visible=lambda p: p.get("__sdim", 3) == 2 and not p.get("__axi", False)),
+                       Prop("geometric_nonlinearity", "Geometric nonlinearity:", "choice", "linear",
+                            choices=[("linear", "Linear (small strain)"), ("large_deflection", "Large deflection")],
+                            section="Geometric Nonlinearity"),
+                       Prop("prestressed", "Prestressed (geometric stiffness):", "bool", False,
+                            section="Geometric Nonlinearity")]
+
+
+define_physics(PhysicsDef(
+    id="shell", name="Shell Mechanics", icon="physics_shell", category="Structural Mechanics",
+    studies=("stationary", "time", "eigen", "freq"),
+    depvars={"u": ("Displacement 1", "Displacement field, x component", "m"),
+             "v": ("Displacement 2", "Displacement field, y component", "m"),
+             "w": ("Displacement 3", "Displacement field, z component", "m")},
+    defaults=[("solid.lemm", "domain"), ("solid.init", "domain"), ("solid.free", "boundary")],
+    domain=["solid.lemm", "solid.damp", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init",
+            "solid.prestress", "solid.prestrain", "solid.membrane"],
+    boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring",
+              "solid.free", "solid.cable"],
+    mat_props=["E", "nu", "rho"], solvers=_shell_solvers, plots=_shell_plots,
+    description="Thin-shell / membrane structural analysis: stationary, transient, eigenfrequencies and "
+                "frequency response. Elmer ShellSolver with geometric nonlinearity and prestress options.",
+    equation=r"$-\nabla\cdot\mathbf{S} = \mathbf{F}_V,\quad \mathbf{S}=\mathbf{C}:\boldsymbol{\epsilon}(\mathbf{u})$"),
+    _shell_common_props)
 
 
 # =========================================================================== Electrostatics
