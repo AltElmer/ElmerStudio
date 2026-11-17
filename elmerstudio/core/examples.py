@@ -1,6 +1,8 @@
 """Example models (the 'Application Libraries'), built with the scripting API."""
 from __future__ import annotations
 
+import numpy as np
+
 from . import builder as B
 from .geometry import build_geometry
 
@@ -113,6 +115,45 @@ def capacitor():
     return m
 
 
+def capacitance_matrix():
+    """Two conducting boxes inside an air box: capacitance matrix with Electric Infinity BC
+    (Elmer Tutorial 12 "Capacitance of two balls", realised with box primitives).
+
+    The two conductor boxes are ``es.terminal`` (Capacitance Body) boundaries at different
+    potentials; the outer box's exterior faces carry ``es.infinity`` (Electric Infinity BC).
+    ``StatElecSolver`` gets ``Calculate Capacitance Matrix = True`` so Elmer forms the
+    capacitance matrix and writes its scalars.
+    """
+    m = B.new_model("3D", ["es"], "stationary")
+    m.root.label = "capacitance_matrix"
+    _params(m, [("V0", "1[V]", "Terminal 1 potential")])
+    g = m.component.child("geometry")
+    g.props["unit"] = "m"
+    outer = m.create("geom.block", g, index=0, w="11", d="11", h="11")
+    c1 = m.create("geom.block", g, index=1, w="1", d="1", h="1", x="-1")
+    c2 = m.create("geom.block", g, index=2, w="1", d="1", h="1", x="1")
+    # union with interior=True fragments the outer box by the two conductor boxes so all
+    # three become separate non-overlapping domains (air + two conductors).
+    m.create("geom.union", g, index=3, input=[outer.tag, c1.tag, c2.tag], interior=True)
+    B.add_material(m, "Air", all_domains=True)
+    geo = build_geometry(m, display=False)
+    es = m.component.child("physics.es")
+    doms = geo.numbers["domain"]
+    vols = {d: float(np.prod(np.ptp(np.asarray(geo.bbox_of["domain"][d]).reshape(2, 3), axis=0)))
+            for d in doms}
+    air_d = max(doms, key=lambda d: vols[d])
+    cond_d = [d for d in doms if d != air_d]
+    def cx(d):
+        bb = np.asarray(geo.bbox_of["domain"][d]).reshape(2, 3)
+        return float((bb[0, 0] + bb[1, 0]) / 2)
+    c1_d = [d for d in cond_d if cx(d) < 0][0]
+    c2_d = [d for d in cond_d if cx(d) > 0][0]
+    B.add_feature(m, es, "es.terminal", geo.boundaries_of_domains([c1_d]), V0="V0", **{"Capacitance Body": 1})
+    B.add_feature(m, es, "es.terminal", geo.boundaries_of_domains([c2_d]), V0="0[V]", **{"Capacitance Body": 2})
+    B.add_feature(m, es, "es.infinity", geo.exterior_boundaries())
+    return m
+
+
 def coil_axi():
     """Axisymmetric copper coil around an iron core: magnetic flux density."""
     m = B.new_model("2Daxi", ["mf"], "stationary")
@@ -222,6 +263,7 @@ EXAMPLES = {
     "cantilever": ("Cantilever beam - eigenfrequencies", cantilever_eigen),
     "flow_cylinder": ("Flow past a cylinder - 2D laminar flow", flow_cylinder),
     "capacitor": ("Parallel-plate capacitor - fringing fields (2D electrostatics)", capacitor),
+    "capacitance_matrix": ("Capacitance matrix - two conductors with Electric Infinity BC", capacitance_matrix),
     "coil": ("Coil with iron core - 2D axisymmetric magnetic fields", coil_axi),
     "sphere": ("Sphere quenching - 2D axisymmetric transient heat transfer", transient_sphere),
     "loudspeaker": ("Loudspeaker radiation - 3D acoustics, exterior field and radiation patterns",
