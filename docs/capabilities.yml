@@ -126,7 +126,7 @@ capabilities:
       - name: "Elmer StatCurrentSolve (primary)"
         version: "9.0+"
         status: "qualified"
-        evidence: ["test_tutorial_electrochemistry.py"]
+        evidence: ["test_tutorial_electrochemistry.py", "tests/qualification/test_busbar.py::test_busbar_tutorial"]
       - name: "Elmer HeatSolve (Robin form, kinetics)"
         version: "9.0+"
         status: "partly qualified"
@@ -164,6 +164,16 @@ capabilities:
       boundary: ["mf.mi", "mf.pot", "mf.pmc"]
     result_variables: ["Az", "mf.normB", "mf.normH"]
     notes: "2D and 2D axisymmetric only (no 3D A-V formulation). Out-of-plane current density only."
+    qualification:
+      busbar: ["tests/qualification/test_busbar.py::test_busbar_tutorial"]
+      two_species: ["tests/qualification/test_two_species.py::test_two_species_flux_balance"]
+      structural_rod: ["tests/qualification/test_structural_rod.py::test_structural_rod_static_displacement"]
+      assembly: ["tests/qualification/test_assembly.py::test_assembly_conduction_changed_geometry"]
+      laminar_channel: ["tests/qualification/test_laminar_channel.py::test_laminar_channel_changed_geometry"]
+      transient_decay: ["tests/qualification/test_transient_decay.py::test_transient_decay_changed_initial_condition"]
+      asset_integrity: ["tests/qualification/test_asset_integrity_changed.py::test_asset_integrity_changed_structural"]
+      recovery: ["tests/qualification/test_recovery_changed.py::test_recovery_changed_structural_model"]
+      click_evaluate: ["tests/qualification/test_click_evaluate_changed.py::test_changed_click_es_2d_anisotropic"]
 
   - id: spf
     name: "Laminar Flow"
@@ -270,5 +280,11 @@ summary:
   backends:
     - "Elmer 9.0+"
     - "OpenFOAM v2606 (WSL)"
-  last_updated: "2026-10-30"
+  last_updated: "2026-10-31"
   generated_by: "tools/capability_ledger.py"
+  qualification_ladder:
+    rows_covered: 11
+    correct_tests: 13
+    wrong_controls: 10
+    changed_variants: 10
+    xfail_click_evaluate: 2

@@ -52,6 +52,12 @@ def elmer():
 _skip_budget_count = 0
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    outcome.get_result().item = item
+
+
 def pytest_runtest_logreport(report):
     """Track skipped tests for budget enforcement."""
     global _skip_budget_count
