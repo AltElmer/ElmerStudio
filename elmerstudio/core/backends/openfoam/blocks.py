@@ -34,6 +34,7 @@ class BlockLayout:
     interior: set = field(default_factory=set)    # boundaries between two domains (internal faces, no patch)
     counts: list = field(default_factory=list)    # cells per grid interval, per axis
     grading: list = field(default_factory=list)   # grading per grid interval, per axis: a ratio or [(len, cells, ratio)]
+    wedge: bool = False                 # True => 2D axisymmetric: extrude one cell in z, the two z-faces are "wedge"
 
     @property
     def scale(self) -> float:
@@ -61,9 +62,7 @@ def analyse(model: Model, overrides=None) -> BlockLayout:
     """Build the geometry and cut it into blocks; raises BlockRefusal with the reason when that is not exact."""
     import gmsh
     comp = model.component
-    if is_axisymmetric(comp):
-        raise BlockRefusal("2D axisymmetric components are not supported by the OpenFOAM backend (a wedge mesh is "
-                           "not verified yet); use Elmer.")
+    wedge = is_axisymmetric(comp)
     with session("blockmesh"):
         gb = GeometryBuilder(model, comp.child("geometry"), overrides)
         geo = gb.build(display=False)
@@ -132,7 +131,7 @@ def analyse(model: Model, overrides=None) -> BlockLayout:
                 raise BlockRefusal(f"Domain {num} is not a union of axis-aligned {'rectangles' if sd == 2 else 'blocks'} "
                                    f"(the blocks cover {vol:.6g} of its {'area' if sd == 2 else 'volume'} {meas:.6g}). "
                                    "Use Elmer for this geometry.")
-        layout = BlockLayout(geo, sd, coords, cells)
+        layout = BlockLayout(geo, sd, coords, cells, wedge=wedge)
         _classify_faces(layout, tol)
         _sizes(model, layout, gb)
     return layout
@@ -344,12 +343,21 @@ def block_mesh_dict(L: BlockLayout, patch_types: dict) -> str:
         patches.append(f"    bnd{b}\n    {{\n        type {patch_types.get(b, 'patch')};\n        faces\n        (\n"
                        f"{body}\n        );\n    }}")
     if L.sdim == 2:
-        fl = []
-        for i, j, k, _d in L.block_list():
-            for side in (4, 5):
-                fl.append([vid(i + corners[c][0], j + corners[c][1], k + corners[c][2]) for c in HEX_FACES[side]])
-        body = "\n".join(f"            ({' '.join(map(str, f))})" for f in fl)
-        patches.append(f"    frontAndBack\n    {{\n        type empty;\n        faces\n        (\n{body}\n        );\n    }}")
+        if L.wedge:
+            # 2D axisymmetric: one cell thick in z; the two z-normal faces are wedge patches.
+            for side, name in ((4, "wedgeLower"), (5, "wedgeUpper")):
+                fl = []
+                for i, j, k, _d in L.block_list():
+                    fl.append([vid(i + corners[c][0], j + corners[c][1], k + corners[c][2]) for c in HEX_FACES[side]])
+                body = "\n".join(f"            ({' '.join(map(str, f))})" for f in fl)
+                patches.append(f"    {name}\n    {{\n        type wedge;\n        faces\n        (\n{body}\n        );\n    }}")
+        else:
+            fl = []
+            for i, j, k, _d in L.block_list():
+                for side in (4, 5):
+                    fl.append([vid(i + corners[c][0], j + corners[c][1], k + corners[c][2]) for c in HEX_FACES[side]])
+            body = "\n".join(f"            ({' '.join(map(str, f))})" for f in fl)
+            patches.append(f"    frontAndBack\n    {{\n        type empty;\n        faces\n        (\n{body}\n        );\n    }}")
     verts = "\n".join(f"    ({coords[0][i]:.15g} {coords[1][j]:.15g} {coords[2][k]:.15g})" for i, j, k in vlist)
     return (header("dictionary", "blockMeshDict", "system")
             + f"scale {L.scale:.15g};\n\nvertices\n(\n{verts}\n);\n\nblocks\n(\n" + "\n".join(blocks)

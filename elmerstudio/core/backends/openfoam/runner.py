@@ -277,12 +277,25 @@ class FoamStudy:
         if un is not None and un["nFaces"]:
             raise RuntimeError(f"{step.label}: blockMesh left {un['nFaces']} boundary faces without a patch")
         specs = write_fields(P, pm, case, time_name(P.t0) if P.transient else "0")
+        if P.nproc > 1:
+            rs_dp = self._run("decomposePar -force", case, logs, job, total, step)
+            if rs_dp.returncode != 0 or rs_dp.fatal:
+                with open(os.path.join(folder, "solver.log"), "w", errors="replace") as f:
+                    f.write("\n".join(logs))
+                raise RuntimeError(f"{step.label}: decomposePar: {fatal_message(rs_dp) or 'failed'}")
         topo, pmap = topology(pm, layout)
         topo.comp_tag = comp.tag
         topology_to_npz(topo, os.path.join(folder, "mesh.npz"))
+        solver_cmd = f"mpirun -np {P.nproc} {P.app} -parallel" if P.nproc > 1 else P.app
         r.emit("message", f"blockMesh: {pm.n_cells} cells, {len(pm.points)} points; "
-                          f"{step.label}: solving {P.app} (case folder {case})")
-        rs = self._run(P.app, case, logs, job, total, step, P)
+                          f"{step.label}: solving {solver_cmd} (case folder {case})")
+        rs = self._run(solver_cmd, case, logs, job, total, step, P)
+        if P.nproc > 1:
+            rs_rp = self._run("reconstructPar -latestTime", case, logs, job, total, step)
+            if rs_rp.returncode != 0 or rs_rp.fatal:
+                with open(os.path.join(folder, "solver.log"), "a", errors="replace") as f:
+                    f.write("\n===== reconstructPar =====\n" + "\n".join(logs))
+                raise RuntimeError(f"{step.label}: reconstructPar: {fatal_message(rs_rp) or 'failed'}")
         if P.app == "simpleFoam" and rs.simple_converged is None and rs.ended and rs.returncode == 0 \
                 and not rs.fatal:
             rs.change = self._last_change(case, P, logs, job, total, step)

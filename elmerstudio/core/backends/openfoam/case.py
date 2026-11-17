@@ -14,7 +14,7 @@ import numpy as np
 
 from ... import units
 from ...builder import physics_nodes, step_components, study_steps
-from ...model import Model, Node, is_axisymmetric
+from ...model import Model, Node
 from ...physics import COUPLINGS, FEATURES, physics_def
 from ...sif import SifContext, SifError, _entities, _features, parse_list, time_groups
 from . import dicts
@@ -74,9 +74,6 @@ def _check(model: Model, study: Node):
 def _check_component(model: Model, study: Node, comp: Node):
     from ...study_runner import cross_references
     where = f" ({comp.label})" if len(model.components()) > 1 else ""
-    if is_axisymmetric(comp):
-        _fail(f"2D axisymmetric components{where} are not supported by the OpenFOAM backend (a wedge mesh is not "
-              "verified).")
     refs = cross_references(model, comp)
     if refs:
         _fail(f"{comp.label} uses another component's results ({refs[0][0]}); values passed between components "
@@ -123,6 +120,8 @@ class FoamPlan:
     mu: float = 1.0
     k: float = 1.0
     cp: float = 1.0
+    turbulence: str | None = None             # None | "k_epsilon" | "k_omega_sst" (RANS), None => laminar
+    nproc: int = 1                            # >1 => run in parallel (decomposePar / mpirun / reconstructPar)
     tol: float = 1e-7                         # SIMPLE: initial-residual tolerance
     maxit: int = 2000
     lin_tol: float = 1e-10
@@ -200,6 +199,17 @@ def plan_case(model: Model, study: Node, step: Node, layout: BlockLayout, overri
     transient = step.kind == "study.time"
     app = {"spf": "pimpleFoam" if transient else "simpleFoam", "ht": "laplacianFoam"}[pid]
     P = FoamPlan(pid, app, transient, dict(ctx.params), sdim=layout.sdim)
+
+    # ---- RANS turbulence (OpenFOAM RAS): kEpsilon or kOmegaSST; None => laminar
+    P.turbulence = ph.get("turbulence_model", "laminar")
+    if P.turbulence not in (None, "laminar", "k_epsilon", "k_omega_sst"):
+        _fail(f"{ph.label}: unknown turbulence model '{P.turbulence}' (laminar, k_epsilon or k_omega_sst).")
+
+    # ---- MPI parallelism: one OpenFOAM case split over nproc subdomains
+    try:
+        P.nproc = max(int(step.get("nproc", 1) or 1), 1)
+    except (TypeError, ValueError):
+        _fail(f"{step.label}: 'nproc' must be a positive integer (it is '{step.get('nproc')}').")
 
     # ---- materials: one constant value for all domains
     def material(kind, keys):
@@ -342,6 +352,10 @@ def _schemes(P: FoamPlan) -> str:
         div = ("    default         none;\n"
                f"    div(phi,U)      {'bounded ' if not P.transient else ''}Gauss linearUpwind grad(U);\n"
                "    div((nuEff*dev2(T(grad(U))))) Gauss linear;\n")
+        if P.turbulence:
+            tkey = "epsilon" if P.turbulence == "k_epsilon" else "omega"
+            div += (f"    div(phi,k)      bounded Gauss linearUpwind grad(k);\n"
+                    f"    div(phi,{tkey})   bounded Gauss linearUpwind grad({tkey});\n")
     else:
         div = "    default         none;\n"
     return (dicts.header("dictionary", "fvSchemes", "system")
@@ -358,15 +372,32 @@ def _solution(P: FoamPlan) -> str:
                   f"        tolerance       {tol};\n        relTol          0;\n        maxIter         {mi};\n    }}\n}}\n\n"
                   "SIMPLE\n{\n    nNonOrthogonalCorrectors 0;\n}\n")
     if P.app == "simpleFoam":
+        tkey = "epsilon" if P.turbulence == "k_epsilon" else ("omega" if P.turbulence == "k_omega_sst" else None)
+        tsol = ""
+        tres = ""
+        trelax = ""
+        if tkey is not None:
+            tsol = (f"    k\n    {{\n        solver          smoothSolver;\n"
+                    f"        smoother        symGaussSeidel;\n"
+                    f"        tolerance       {tol};\n        relTol          0.1;\n        maxIter         {mi};\n    }}\n"
+                    f"    {tkey}\n    {{\n        solver          smoothSolver;\n"
+                    f"        smoother        symGaussSeidel;\n"
+                    f"        tolerance       {tol};\n        relTol          0.1;\n        maxIter         {mi};\n    }}\n")
+            tres = (f"        k               {P.tol:.6g};\n"
+                    f"        {tkey}          {P.tol:.6g};\n")
+            trelax = (f"        k               0.9;\n"
+                      f"        {tkey}          0.9;\n")
         return (dicts.header("dictionary", "fvSolution", "system")
                 + f"solvers\n{{\n    p\n    {{\n        solver          GAMG;\n        smoother        GaussSeidel;\n"
                   f"        tolerance       {tol};\n        relTol          0.01;\n        maxIter         {mi};\n    }}\n"
                   f"    U\n    {{\n        solver          smoothSolver;\n        smoother        symGaussSeidel;\n"
-                  f"        tolerance       {tol};\n        relTol          0.1;\n        maxIter         {mi};\n    }}\n}}\n\n"
+                  f"        tolerance       {tol};\n        relTol          0.1;\n        maxIter         {mi};\n    }}\n"
+                  f"{tsol}}}\n\n"
                   f"SIMPLE\n{{\n    nNonOrthogonalCorrectors 0;\n    consistent      yes;\n    pRefCell        0;\n"
                   f"    pRefValue       0;\n    residualControl\n    {{\n        p               {P.tol:.6g};\n"
-                  f"        U               {P.tol:.6g};\n    }}\n}}\n\n"
-                  "relaxationFactors\n{\n    equations\n    {\n        U               0.9;\n        \".*\"            0.9;\n"
+                  f"        U               {P.tol:.6g};\n{tres}}}\n}}\n\n"
+                  "relaxationFactors\n{\n    equations\n    {\n        U               0.9;\n"
+                  f"{trelax}        \".*\"            0.9;\n"
                   "    }\n}\n")
     return (dicts.header("dictionary", "fvSolution", "system")
             + f"solvers\n{{\n    \"(p|pFinal)\"\n    {{\n        solver          GAMG;\n        smoother        GaussSeidel;\n"
@@ -405,12 +436,74 @@ def write_case(P: FoamPlan, layout: BlockLayout, case: str):
                     + f"transportModel  Newtonian;\n\n// nu = mu/rho = {P.mu:.15g}/{P.rho:.15g}\n"
                       f"nu              {P.mu / P.rho:.15g};\n")
         dicts.write(os.path.join(case, "constant", "turbulenceProperties"),
-                    dicts.header("dictionary", "turbulenceProperties", "constant") + "simulationType  laminar;\n")
+                    _turbulence_properties(P))
     else:
         dicts.write(os.path.join(case, "constant", "transportProperties"),
                     dicts.header("dictionary", "transportProperties", "constant")
                     + f"// DT = k/(rho Cp) = {P.k:.15g}/({P.rho:.15g}*{P.cp:.15g})\n"
                       f"DT              DT [0 2 -1 0 0 0 0] {P.DT:.15g};\n")
+    if P.nproc > 1:
+        dicts.write(os.path.join(case, "system", "decomposeParDict"), _decompose_par_dict(P))
+
+
+def _turbulence_properties(P: FoamPlan) -> str:
+    """constant/turbulenceProperties: laminar or a RAS model (kEpsilon / kOmegaSST)."""
+    tm = {"k_epsilon": "kEpsilon", "k_omega_sst": "kOmegaSST"}.get(P.turbulence or "laminar", "laminar")
+    if tm == "laminar":
+        return (dicts.header("dictionary", "turbulenceProperties", "constant")
+                + "simulationType  laminar;\n")
+    return (dicts.header("dictionary", "turbulenceProperties", "constant")
+            + f"simulationType  RAS;\n\nRAS\n{{\n    RASModel      {tm};\n    turbulence    on;\n    printCoeffs   on;\n}}\n")
+
+
+def _decompose_par_dict(P: FoamPlan) -> str:
+    """system/decomposeParDict: split the mesh over P.nproc subdomains (scotch, simple)."""
+    method = "scotch" if P.nproc > 2 else "simple"
+    return (dicts.header("dictionary", "decomposeParDict", "system")
+            + f"numberOfSubdomains {P.nproc};\n"
+              f"method             {method};\n\n"
+              f"simpleCoeffs\n{{\n    n                ({P.nproc} 1 1);\n    delta            1e-10;\n}}\n\n"
+              f"scotchCoeffs\n{{\n}}\n\n"
+              "hierarchicalCoeffs\n{\n    n                (1 1 1);\n    delta            1e-10;\n    order            xyz;\n}\n")
+
+
+def _turb_bc(specs: dict, value: float, field: str) -> str:
+    """boundaryField for a scalar RAS field (k / epsilon / omega / nut)."""
+    wall = {"epsilon": "epsilonWallFunction;\nvalue uniform 0;", "omega": "omegaWallFunction;\nvalue uniform 0;"}.get(field, "zeroGradient;")
+    body = ""
+    for b, s in sorted(specs.items()):
+        kind = s["kind"]
+        if kind in ("inlet_normal", "inlet_field"):
+            body += _entry(f"bnd{b}", f"type fixedValue;\nvalue uniform {dicts.fmt(value)};")
+        elif kind == "symmetry":
+            body += _entry(f"bnd{b}", "type symmetryPlane;")
+        elif kind == "wall":
+            body += _entry(f"bnd{b}", f"type {wall}" if field != "nut" else "type nutkWallFunction;\nvalue uniform 0;")
+        else:                                           # pressure, pressure_normal, slip, zero
+            body += _entry(f"bnd{b}", "type zeroGradient;")
+    return body
+
+
+def _turbulence_fields(P: FoamPlan, tdir: str, n_cells: int, specs: dict, empty: str) -> None:
+    """0/k, 0/epsilon|omega and 0/nut initial fields for a RAS simulation."""
+    k0, nut0 = 1.0e-4, 1.0e-5
+    tm = {"k_epsilon": ("epsilon", 1.0e-4, "[0 2 -3 0 0 0 0]"),
+          "k_omega_sst": ("omega", 1.0e1, "[0 0 -2 0 0 0 0]")}.get(P.turbulence)
+    if tm is None:
+        return
+    sec, v0, dim = tm
+    kf = (dicts.header("volScalarField", "k", "0")
+          + f"dimensions      [0 2 -2 0 0 0 0];\n\ninternalField   uniform {dicts.fmt(k0)};\n\n"
+            f"boundaryField\n{{\n{_turb_bc(specs, k0, 'k')}{empty}}}\n")
+    dicts.write(os.path.join(tdir, "k"), kf)
+    sf = (dicts.header("volScalarField", sec, "0")
+          + f"dimensions      {dim};\n\ninternalField   uniform {dicts.fmt(v0)};\n\n"
+            f"boundaryField\n{{\n{_turb_bc(specs, v0, sec)}{empty}}}\n")
+    dicts.write(os.path.join(tdir, sec), sf)
+    nf = (dicts.header("volScalarField", "nut", "0")
+          + f"dimensions      [0 2 -1 0 0 0 0];\n\ninternalField   uniform {dicts.fmt(nut0)};\n\n"
+            f"boundaryField\n{{\n{_turb_bc(specs, nut0, 'nut')}{empty}}}\n")
+    dicts.write(os.path.join(tdir, "nut"), nf)
 
 
 def _normals(pm, fl) -> np.ndarray:
@@ -499,6 +592,8 @@ def write_fields(P: FoamPlan, pm, case: str, start_name: str = "0"):
                     + "// kinematic pressure p/rho (m^2/s^2); Studio converts it back to Pa\n"
                       f"dimensions      [0 2 -2 0 0 0 0];\n\ninternalField   {dicts.field_value(pk, len(pk))};\n\n"
                       f"boundaryField\n{{\n{pbody}{empty}}}\n")
+        if P.turbulence:
+            _turbulence_fields(P, tdir, pm.n_cells, specs, empty)
     else:
         T = internal("T")
         tb = ""
