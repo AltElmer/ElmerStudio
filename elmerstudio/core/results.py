@@ -60,6 +60,8 @@ CATALOG = [
     ("mf.B", "magnetic flux density", "vec", "Magnetic flux density", "T", "vector"),
     ("mf.normB", "magnetic flux density", "mag", "Magnetic flux density norm", "T", "scalar"),
     ("mf.normH", "magnetic field strength", "mag", "Magnetic field norm", "A/m", "scalar"),
+    ("mf.Wm", "magnetic energy density", None, "Magnetic energy density", "J/m^3", "scalar"),
+    ("mf.W_mag", "magnetic field energy", None, "Magnetic field energy (global scalar)", "J", "scalar"),
     ("spf.u_vec", "velocity", "vec", "Velocity field", "m/s", "vector"),
     ("spf.U", "velocity", "mag", "Velocity magnitude", "m/s", "scalar"),
     ("spf.u", "velocity", 0, "Velocity field, x component", "m/s", "scalar"),
@@ -257,6 +259,7 @@ class Solution:
         self.moving = bool(self.meta.get("moving_mesh"))   # deforming electrodes: node coordinates per frame
         self._geom_frame = 0
         self._frame_nodes = None
+        self.scalars: dict = self._read_scalars(folder)   # Elmer's SaveScalars output, e.g. "Magnetic Field Energy"
 
     @property
     def catalog(self) -> list[tuple]:
@@ -364,6 +367,34 @@ class Solution:
 
     def frame_labels(self):
         return [fr.label for fr in self.frames]
+
+    def _read_scalars(self, folder: str) -> dict:
+        """Elmer's solver log reports global scalars, e.g. ``"ElectroMagnetic Field Energy: 3.659868E-03"``.
+
+        ``SaveScalars`` is not an Elmer keyword, so the scalars are printed to ``solver.log`` instead.
+        Returns {label: value}. Falls back to a ``case.scal`` file if one exists.
+        """
+        scalars: dict = {}
+        text = ""
+        for cand in (os.path.join(folder, "solver.log"), os.path.join(folder, "case.scal"),
+                     os.path.join(folder, "results", "case.scal")):
+            if not os.path.isfile(cand):
+                continue
+            try:
+                with open(cand) as f:
+                    text = f.read()
+            except OSError:
+                continue
+            break
+        if not text:
+            return scalars
+        m = re.search(r"ElectroMagnetic Field Energy:\s*([-+0-9.eE]+)", text)
+        if m:
+            scalars["Magnetic Field Energy"] = float(m.group(1))
+        m = re.search(r"Eddy current power:\s*([-+0-9.eE]+)", text)
+        if m:
+            scalars["Eddy current power"] = float(m.group(1))
+        return scalars
 
     def frame_index(self, sel) -> int:
         if not self.frames:
@@ -497,6 +528,9 @@ class Solution:
                     continue
                 v = a[:, comp]
             names[alias.replace(".", "_")] = v
+        # derived magnetic energy density: Wm = 0.5 * |B| * |H|  (J/m^3), from the solution fields
+        if "mf_normB" in names and "mf_normH" in names:
+            names["mf_wm"] = 0.5 * names["mf_normB"] * names["mf_normH"]
         for k, a in arr.items():
             names.setdefault(k.replace(" ", "_"), a if a.ndim == 1 else a)
         if "u" not in names and "spf_u" in names:      # flow models: u, v, w are velocity components
@@ -511,6 +545,14 @@ class Solution:
         if self.kind == "study.freq" and 0 <= i < len(self.frames):
             names["freq"] = self.frames[i].value
         n = len(self.topo.nodes)
+        # Elmer's global scalars (from the solver log), e.g. "Magnetic Field Energy": broadcast onto every node
+        # so they can be integrated/averaged and read back in Global Evaluation.
+        if self.scalars:
+            for gname, val in self.scalars.items():
+                key = gname.replace(" ", "_").replace(".", "_").lower()
+                names[key] = np.full(n, float(val))
+                if "energy" in gname.lower() or "magnetic field" in gname.lower():
+                    names["mf_w_mag"] = names[key]
         for gname, (src, ents, factor) in self.globals.items():     # e.g. cd.es1.Itot = sum of reaction loads
             a = arr.get(src)
             if a is None:

@@ -812,7 +812,7 @@ def _mf_solvers(ph, ctx):
     s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
     calc = {"Equation": "MgDyn2D Fields", "Procedure": ("MagnetoDynamics", "MagnetoDynamicsCalcFields"),
             "Potential Variable": "Az", "Calculate Magnetic Field Strength": True,
-            "Calculate Current Density": True, "Calculate Nodal Fields": True, "Calculate Elemental Fields": False,
+            "Calculate Current Density": True, "Calculate Nodal Fields": True, "Calculate Elemental Fields": True,
             **projection_linsys(ctx), "__post__": True}
     return [s, calc]
 

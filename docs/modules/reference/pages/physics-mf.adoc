@@ -115,5 +115,7 @@ No settings.
 |`+mf.B+` |Magnetic flux density |`+T+`
 |`+mf.normB+` |Magnetic flux density norm |`+T+`
 |`+mf.normH+` |Magnetic field norm |`+A/m+`
+|`+mf.Wm+` |Magnetic energy density |`+J/m^3+`
+|`+mf.W_mag+` |Magnetic field energy (global scalar) |`+J+`
 |===
 
