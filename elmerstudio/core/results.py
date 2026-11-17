@@ -378,6 +378,27 @@ class Solution:
         self._set_geometry(i)
         return i
 
+    def zero_modes(self):
+        """1-based frame indices of eigenmodes whose displacement is numerically all-zero.
+
+        Used to detect the "zero mode shapes" failure mode: a platform-specific eigenmode array-name
+        mismatch leaves the displacement vectors at zero for every mode.  Returns an empty list when all
+        modes carry energy.
+        """
+        out = []
+        if self.kind != "study.eigen" or not self.frames:
+            return out
+        for idx in range(len(self.frames)):
+            arr = self.arrays(idx)
+            vec = None
+            for key in ("solid.u_vec", "displacement", "u_vec"):
+                if key in arr and np.ndim(arr[key]) == 2:
+                    vec = arr[key]
+                    break
+            if vec is not None and float(np.max(np.linalg.norm(vec, axis=1))) == 0.0:
+                out.append(idx + 1)
+        return out
+
     # -- raw arrays mapped onto our topology
     def arrays(self, i: int) -> dict:
         self._set_geometry(i)
@@ -399,10 +420,21 @@ class Solution:
             for k in g.point_data.keys():
                 out[k.lower()] = np.asarray(g.point_data[k])[mapping]
         if fr.mode:
-            suffix = f" eigenmode{fr.mode}"
+            # Elmer writes eigenmode arrays under platform/build-dependent names:
+            # "displacement EigenMode1", "displacement:eigenmode1", "displacement eigenmode 1", ...
+            # Keys here are already lower-cased; match "<base> eigenmode<N>" / "<base>:eigenmode<N>" /
+            # "<base> eigenmode <N>" (case-insensitive) and promote "<base>" to this mode's array.
+            target = f"eigenmode{fr.mode}"
+            # spaced variants first so the base keeps no trailing space
+            variants = (f" {target}", f":{target}", f" {target.replace('eigenmode', 'eigenmode ')}")
             for k in list(out.keys()):
-                if k.endswith(suffix):
-                    out[k[: -len(suffix)]] = out[k]
+                matched = None
+                for var in variants:
+                    if k.endswith(var):
+                        matched = var
+                        break
+                if matched is not None:
+                    out.setdefault(k[: -len(matched)].rstrip(), out[k])
         # a harmonic solution: Elmer 9 writes "<var> harmonicmode1" (+ " im"), later versions "<var>" and
         # "<var> im"; use the later names for both
         for k in [k for k in out if k.endswith(" harmonicmode1") or k.endswith(" harmonicmode1 im")]:
