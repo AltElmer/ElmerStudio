@@ -910,12 +910,30 @@ feature("spf.gravity", "Gravity", "grav", "feature_domain", "domain", "bodyforce
         equation=r"$\mathbf{F} = \rho\mathbf{g}$")
 
 
+def _spf_turbulence(ph, ctx):
+    """Turbulence model keywords for FlowSolver (k-epsilon / k-omega SST)."""
+    tm = ph.get("turbulence_model", "laminar")
+    if tm == "laminar":
+        return {}
+    model = "k-epsilon" if tm == "k_epsilon" else "k-omega SST"
+    out = {"Turbulence Model": model,
+           "Turbulence Intensity": ctx.value(ph.get("turbulence_intensity", "5[%]")),
+           "Wall Law": True}
+    tl = ph.get("turbulence_length_scale", "")
+    if str(tl).strip():
+        out["Turbulence Length Scale"] = ctx.value(tl)
+    # turbulence models converge best with mild Newton damping
+    out["Nonlinear System Relaxation Factor"] = 0.7
+    return out
+
+
 def _spf_solvers(ph, ctx):
     d = ctx.sdim
     s = {"Equation": "Navier-Stokes", "Procedure": ("FlowSolve", "FlowSolver"),
          "Variable": f"Flow Solution[Velocity:{d} Pressure:1]", "Stabilize": True}
     if ph.get("stokes", False):
         ctx.equation_extra["NS Convect"] = False
+    s.update(_spf_turbulence(ph, ctx))
     s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 30), tol=1e-6, newton_after=5, relax=1.0)))
     return [s]
 
@@ -935,7 +953,16 @@ define_physics(PhysicsDef(
         {"label": "Pressure (spf)", "type": "surface" if sd == 3 else "contour", "expr": "p", "cmap": "RainbowLight", "dims": sd}],
     description="Incompressible laminar Navier-Stokes flow (P1-P1 stabilized). Elmer FlowSolve.",
     equation=r"$\rho\frac{\partial\mathbf{u}}{\partial t}+\rho(\mathbf{u}\cdot\nabla)\mathbf{u} = \nabla\cdot[-p\mathbf{I}+\mu(\nabla\mathbf{u}+\nabla\mathbf{u}^T)]+\mathbf{F},\ \ \nabla\cdot\mathbf{u}=0$"),
-    extra_props=[Prop("stokes", "Neglect inertial term (Stokes flow)", "bool", False, section="Physical Model")])
+    extra_props=[Prop("stokes", "Neglect inertial term (Stokes flow)", "bool", False, section="Physical Model"),
+                 Prop("turbulence_model", "Turbulence model:", "choice", "laminar",
+                      choices=[("laminar", "Laminar"), ("k_epsilon", "k-epsilon"), ("k_omega_sst", "k-omega SST")],
+                      section="Turbulence"),
+                 Prop("turbulence_intensity", "Turbulence intensity:", default="0.05", unit="",
+                      section="Turbulence",
+                      visible=lambda p: p.get("turbulence_model", "laminar") != "laminar"),
+                 Prop("turbulence_length_scale", "Turbulence length scale:", default="", unit="m",
+                      section="Turbulence",
+                      visible=lambda p: p.get("turbulence_model", "laminar") != "laminar")])
 
 
 # =========================================================================== Pressure Acoustics, Frequency Domain
