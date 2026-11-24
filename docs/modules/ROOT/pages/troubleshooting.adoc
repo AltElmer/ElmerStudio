@@ -63,6 +63,9 @@ The list shows what the selected dataset's solution contains. Check the plot's _
 *Integrals on a 2D axisymmetric model are 2π·r times larger than I expect.*::
 They are taken in the revolved geometry by default. Clear _Compute integral in revolved geometry_ for r-z integrals.
 
+*An Eigenfrequency study lists the frequencies, but every mode shape is zero.*::
+Elmer found the eigenvalues and wrote no mode shapes to the result file. *Messages* then shows a `NO MODE SHAPE` warning that names the modes and lists what the file holds. The cause is in the Elmer installation, not in the model: please report it with the items below.
+
 == Reporting a problem
 
 Open an issue on {url-repo}/issues[GitHub] with:
