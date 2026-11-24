@@ -108,46 +108,8 @@ jobs:
           & "$nasHome\nastran.exe" --version 2>&1 | Select-Object -First 5
           if ($LASTEXITCODE -ne 0) { & "$nasHome\nastran.exe" -v 2>&1 | Select-Object -First 5 }
 
-      - name: Install NASTRAN-95 (macOS)
-        if: runner.os == 'macOS'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          # Try both macOS architectures; prefer x86_64 if available
-          ASSET_X86="nastran95-v1.0.0-macos-x86_64.tar.gz"
-          EXPECTED_X86="58cc6fa854449a0392f027571c4b39185ba7881b5f9f12830c2299d963635a4a"
-          ASSET_ARM="nastran95-v1.0.0-macos-arm64.tar.gz"
-          EXPECTED_ARM="1eb6898b1f180eb79c79fd2857d7eb22676df3a9013b415abf1e31d5340d33d1"
-          DEST="${RUNNER_TEMP}/nastran95-macos"
-          mkdir -p "$DEST"
-          # Detect architecture
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "x86_64" ]; then
-            ASSET="$ASSET_X86"
-            EXPECTED="$EXPECTED_X86"
-          else
-            ASSET="$ASSET_ARM"
-            EXPECTED="$EXPECTED_ARM"
-          fi
-          gh release download "${NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p "$ASSET" -D "$DEST"
-          echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
-          tar -xzf "$DEST/$ASSET" -C "$DEST"
-          # Archive extracts to a subfolder like nastran95-v1.0.0-macos-*
-          EXTRACTED=$(find "$DEST" -mindepth 1 -maxdepth 1 -type d -name 'nastran95-v*' | head -1)
-          if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
-            NAS_HOME="$EXTRACTED"
-          elif [ -f "$EXTRACTED/nastran" ]; then
-            NAS_HOME="$EXTRACTED"
-          else
-            echo "Could not find nastran executable in $EXTRACTED"
-            ls -la "$EXTRACTED"
-            exit 1
-          fi
-          echo "NASTRAN_HOME=$NAS_HOME" >> "$GITHUB_ENV"
-          # Verify the binary runs
-          "$NAS_HOME/nastran" --version 2>&1 | head -5 || "$NAS_HOME/nastran" -v 2>&1 | head -5 || true
-
+      # No NASTRAN-95 on macOS: the arm64 build of v1.0.0 stops with a signal on this runner (SIGBUS and SIGTRAP,
+      # "NASTRAN exited with code -10" in run 41137877598), so its solver tests skip there as "not installed".
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
@@ -156,7 +118,8 @@ jobs:
       - name: Engine and solver tests (Linux, with Elmer)
         if: runner.os == 'Linux'
         env:
-          ELMERSTUDIO_TEST_MPI_HOME: /usr
+          ELMERSTUDIO_TEST_MPI_HOME: /usr      # the PPA's Elmer is an MPI build: one study also runs on 2 processes
+          ELMERSTUDIO_TEST_REQUIRE: elmer,nastran   # installed above: a test that cannot find them fails, it does not skip
         run: |
           ElmerSolver -v 2>&1 | head -n 8 || true
           command -v mpiexec || echo "no mpiexec: the MPI test will fail with the reason"
@@ -173,10 +136,11 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Engine tests (no Elmer on this runner; solver tests skip)
+      - name: Engine tests (no Elmer on this runner: its solver tests skip; NASTRAN-95 runs on Windows)
         if: runner.os != 'Linux'
         env:
           QT_QPA_PLATFORM: offscreen
+          ELMERSTUDIO_TEST_REQUIRE: ${{ runner.os == 'Windows' && 'nastran' || '' }}
         run: pytest tests -v -rs
 
       - name: GUI smoke test (drives the main window; Linux, software OpenGL)
