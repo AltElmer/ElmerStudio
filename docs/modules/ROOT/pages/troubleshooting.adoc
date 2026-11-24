@@ -26,6 +26,9 @@ Entity numbers follow position, and the change reordered them. Use a xref:user-g
 *Imported CAD has gaps or tiny faces.*::
 Keep _Repair imported geometry_ on, and try a larger _Repair tolerance_ on *Form Union*.
 
+*Imported CAD has boundaries but no domain.*::
+The file holds faces that do not enclose a volume (common for IGES), and the *Messages* pane says so after the build. Export a solid (STEP) from the CAD tool, or close the gaps there. See xref:user-guide:geometry.adoc#_importing_cad[Importing CAD].
+
 == Mesh
 
 *Meshing fails or takes very long.*::
