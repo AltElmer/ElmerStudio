@@ -378,27 +378,6 @@ class Solution:
         self._set_geometry(i)
         return i
 
-    def zero_modes(self):
-        """1-based frame indices of eigenmodes whose displacement is numerically all-zero.
-
-        Used to detect the "zero mode shapes" failure mode: a platform-specific eigenmode array-name
-        mismatch leaves the displacement vectors at zero for every mode.  Returns an empty list when all
-        modes carry energy.
-        """
-        out = []
-        if self.kind != "study.eigen" or not self.frames:
-            return out
-        for idx in range(len(self.frames)):
-            arr = self.arrays(idx)
-            vec = None
-            for key in ("solid.u_vec", "displacement", "u_vec"):
-                if key in arr and np.ndim(arr[key]) == 2:
-                    vec = arr[key]
-                    break
-            if vec is not None and float(np.max(np.linalg.norm(vec, axis=1))) == 0.0:
-                out.append(idx + 1)
-        return out
-
     # -- raw arrays mapped onto our topology
     def arrays(self, i: int) -> dict:
         self._set_geometry(i)
@@ -420,21 +399,12 @@ class Solution:
             for k in g.point_data.keys():
                 out[k.lower()] = np.asarray(g.point_data[k])[mapping]
         if fr.mode:
-            # Elmer writes eigenmode arrays under platform/build-dependent names:
-            # "displacement EigenMode1", "displacement:eigenmode1", "displacement eigenmode 1", ...
-            # Keys here are already lower-cased; match "<base> eigenmode<N>" / "<base>:eigenmode<N>" /
-            # "<base> eigenmode <N>" (case-insensitive) and promote "<base>" to this mode's array.
-            target = f"eigenmode{fr.mode}"
-            # spaced variants first so the base keeps no trailing space
-            variants = (f" {target}", f":{target}", f" {target.replace('eigenmode', 'eigenmode ')}")
+            # ResultOutputSolver writes mode N of a field as "<field> EigenMode<N>" (VtuOutputSolver.F90); a file
+            # without these arrays holds no mode shapes, which mode_shape_problems reports after the run
+            suffix = f" eigenmode{fr.mode}"
             for k in list(out.keys()):
-                matched = None
-                for var in variants:
-                    if k.endswith(var):
-                        matched = var
-                        break
-                if matched is not None:
-                    out.setdefault(k[: -len(matched)].rstrip(), out[k])
+                if k.endswith(suffix):
+                    out[k[: -len(suffix)]] = out[k]
         # a harmonic solution: Elmer 9 writes "<var> harmonicmode1" (+ " im"), later versions "<var>" and
         # "<var> im"; use the later names for both
         for k in [k for k in out if k.endswith(" harmonicmode1") or k.endswith(" harmonicmode1 im")]:
@@ -1066,6 +1036,38 @@ def _axi_line_hrz(X):
 def write_solution_meta(folder: str, meta: dict):
     with open(os.path.join(folder, "meta.json"), "w") as f:
         json.dump(meta, f, indent=1)
+
+
+def mode_shape_problems(folder: str, modes: int) -> list[str]:
+    """What is wrong with the mode shapes of an eigenfrequency run that found `modes` eigenvalues; empty when every
+    mode has a shape.
+
+    Elmer writes mode N of a field as "<field> EigenMode<N>". When its solver holds no eigenvectors at the time of
+    the output it writes the field under its own name, as zeros, and a plot of that looks like a result."""
+    files = sorted(glob.glob(os.path.join(folder, "results", "case_t*.vtu")))
+    files = files or sorted(glob.glob(os.path.join(folder, "results", "*.pvtu")))
+    if not modes or not files:
+        return []
+    import pyvista as pv
+    data = pv.read(files[-1]).point_data
+    arrays = {k.lower(): np.asarray(data[k], dtype=float) for k in data.keys()}
+    missing, empty = [], []
+    for n in range(1, modes + 1):
+        shapes = [a for k, a in arrays.items() if k.endswith(f" eigenmode{n}")]
+        if not shapes:
+            missing.append(n)
+        elif not any(np.any(np.isfinite(a) & (a != 0)) for a in shapes):
+            empty.append(n)
+    name = os.path.basename(files[-1])
+    listed = lambda ns: ", ".join(str(n) for n in ns)  # noqa: E731
+    out = []
+    if missing:
+        out.append(f"{name} has no shape for mode {listed(missing)} of {modes}: plots of these modes show zeros. "
+                   f"The file holds: {', '.join(sorted(data.keys())) or 'no arrays'}")
+    if empty:
+        out.append(f"the shape of mode {listed(empty)} of {modes} has no non-zero value in {name}: "
+                   "plots of these modes show zeros")
+    return out
 
 
 def auto_scale_deformation(sol: Solution, vec: np.ndarray) -> float:

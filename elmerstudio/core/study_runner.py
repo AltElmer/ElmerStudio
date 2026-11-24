@@ -22,7 +22,7 @@ from .elmer import (ElmerInstall, RunState, parallel_problem, partition_command,
                     write_case)
 from .meshing import build_mesh
 from .model import Model, Node
-from .results import topology_to_npz, write_solution_meta
+from .results import mode_shape_problems, topology_to_npz, write_solution_meta
 from .sif import build_sif, parse_list
 
 
@@ -471,6 +471,11 @@ class StudyRunner:
                                 tfac = units.unit_info(step.get("tunit", "s"))[0]
                                 meta["times"] = [t / tfac for t in meta.get("times", [])]
                             status, diagnostics = judge_run(rs, sif.meta, folder, step.label)
+                            shapes = []
+                            if step.kind == "study.eigen" and status != "failed":
+                                # eigenvalues without mode shapes: say so, the plots would show zeros as a result
+                                shapes = [f"{step.label}: {p}" for p in mode_shape_problems(folder, len(rs.eigen))]
+                                diagnostics = diagnostics + shapes
                             meta.update({"status": status, "diagnostics": diagnostics,
                                          # provenance: the inputs this solution was computed from (results evaluate with these
                                          # parameter values, not later edits of the model)
@@ -484,6 +489,8 @@ class StudyRunner:
                                 f.write("\n".join(rs.lines))
                             if status == "failed":
                                 raise RuntimeError(diagnostics[0])
+                            for d in shapes:
+                                self.emit("warning", f"NO MODE SHAPE: {d}")
                             if status == "not converged":
                                 if self.study.get("nonconv", "stop") != "keep":
                                     raise StudyNotConverged("; ".join(diagnostics) + ". Raise the maximum number of iterations "
