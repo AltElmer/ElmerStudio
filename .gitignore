@@ -11,3 +11,6 @@ tools/icon_sheet_*.png
 packaging/icons/
 node_modules/
 .cache/
+
+.tmp/
+repomix-output.*
