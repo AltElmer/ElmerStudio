@@ -46,6 +46,7 @@ class PhysicsDef:
     solvers: Callable | None = None                 # fn(phys_node, ctx) -> list[dict]
     plots: Callable | None = None                   # fn(phys_node, sdim, study_kind) -> list[plot spec]
     order: str = "2"
+    orders: tuple = ("1", "2")                      # element orders the Elmer solver has elements for
     description: str = ""
     equation: str = ""
     conflicts: tuple = ()
@@ -97,7 +98,7 @@ def _phys_children(pd: PhysicsDef):
 def define_physics(pd: PhysicsDef, extra_props=()):
     PHYSICS[pd.id] = pd
     props = [Prop("disc", "Element order:", "choice", pd.order,
-                  choices=[("1", "Linear"), ("2", "Quadratic")], section="Discretization"),
+                  choices=[(o, {"1": "Linear", "2": "Quadratic"}[o]) for o in pd.orders], section="Discretization"),
              *extra_props,
              Prop("solver_extra", "Additional Elmer solver keywords:", "text", "", section="Elmer Solver",
                   tip="Lines appended verbatim to this interface's Solver section in the .sif file")]
@@ -420,139 +421,87 @@ define_physics(PhysicsDef(
                       visible=lambda p: p.get("__sdim", 3) == 2 and not p.get("__axi", False))])
 
 
-# =========================================================================== Shell / Plate (ShellSolver)
-def _shell_lemm(n, ctx, d):
+# =========================================================================== Plate (Reissner-Mindlin, Elmer Smitc)
+# The 2D geometry is the midsurface.  The unknowns are the deflection w normal to it and the two rotations of the
+# normal, which Elmer keeps as the three components of "Deflection".  Smitc reads Thickness, Youngs Modulus,
+# Poisson Ratio and Density from the material and Pressure from the body force (Smitc.F90), and has elements
+# for linear triangles and quadrilaterals only.
+def _plate_lemm(n, ctx, d):
     return {"Youngs Modulus": ctx.matval(n, "E", d), "Poisson Ratio": ctx.matval(n, "nu", d),
-            "Density": ctx.matval(n, "rho", d), "Shell Thickness": ctx.value(n.get("h", "0.01"))}
+            "Density": ctx.matval(n, "rho", d), "Thickness": ctx.value(n.get("h", "1[mm]"))}
 
 
-feature("shell.lemm", "Shell Material", "lemm", "feature_domain", "domain", "material", _shell_lemm, default=True,
-        props=[*matprop_props(["E", "nu", "rho"], "Shell Material"),
-               Prop("h", "Shell thickness:", default="0.01", unit="LEN", section="Shell", symbol="h",
-                    tip="Thickness of the shell (Reissner-Mindlin plate)")],
-        equation=r"$\mathbf{S}\cdot\mathbf{n} = \mathbf{F}_A,\quad D=\frac{E h^3}{12(1-\nu^2)}$")
+feature("plate.lemm", "Linear Elastic Material", "lemm", "feature_domain", "domain", "material", _plate_lemm,
+        default=True,
+        props=[Prop("h", "Thickness:", default="1[mm]", unit="m", section="Thickness", symbol="h"),
+               *matprop_props(["E", "nu", "rho"], "Linear Elastic Material")],
+        equation=r"$D\,\nabla^4 w = q,\quad D=\frac{E h^3}{12(1-\nu^2)}$")
+feature("plate.load", "Face Load", "fl", "feature_domain", "domain", "bodyforce",
+        lambda n, ctx, d: {"Pressure": ctx.value(n.get("q", "0"))},
+        props=[Prop("q", "Load per unit area:", default="0", unit="N/m^2", section="Force", symbol="q",
+                    tip="Positive in the direction of positive deflection")],
+        equation=r"$q$")
+feature("plate.free", "Free", "free", "default_feature", "boundary", "bc", None, default=True,
+        equation=r"$M_n = 0,\quad Q_n = 0$")
+feature("plate.clamped", "Fixed Constraint", "fix", "feature_boundary", "boundary", "bc",
+        lambda n, ctx, d=None: {"Deflection 1": 0.0, "Deflection 2": 0.0, "Deflection 3": 0.0},
+        equation=r"$w = 0,\quad \boldsymbol{\theta} = \mathbf{0}$",
+        description="Clamped edge: no deflection and no rotation of the normal.")
+feature("plate.simple", "Simply Supported", "ss", "feature_boundary", "boundary", "bc",
+        lambda n, ctx, d=None: {"Deflection 1": 0.0},
+        equation=r"$w = 0,\quad M_n = 0$",
+        description="No deflection; the edge is free to rotate (soft simple support).")
 
 
-def _shell_pressure(n, ctx, d=None):
-    return {"Normal Force": ctx.value(f"-({n.get('p', '0')})")}
+def _plate_disp(n, ctx, d=None):
+    return {f"Deflection {i}": ctx.value(n.get(f"{c}0", "0"))
+            for i, c in ((1, "w"), (2, "thx"), (3, "thy")) if n.get(f"on{c}", c == "w")}
 
 
-feature("shell.pressure", "Pressure (normal load)", "prs", "feature_boundary", "boundary", "bc", _shell_pressure,
-        props=[Prop("p", "Pressure:", default="0", unit="Pa", section="Pressure", symbol="p",
-                    tip="Positive = inward (compressive) pressure on the shell")],
-        equation=r"$\mathbf{S}\cdot\mathbf{n} = -p\,\mathbf{n}$")
+feature("plate.disp", "Prescribed Deflection/Rotation", "disp", "feature_boundary", "boundary", "bc", _plate_disp,
+        props=[p for c, title, sym, unit, on in (("w", "Prescribed deflection", "w0:", "m", True),
+                                                 ("thx", "Prescribed rotation, x", "θx0:", "rad", False),
+                                                 ("thy", "Prescribed rotation, y", "θy0:", "rad", False))
+               for p in (Prop(f"on{c}", title, "bool", on, section="Prescribed Deflection/Rotation"),
+                         Prop(f"{c}0", sym, default="0", unit=unit, section="Prescribed Deflection/Rotation",
+                              visible=(lambda cc, dflt: (lambda p: p.get(f"on{cc}", dflt)))(c, on)))],
+        equation=r"$w = w_0,\quad \theta_x = \theta_{x0},\quad \theta_y = \theta_{y0}$",
+        description="θx and θy are the slopes of the deflection that the normal follows: θx = ∂w/∂x and "
+                    "θy = ∂w/∂y in a thin plate.")
 
 
-def _shell_solvers(ph, ctx):
-    s = {"Equation": "Shell equations", "Procedure": ("ShellSolver", "ShellSolver"),
-         "Variable": f"-dofs {ctx.sdim} Displacement", "Calculate Stresses": True, "Displace Mesh": False}
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+def _plate_solvers(ph, ctx):
+    from .meshing import physics_order
+    mesh = next((c for c in ctx.model.component.children if c.kind == "mesh"), None)
+    order = mesh.get("order", "auto") if mesh is not None else "auto"
+    if (physics_order(ctx.model) if order == "auto" else int(order)) != 1:
+        raise ValueError(f"{ph.label}: Elmer's plate elements are linear; set the element order of the mesh to "
+                         "Linear (or Automatic)")
+    s = {"Equation": "Plate Equation", "Procedure": ("Smitc", "SmitcSolver"), "Variable": "-dofs 3 Deflection"}
+    # linear, unless a setting depends on the deflection (a load -k*wp, say): SmitcSolver then repeats the solve
+    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 30))))
     return [s]
 
 
-def _shell_plots(ph, sdim, study):
-    kind = "surface"
-    return [{"label": "Displacement (shell)", "type": kind, "expr": "shell.disp",
-             "cmap": "RainbowLight", "deform": True, "dims": sdim},
-            {"label": "von Mises stress (shell)", "type": kind, "expr": "shell.mises",
-             "cmap": "RainbowLight", "deform": True, "dims": sdim}]
+def _plate_plots(ph, sdim, study):
+    label = "Mode Shape (plate)" if study == "eigen" else "Deflection (plate)"
+    return [{"label": label, "type": "surface", "expr": "plate.w", "cmap": "RainbowLight", "dims": sdim}]
 
 
 define_physics(PhysicsDef(
-    "shell", "Shell / Plate", "physics_shell", "Structural Mechanics",
-    dims=("3D",), studies=("stationary", "time", "eigen", "freq"),
-    depvars={"u": ("Displacement 1", "Displacement field, x component", "m"),
-             "v": ("Displacement 2", "Displacement field, y component", "m"),
-             "w": ("Displacement 3", "Displacement field, z component", "m")},
-    defaults=[("shell.lemm", "domain"), ("solid.free", "boundary")],
-    domain=["shell.lemm", "solid.bodyload", "solid.gravity", "solid.init"],
-    boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "shell.pressure", "solid.bload",
-              "solid.spring", "solid.free"],
-    mat_props=["E", "nu", "rho"], solvers=_shell_solvers, plots=_shell_plots,
-    description="Reissner-Mindlin shell/plate bending and membrane action on a 2D surface embedded in 3D. "
-                "Elmer ShellSolver.",
-    equation=r"$-\nabla\cdot\mathbf{S} = \mathbf{F}_V,\quad \mathbf{S}=\mathbf{C}:\boldsymbol{\epsilon}(\mathbf{u})$"))
-
-
-# =========================================================================== Beam (BeamSolver3D / Timoshenko)
-def _beam_lemm(n, ctx, d):
-    out = {"Youngs Modulus": ctx.value(n.get("E", "200e9[Pa]")),
-           "Shear Modulus": ctx.value(n.get("G", "77e9[Pa]")),
-           "Cross Section Area": ctx.value(n.get("A", "1")),
-           "Second Moment of Area 2": ctx.value(n.get("I2", "1")),
-           "Second Moment of Area 3": ctx.value(n.get("I3", "1")),
-           "Torsional Constant": ctx.value(n.get("Jt", "1")),
-           "Density": ctx.value(n.get("rho", "7850[kg/m^3]"))}
-    pd = n.get("pd2", "0 0 -1")
-    if pd:
-        out["Principal Direction 2(3)"] = pd
-    return out
-
-
-feature("beam.lemm", "Beam Section", "lemm", "feature_domain", "domain", "material", _beam_lemm, default=True,
-        props=[Prop("E", "Youngs modulus:", default="200e9[Pa]", unit="Pa", section="Beam Section", symbol="E"),
-               Prop("G", "Shear modulus:", default="77e9[Pa]", unit="Pa", section="Beam Section", symbol="G"),
-               Prop("rho", "Density:", default="7850[kg/m^3]", unit="kg/m^3", section="Beam Section", symbol="ρ"),
-               Prop("A", "Cross section area:", default="1e-4[m^2]", unit="m^2", section="Beam Section", symbol="A"),
-               Prop("I2", "Second moment of area 2:", default="1e-8[m^4]", unit="m^4", section="Beam Section", symbol="I₂"),
-               Prop("I3", "Second moment of area 3:", default="1e-8[m^4]", unit="m^4", section="Beam Section", symbol="I₃"),
-               Prop("Jt", "Torsional constant:", default="1e-8[m^4]", unit="m^4", section="Beam Section", symbol="Jₜ"),
-               Prop("pd2", "Principal direction 2 (3):", default="0 0 -1", unit="1", section="Beam Section",
-                    tip="Components of the principal direction 2 expressed in the global system")],
-        equation=r"$-\frac{d}{dx}\left(ES\frac{du}{dx}\right) = f,\quad EI\frac{d^4w}{dx^4} = q$")
-
-
-def _beam_fixed(n, ctx, d=None):
-    out = {f"U {i + 1}": 0.0 for i in range(ctx.sdim)}
-    out.update({f"Theta {i + 1}": 0.0 for i in range(ctx.sdim)})
-    return out
-
-
-feature("beam.fixed", "Clamped (built-in) end", "fix", "feature_boundary", "boundary", "bc", _beam_fixed,
-        equation=r"$\mathbf{u} = \mathbf{0},\quad \boldsymbol{\theta} = \mathbf{0}$")
-
-
-def _beam_pinned(n, ctx, d=None):
-    return {f"U {i + 1}": 0.0 for i in range(ctx.sdim)}
-
-
-feature("beam.pinned", "Pinned (simply supported) end", "pin", "feature_boundary", "boundary", "bc", _beam_pinned,
-        equation=r"$\mathbf{u} = \mathbf{0}$")
-
-
-def _beam_pointload(n, ctx, d=None):
-    return {f"Force {i + 1}": ctx.value(n.get(f"F{c}", "0")) for i, c in enumerate("xyz"[:ctx.sdim])}
-
-
-feature("beam.pointload", "Point load", "pload", "feature_boundary", "boundary", "bc", _beam_pointload,
-        props=vec_props("F", "F", "N", "Point Load"),
-        equation=r"$\mathbf{F}$")
-
-
-def _beam_solvers(ph, ctx):
-    s = {"Equation": "Beam equations", "Procedure": ("BeamSolver3D", "TimoshenkoSolver"),
-         "Variable": f"-dofs {ctx.sdim} Displacement", "Calculate Stresses": True}
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
-    return [s]
-
-
-def _beam_plots(ph, sdim, study):
-    return [{"label": "Displacement (beam)", "type": "surface", "expr": "beam.disp",
-             "cmap": "RainbowLight", "deform": True, "dims": sdim}]
-
-
-define_physics(PhysicsDef(
-    "beam", "Beam", "physics_beam", "Structural Mechanics",
-    dims=("3D",), studies=("stationary",),
-    depvars={"u": ("Displacement 1", "Displacement field, x component", "m"),
-             "v": ("Displacement 2", "Displacement field, y component", "m"),
-             "w": ("Displacement 3", "Displacement field, z component", "m")},
-    defaults=[("beam.lemm", "domain"), ("beam.fixed", "boundary")],
-    domain=["beam.lemm", "solid.bodyload", "solid.gravity", "solid.init"],
-    boundary=["beam.fixed", "beam.pinned", "beam.pointload", "solid.bload", "solid.free"],
-    mat_props=["E", "G", "rho"], solvers=_beam_solvers, plots=_beam_plots,
-    description="Timoshenko 3D beam bending on a 1D line (edge) mesh. Elmer BeamSolver3D / TimoshenkoSolver.",
-    equation=r"$-\frac{d}{dx}\left(ES\frac{du}{dx}\right) = f,\quad EI\frac{d^4w}{dx^4} = q$"))
+    "plate", "Plate", "physics_solid", "Structural Mechanics",
+    dims=("2D",), studies=("stationary", "eigen"), order="1", orders=("1",),
+    # "w" is taken by the z displacement of Solid Mechanics
+    depvars={"wp": ("Deflection 1", "Deflection", "m"),
+             "thx": ("Deflection 2", "Rotation of the normal, x", "rad"),
+             "thy": ("Deflection 3", "Rotation of the normal, y", "rad")},
+    defaults=[("plate.lemm", "domain"), ("plate.free", "boundary")],
+    domain=["plate.lemm", "plate.load"],
+    boundary=["plate.clamped", "plate.simple", "plate.disp", "plate.free"],
+    mat_props=["E", "nu", "rho"], solvers=_plate_solvers, plots=_plate_plots,
+    description="Bending of a flat plate under loads normal to it (Reissner-Mindlin, thin and moderately thick): "
+                "stationary and eigenfrequencies. The 2D geometry is the midsurface. Elmer SmitcSolver.",
+    equation=r"$D\,\nabla^4 w = q,\quad D=\frac{E h^3}{12(1-\nu^2)}$"))
 
 
 # =========================================================================== Electrostatics
@@ -1513,7 +1462,7 @@ WIZARD_TREE = [
     ("Electrochemistry", [("Primary and Secondary Current Distribution", ["cd"])]),
     ("Fluid Flow", [("Single-Phase Flow", ["spf"])]),
     ("Heat Transfer", [("", ["ht"]), ("Electromagnetic Heating", ["@jh"]), ("Thermal-Structure Interaction", ["@te"])]),
-    ("Structural Mechanics", [("", ["solid"])]),
+    ("Structural Mechanics", [("", ["solid", "plate"])]),
     ("Mathematics", [("PDE Interfaces", ["pde"])]),
 ]
 # preset multiphysics bundles offered by the Model Wizard

@@ -440,7 +440,7 @@ class SifContext:
         sols = ensure_solver_configs(self.model, self.study)
         cfg = next((c for c in sols.children if c.props.get("physics") == ph.tag), None)
         pd = physics_def(ph.kind)
-        dofs = {"solid": self.sdim, "spf": self.sdim + 1, "acpr": 2}.get(pd.id, 1) * max(self.n_nodes, 1)
+        dofs = {"solid": self.sdim, "plate": 3, "spf": self.sdim + 1, "acpr": 2}.get(pd.id, 1) * max(self.n_nodes, 1)
         lin = (cfg.get("lin", "auto") if cfg else "auto")
         out = dict(nl)
         if lin == "auto":
@@ -771,7 +771,8 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
         neig = int(step.get("neig", 6))
         meta["neig"] = neig
         for s in solvers:
-            if not s.post and physics_def(s.physics.kind).id == "solid":
+            pid = None if s.post or s.physics is None else physics_def(s.physics.kind).id
+            if pid in ("solid", "plate"):
                 s.keywords["Eigen Analysis"] = True
                 s.keywords["Eigen System Values"] = neig
                 s.keywords["Eigen System Select"] = "Smallest Magnitude"
@@ -783,7 +784,8 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                 s.keywords["Linear System Direct Method"] = s.keywords.get("Linear System Direct Method", "UMFPack")
                 for k in [k for k in s.keywords if k.startswith("Linear System Iterative") or k.startswith("Linear System Precond")]:
                     del s.keywords[k]
-                s.keywords["Calculate Stresses"] = False
+                if pid == "solid":
+                    s.keywords["Calculate Stresses"] = False
     if nproc > 1:
         _parallel_solvers(solvers, ctx, nproc)
 
