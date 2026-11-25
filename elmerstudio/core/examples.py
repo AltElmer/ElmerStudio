@@ -116,41 +116,50 @@ def capacitor():
 
 
 def capacitance_matrix():
-    """Two conducting boxes inside an air box: capacitance matrix with Electric Infinity BC
-    (Elmer Tutorial 12 "Capacitance of two balls", realised with box primitives).
+    """Elmer Tutorial 12: Capacitance of two balls.
 
-    The two conductor boxes are ``es.terminal`` (Capacitance Body) boundaries at different
-    potentials; the outer box's exterior faces carry ``es.infinity`` (Electric Infinity BC).
-    ``StatElecSolver`` gets ``Calculate Capacitance Matrix = True`` so Elmer forms the
-    capacitance matrix and writes its scalars.
+    Two perfectly conducting balls of radius a = 0.5 m, centres d = 2 m apart,
+    inside an outer sphere of radius 5 m that stands in for free space.
+    The geometry is imported from a STEP file (see issue #10).
+
+    - ``es.terminal`` (Capacitance Body) on the two ball surfaces
+    - ``es.infinity`` (Electric Infinity BC) on the outer sphere
+    - ``StatElecSolver`` with ``Calculate Capacitance Matrix = True``
+    - Permittivity of Vacuum = 1 (normalised capacitance C~ = C/ε₀)
     """
     m = B.new_model("3D", ["es"], "stationary")
-    m.root.label = "capacitance_matrix"
-    _params(m, [("V0", "1[V]", "Terminal 1 potential")])
+    m.root.label = "capacitance_two_balls"
+    _params(m, [])
     g = m.component.child("geometry")
     g.props["unit"] = "m"
-    outer = m.create("geom.block", g, index=0, w="11", d="11", h="11")
-    c1 = m.create("geom.block", g, index=1, w="1", d="1", h="1", x="-1")
-    c2 = m.create("geom.block", g, index=2, w="1", d="1", h="1", x="1")
-    # union with interior=True fragments the outer box by the two conductor boxes so all
-    # three become separate non-overlapping domains (air + two conductors).
-    m.create("geom.union", g, index=3, input=[outer.tag, c1.tag, c2.tag], interior=True)
+    import os
+    step_path = os.path.join(os.path.dirname(__file__), "cad", "capacitance_two_balls.step")
+    imp = m.create("geom.import", g, index=0, tag="imp", file=step_path, heal=True)
     B.add_material(m, "Air", all_domains=True)
     geo = build_geometry(m, display=False)
     es = m.component.child("physics.es")
-    doms = geo.numbers["domain"]
-    vols = {d: float(np.prod(np.ptp(np.asarray(geo.bbox_of["domain"][d]).reshape(2, 3), axis=0)))
-            for d in doms}
-    air_d = max(doms, key=lambda d: vols[d])
-    cond_d = [d for d in doms if d != air_d]
-    def cx(d):
-        bb = np.asarray(geo.bbox_of["domain"][d]).reshape(2, 3)
+    # The import creates one domain (air with two cavities) and three boundaries:
+    # outer sphere + two ball surfaces
+    bdy = geo.numbers["boundary"]
+    assert len(bdy) == 3, f"Expected 3 boundaries, got {len(bdy)}"
+    # Identify boundaries by their area: outer sphere (largest), two balls (equal, smaller)
+    areas = {b: geo.measure["boundary"][b] for b in bdy}
+    outer_b = max(areas, key=areas.get)
+    ball_bs = [b for b in bdy if b != outer_b]
+    assert len(ball_bs) == 2
+    # left ball (center x < 0) gets Capacitance Body 1, right ball gets Capacitance Body 2
+    def cx_of_boundary(b):
+        bb = np.asarray(geo.bbox_of["boundary"][b]).reshape(2, 3)
         return float((bb[0, 0] + bb[1, 0]) / 2)
-    c1_d = [d for d in cond_d if cx(d) < 0][0]
-    c2_d = [d for d in cond_d if cx(d) > 0][0]
-    B.add_feature(m, es, "es.terminal", geo.boundaries_of_domains([c1_d]), V0="V0", **{"Capacitance Body": 1})
-    B.add_feature(m, es, "es.terminal", geo.boundaries_of_domains([c2_d]), V0="0[V]", **{"Capacitance Body": 2})
-    B.add_feature(m, es, "es.infinity", geo.exterior_boundaries())
+    left_b = [b for b in ball_bs if cx_of_boundary(b) < 0][0]
+    right_b = [b for b in ball_bs if cx_of_boundary(b) > 0][0]
+    B.add_feature(m, es, "es.terminal", [left_b], **{"Capacitance Body": 1})
+    B.add_feature(m, es, "es.terminal", [right_b], **{"Capacitance Body": 2})
+    B.add_feature(m, es, "es.infinity", [outer_b])
+    # Set Permittivity of Vacuum = 1 for normalised capacitance (C~ = C/ε₀)
+    gnode = m.root.child("global")
+    cnode = m.create("constants", gnode, tag="const")
+    cnode.props["values"] = [{"name": "Permittivity of Vacuum", "expr": "Real 1", "descr": "Normalised capacitance C~ = C/ε₀"}]
     return m
 
 

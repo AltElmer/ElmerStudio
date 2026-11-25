@@ -461,6 +461,7 @@ def _es_solvers(ph, ctx):
     terminals = [f for f in ph.children if f.kind == "es.terminal" and f.enabled]
     if terminals:
         s["Calculate Capacitance Matrix"] = True
+        s["Capacitance Matrix Filename"] = "cmatrix.dat"
     s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
     return [s]
 
