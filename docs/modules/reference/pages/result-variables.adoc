@@ -46,6 +46,11 @@ Variables available in result expressions (plots, datasets, derived values). A v
 |`+mf.B+` |Magnetic flux density |`+T+` |vector
 |`+mf.normB+` |Magnetic flux density norm |`+T+` |scalar
 |`+mf.normH+` |Magnetic field norm |`+A/m+` |scalar
+|`+mf.H+` |Magnetic field |`+A/m+` |vector
+|`+mf.Bx+` |Magnetic flux density, x component |`+T+` |scalar
+|`+mf.By+` |Magnetic flux density, y component |`+T+` |scalar
+|`+mf.Hx+` |Magnetic field, x component |`+A/m+` |scalar
+|`+mf.Hy+` |Magnetic field, y component |`+A/m+` |scalar
 |`+mf.Wm+` |Magnetic energy density |`+J/m^3+` |scalar
 |`+mf.W_mag+` |Magnetic field energy (global scalar) |`+J+` |scalar
 |`+spf.u_vec+` |Velocity field |`+m/s+` |vector
@@ -93,6 +98,9 @@ These short names are accepted in result expressions as well:
 * `+Qrh+` = `+ec.Qrh+`
 * `+tflux+` = `+ht.tfluxMag+`
 * `+phil+` = `+cd.phil+`
+* `+mf_wm+` = `+mf.Wm+`
+* `+magnetic_field_energy+` = `+mf.W_mag+`
+* `+mf_w_mag+` = `+mf.W_mag+`
 
 == Unit families
 

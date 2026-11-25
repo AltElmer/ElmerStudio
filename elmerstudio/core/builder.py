@@ -240,11 +240,22 @@ def _default_plots(m: Model, st: Node, step_kind: str) -> list[Node]:
     ds = solution_dataset(m, st)
     made = []
     existing = {n.meta.get("default_plot") for n in m.results.children}
+    dvals = next((c for c in m.results.children if c.kind == "results.derived"), None)
+    existing |= {n.meta.get("default_plot") for n in (dvals.children if dvals is not None else [])}
     for ph in physics_nodes(m):
         step = study_steps(st)[0] if study_steps(st) else None
         if step is not None and not step.props.get("physics", {}).get(ph.tag, True):
             continue
         pd = physics_def(ph.kind)
+        # default derived values (not returned: the caller plots the first node it gets back)
+        for spec in (pd.derived(ph, sd, step_kind) if pd.derived and dvals is not None else []):
+            key = f"{st.tag}:{ph.tag}:{spec['label']}"
+            if key in existing:
+                continue
+            dv = m.create(spec["kind"], dvals, label=spec["label"])
+            dv.props["data"] = ds.tag
+            dv.props["exprs"] = [{"expr": e, "unit": "", "descr": ""} for e in spec["exprs"]]
+            dv.meta["default_plot"] = key
         if not pd.plots:
             continue
         for spec in pd.plots(ph, sd, step_kind):

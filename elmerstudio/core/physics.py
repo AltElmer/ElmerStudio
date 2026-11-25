@@ -45,6 +45,8 @@ class PhysicsDef:
     mat_props: list = field(default_factory=list)
     solvers: Callable | None = None                 # fn(phys_node, ctx) -> list[dict]
     plots: Callable | None = None                   # fn(phys_node, sdim, study_kind) -> list[plot spec]
+    # fn(phys_node, sdim, study_kind) -> [{"label", "kind": Derived Values node kind, "exprs": [expression]}]
+    derived: Callable | None = None
     order: str = "2"
     description: str = ""
     equation: str = ""
@@ -810,10 +812,15 @@ feature("mf.pmc", "Perfect Magnetic Conductor", "pmc", "feature_boundary", "boun
 def _mf_solvers(ph, ctx):
     s = {"Equation": "MgDyn2D", "Procedure": ("MagnetoDynamics2D", "MagnetoDynamics2D"), "Variable": "Az"}
     s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    # Nodal fields for the plots; elemental ones, written per body, for integrals: H jumps by mur at an iron
+    # surface and the nodal field averages it across.  The energies go to the scalars file (SaveScalars).
     calc = {"Equation": "MgDyn2D Fields", "Procedure": ("MagnetoDynamics", "MagnetoDynamicsCalcFields"),
             "Potential Variable": "Az", "Calculate Magnetic Field Strength": True,
             "Calculate Current Density": True, "Calculate Nodal Fields": True, "Calculate Elemental Fields": True,
+            "Separate Magnetic Energy": True,
             **projection_linsys(ctx), "__post__": True}
+    ctx.side_fields += ["magnetic flux density e", "magnetic field strength e"]
+    ctx.save_scalars = True
     return [s, calc]
 
 
@@ -827,6 +834,7 @@ define_physics(PhysicsDef(
     plots=lambda ph, sd, st: [
         {"label": "Magnetic Flux Density Norm (mf)", "type": "surface", "expr": "normB", "cmap": "RainbowLight", "dims": sd,
          "contour": "Az"}],
+    derived=lambda ph, sd, st: [{"label": "Magnetic Energy (mf)", "kind": "eval.global", "exprs": ["mf.W_mag"]}],
     description="Magnetostatics with out-of-plane currents (2D, 2D axisymmetric). Elmer MagnetoDynamics2D.",
     equation=r"$\nabla\times(\mu_0^{-1}\mu_r^{-1}\nabla\times\mathbf{A}) = \mathbf{J}_e$"))
 
