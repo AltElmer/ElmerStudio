@@ -39,6 +39,10 @@ CATALOG = [
     ("solid.wim", "displacement im", 2, "Displacement field, z component (imaginary part)", "m", "scalar"),
     ("solid.dispAmp", "displacement", "cmag", "Displacement amplitude", "m", "scalar"),
     ("solid.mises", "vonmises", None, "von Mises stress", "Pa", "scalar"),
+    # Plate (Smitc): the deflection and the two rotations of the normal are the components of "deflection"
+    ("plate.w", "deflection", 0, "Deflection", "m", "scalar"),
+    ("plate.thx", "deflection", 1, "Rotation of the normal, x", "rad", "scalar"),
+    ("plate.thy", "deflection", 2, "Rotation of the normal, y", "rad", "scalar"),
     ("solid.sx", "stress", 0, "Stress tensor, xx component", "Pa", "scalar"),
     ("solid.sy", "stress", 1, "Stress tensor, yy component", "Pa", "scalar"),
     ("solid.sz", "stress", 2, "Stress tensor, zz component", "Pa", "scalar"),
@@ -444,7 +448,7 @@ class Solution:
                 a = arr[src]
                 if isinstance(comp, int) and (a.ndim < 2 or comp >= a.shape[1]):
                     continue
-                if isinstance(comp, int) and comp == 2 and self.sdim == 2 and src not in ("stress",):
+                if isinstance(comp, int) and comp == 2 and self.sdim == 2 and src not in ("stress", "deflection"):
                     continue
                 if src == "stress" and comp in (4, 5) and self.sdim == 2:
                     continue
@@ -977,7 +981,7 @@ def _split_quadratic_edges(g):
 
 
 # interface prefixes: tds.tflux, and a second instance's tds1.tflux
-_DOTTED = re.compile(r"\b((?:ht|solid|es|ec|mf|spf|acpr|tds|pde|cd|tcd)\d*)((?:\.\w+)+)")
+_DOTTED = re.compile(r"\b((?:ht|solid|plate|es|ec|mf|spf|acpr|tds|pde|cd|tcd)\d*)((?:\.\w+)+)")
 
 
 def _dotted(expr: str) -> str:
