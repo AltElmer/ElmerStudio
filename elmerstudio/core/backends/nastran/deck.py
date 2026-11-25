@@ -1,17 +1,20 @@
 """Model -> NASTRAN-95 card deck: refusal rules, planning, and Bulk Data writer.
 
-Supports:
+Supports (M1 - verified):
 - Solid Mechanics (physics.solid): Linear Statics (SOL 1), Normal Modes (SOL 3)
-- Heat Transfer in Solids (physics.ht): Steady Heat Conduction (HEAT 1, fixed temperatures, heat flux, convection)
+- Heat Transfer in Solids (physics.ht): Steady Heat Conduction (HEAT 1, fixed temperatures only)
 - Elements: CTRIA3, CQUAD4 (2D, unit depth), CTETRA, CHEXA, CPENTA (3D)
 - Properties & Materials: PSHELL, MAT1, MAT4
 - BCs & Loads: SPC1, SPC, FORCE (consistent nodal loads of boundary and body loads), GRAV
-- Heat flux: CHBDY (LINE, AREA3, AREA4), PHBDY, QBDY1, ambient SPC for convection
+
+Not supported (M2/M3 - unverified):
+- Heat flux boundary (CHBDY, PHBDY, QBDY1)
+- Convection (MAT4 film coefficient)
+- Transient SOL 109 / DISP 9 / TSTEP / DAREA
 """
 from __future__ import annotations
 
 import os
-from collections import defaultdict
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -29,8 +32,7 @@ SUPPORTED_FEATURES = {
         "solid.gravity", "solid.free"
     },
     "ht": {
-        "ht.solid", "ht.init", "ht.temperature", "ht.insulation", "ht.symmetry",
-        "ht.heatflux"
+        "ht.solid", "ht.init", "ht.temperature", "ht.insulation", "ht.symmetry"
     }
 }
 
@@ -38,7 +40,6 @@ STEP_MAP = {
     "study.stationary": 1,
     "study.stat": 1,
     "study.eigen": 3,
-    "study.time": 9,          # DISP 9 = direct transient (SOL 109)
 }
 
 # Linear NASTRAN cells for each gmsh element type, as (card, node positions in the gmsh row).  A 6-node triangle
@@ -118,15 +119,15 @@ def _check_component(model: Model, study: Node, comp: Node):
             pid = physics_def(ph.kind).id
             if pid not in SUPPORTED_PHYSICS:
                 _fail(f"{ph.label} is not supported by the NASTRAN-95 backend (solves Solid Mechanics and Heat Transfer only).")
-            if step.kind == "study.time" and pid == "ht":
-                _fail(f"{step.label} is a Time Dependent heat transfer step; NASTRAN-95 backend only supports transient for Solid Mechanics.")
+            if step.kind == "study.time":
+                _fail(f"{step.label} is a Time Dependent step; NASTRAN-95 backend only supports Stationary and Eigenfrequency steps.")
             for f in ph.children:
                 if not f.enabled or f.kind in SUPPORTED_FEATURES[pid]:
                     continue
                 if f.kind in FEATURES and FEATURES[f.kind].section == "post":
                     continue
-                if f.kind in ("ht.source", "ht.radiation"):
-                    _fail(f"{f.label} ({ph.label}) is not mapped to NASTRAN-95 (heat sources and radiation not supported).")
+                if f.kind in ("ht.source", "ht.radiation", "ht.heatflux"):
+                    _fail(f"{f.label} ({ph.label}) is not mapped to NASTRAN-95 (heat sources, radiation, and heat flux not supported).")
                 _fail(f"{f.label} ({ph.label}) is not mapped to NASTRAN-95.")
             for f in ph.children:
                 if f.enabled and f.kind == "solid.gravity" and f.get("rho_src", "mat") != "mat":
@@ -144,7 +145,7 @@ def _check_component(model: Model, study: Node, comp: Node):
 class NastranPlan:
     physics: str              # solid | ht
     app: str                  # DISP | HEAT
-    sol: int                  # 1 | 3 | 109
+    sol: int                  # 1 | 3
     title: str
     spc_id: int = 1
     load_id: int = 1
@@ -153,11 +154,6 @@ class NastranPlan:
     thickness: float = 1.0    # 2D: per unit depth, as Elmer solves 2D models
     plane_strain: bool = False                              # 2D Solid Mechanics in plane strain (set by write_deck)
     domain_nu: dict = field(default_factory=dict)           # domain -> Poisson's ratio of the model (set by write_deck)
-    # Transient fields
-    tstep: str | None = None        # TSTEP card reference
-    tend: str = "1.0"               # End time
-    dt: str = "0.01"                # Time step
-    nout: str = "10"                # Output every N steps
 
 
 def plan_deck(model: Model, study: Node, step: Node) -> NastranPlan:
@@ -179,15 +175,6 @@ def plan_deck(model: Model, study: Node, step: Node) -> NastranPlan:
     )
     if step.kind == "study.eigen":
         plan.neig = int(step.get("neig", 6) or 6)
-    if step.kind == "study.time":
-        # For transient: SOL 109 (DISP 9 direct transient)
-        plan.sol = 109
-        plan.app = "DISP"
-        # Store time step info from step properties
-        plan.tstep = step.get("tstep", None)
-        plan.tend = step.get("tend", "1.0")
-        plan.dt = step.get("dt", "0.01")
-        plan.nout = step.get("nout", "10")
     return plan
 
 
@@ -468,82 +455,6 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         raise NastranRefusal(f"{f.label} is on a boundary that is not perpendicular to the x, y or z axis; "
                              f"NASTRAN-95 constrains displacements in the global axes only.")
 
-    # Heat flux tracking: collect all ht.heatflux features first
-    ht_flux_features = []
-    if active_ph and plan.physics == "ht":
-        for f in active_ph.children:
-            if f.enabled and f.kind == "ht.heatflux":
-                ht_flux_features.append(f)
-
-    # CHBDY/PHBDY/QBDY1/MAT4 tracking for heat flux
-    chbdy_eid = 1
-    chbdy_cards: list[str] = []
-    phbdy_cards: list[str] = []
-    qbdy1_cards: list[str] = []
-    mat4_conv_cards: list[str] = []  # MAT4 for convection (film coefficient)
-    ambient_grid_map: dict[int, int] = {}  # boundary grid ID -> ambient grid ID
-    next_ambient_grid = len(nodes) + 1
-    chbdy_to_mat4: dict[int, int] = {}  # CHBDY EID -> MAT4 MID
-
-    # Process heat flux features
-    for f in ht_flux_features:
-        if not f.enabled:
-            continue
-        flux_type = f.get("type", "general")
-        bents = selected(f, "boundary")
-        cells = boundary_cells(bents)
-        for ids, area, normal in outward(cells):
-            # Create CHBDY element for this boundary cell
-            if sdim == 2:
-                # 2D: LINE element (2 nodes)
-                if len(ids) != 2:
-                    continue
-                chbdy_type = "LINE"
-            else:
-                # 3D: AREA3 (3 nodes) or AREA4 (4 nodes)
-                if len(ids) == 3:
-                    chbdy_type = "AREA3"
-                elif len(ids) == 4:
-                    chbdy_type = "AREA4"
-                else:
-                    continue
-            
-            if flux_type == "convective":
-                # Convection: CHBDY with ambient points (GA1, GA2...), PHBDY referencing MAT4 with film coefficient
-                # Create ambient grid points for each node of the CHBDY
-                ambient_ids = []
-                for gid in ids:
-                    if gid not in ambient_grid_map:
-                        ambient_grid_map[gid] = next_ambient_grid
-                        next_ambient_grid += 1
-                    ambient_ids.append(ambient_grid_map[gid])
-                
-                # Create MAT4 for convection if not already created for this feature
-                # Use a unique MID per feature for convection
-                mat4_mid = 2000 + len(mat4_conv_cards)
-                h = _eval_expr(f.get("h", "10"), model, overrides)
-                # MAT4: MID, K (film coefficient), CP (thermal capacity per unit area, 0 for steady)
-                mat4_conv_cards.append(f"MAT4,{mat4_mid},{_fmt8(h)},0.0")
-                chbdy_to_mat4[chbdy_eid] = mat4_mid
-                
-                # CHBDY with ambient points
-                ga_str = ",".join(str(aid) for aid in ambient_ids)
-                chbdy_cards.append(f"CHBDY,{chbdy_eid},,{chbdy_type}," + 
-                                   ",".join(str(gid) for gid in ids) + 
-                                   "," + ga_str + ",")
-                # PHBDY references the MAT4 MID for convection
-                phbdy_cards.append(f"PHBDY,{chbdy_eid},{mat4_mid},,,,,,")
-            else:
-                # General heat flux: CHBDY + PHBDY + QBDY1
-                chbdy_cards.append(f"CHBDY,{chbdy_eid},,{chbdy_type}," + 
-                                   ",".join(str(gid) for gid in ids) + ",")
-                phbdy_cards.append(f"PHBDY,{chbdy_eid},,,,,,,")
-                # QBDY1 for this CHBDY
-                q0 = _eval_expr(f.get("q0", "0"), model, overrides)
-                qbdy1_cards.append(f"QBDY1,{plan.load_id},{_fmt8(q0)},{chbdy_eid}")
-            
-            chbdy_eid += 1
-
     # Solid mechanics boundary conditions
     if active_ph:
         for f in active_ph.children:
@@ -647,10 +558,6 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         case_lines.append(f"LOAD = {plan.load_id}")
     if plan.sol == 3:
         case_lines.append(f"METHOD = {plan.eigr_id}")
-    if plan.sol == 109:
-        # Transient direct: need TSTEP for time integration
-        case_lines.append(f"TSTEP = {plan.spc_id}")  # reuse spc_id as tstep_id
-        case_lines.append(f"DLOAD = {plan.load_id}")
 
     bulk_lines = ["BEGIN BULK"]
     bulk_lines.extend(grid_cards)
@@ -659,24 +566,6 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
     bulk_lines.extend(elem_cards)
     bulk_lines.extend(spc_cards)
     bulk_lines.extend(load_cards)
-    bulk_lines.extend(chbdy_cards)
-    bulk_lines.extend(phbdy_cards)
-    bulk_lines.extend(qbdy1_cards)
-    bulk_lines.extend(mat4_conv_cards)
-
-    # Ambient grid points for convection: create GRID and SPC for each
-    for gid, ambient_id in ambient_grid_map.items():
-        # Place ambient point at same location as the boundary grid point
-        pt = nodes[gid - 1]
-        x, y, z = pt[0], pt[1], pt[2] if sdim == 3 else 0.0
-        bulk_lines.append(f"GRID,{ambient_id},,{_fmt8(x)},{_fmt8(y)},{_fmt8(z)}")
-        # SPC to set Text temperature - use the Text from the first ht.heatflux feature
-        T_ext = 293.15
-        for f in ht_flux_features:
-            if f.get("type", "general") == "convective":
-                T_ext = _eval_expr(f.get("Text", "293.15[K]"), model, overrides)
-                break
-        bulk_lines.append(f"SPC,{plan.spc_id},{ambient_id},1,{_fmt8(T_ext)}")
 
     if plan.sol == 3:
         # EIGR: SID, METHOD, F1, F2, NE, ND, NZ, E, +abc.  FEER (tridiagonal reduction) about F1 = 0 gives the
@@ -684,49 +573,6 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         # Givens method, whose time estimate exceeds any limit beyond a few hundred grid points.
         bulk_lines.append(f"EIGR,{plan.eigr_id},FEER,0.0,,,{plan.neig},,,+EIG1")
         bulk_lines.append("+EIG1,MASS")
-    elif plan.sol == 109:
-        # Transient direct (SOL 109, DISP 9)
-        # TSTEP: SID, N1, DT1, NO1, N2, DT2, NO2...
-        # Use uniform time step from plan.dt, output every plan.nout steps
-        tend = _eval_expr(plan.tend, model, overrides)
-        dt = _eval_expr(plan.dt, model, overrides)
-        nsteps = max(1, int(tend / dt + 0.5))
-        nout = int(plan.nout) if plan.nout else 1
-        bulk_lines.append(f"TSTEP,{plan.spc_id},{nsteps},{_fmt8(dt)},{nout}")
-        
-        # TABLED1 for step load (constant from t=0): TABLED1, TID, X, Y...
-        # Step function: 0 at t<0, 1 at t>=0
-        tabled1_id = 999
-        bulk_lines.append(f"TABLED1,{tabled1_id},0.0,0.0,{_fmt8(dt)},1.0,{_fmt8(tend)},1.0")
-        
-        # TLOAD1: SID, L (DAREA), M (DELAY), TF (TABLED1)
-        bulk_lines.append(f"TLOAD1,{plan.load_id},{plan.load_id},0,{tabled1_id}")
-        
-        # DAREA: SID, EID, COMP, VALUE... for each grid point force component
-        # Convert FORCE cards to DAREA entries
-        # DAREA format: DAREA, SID, EID, C1, V1, C2, V2...
-        # Group forces by grid point and component
-        force_by_grid = defaultdict(lambda: defaultdict(float))
-        for nid, vec in forces.items():
-            for comp_idx, val in enumerate(vec, start=1):
-                if abs(val) > 1e-30:
-                    force_by_grid[nid][comp_idx] += val
-        
-        # Also include SPC forces (non-zero prescribed displacements) as DAREA
-        # For simplicity, we only handle FORCE loads here; SPC loads are enforced via SPC cards
-        
-        dareas_by_grid = defaultdict(list)
-        for gid, comps in force_by_grid.items():
-            for comp, val in comps.items():
-                dareas_by_grid[gid].append((comp, val))
-        
-        if dareas_by_grid:
-            dare_area_id = plan.load_id  # reuse load_id for DAREA set
-            for gid, comps in dareas_by_grid.items():
-                line = f"DAREA,{dare_area_id},{gid}"
-                for comp, val in comps:
-                    line += f",{comp},{_fmt8(val)}"
-                bulk_lines.append(line)
 
     bulk_lines.append("ENDDATA")
 
