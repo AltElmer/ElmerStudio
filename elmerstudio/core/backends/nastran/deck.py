@@ -1,11 +1,16 @@
 """Model -> NASTRAN-95 card deck: refusal rules, planning, and Bulk Data writer.
 
-Supports:
+Supports (M1 - verified):
 - Solid Mechanics (physics.solid): Linear Statics (SOL 1), Normal Modes (SOL 3)
-- Heat Transfer in Solids (physics.ht): Steady Heat Conduction (HEAT 1, fixed temperatures)
+- Heat Transfer in Solids (physics.ht): Steady Heat Conduction (HEAT 1, fixed temperatures only)
 - Elements: CTRIA3, CQUAD4 (2D, unit depth), CTETRA, CHEXA, CPENTA (3D)
 - Properties & Materials: PSHELL, MAT1, MAT4
 - BCs & Loads: SPC1, SPC, FORCE (consistent nodal loads of boundary and body loads), GRAV
+
+Not supported (M2/M3 - unverified):
+- Heat flux boundary (CHBDY, PHBDY, QBDY1)
+- Convection (MAT4 film coefficient)
+- Transient SOL 109 / DISP 9 / TSTEP / DAREA
 """
 from __future__ import annotations
 
@@ -89,7 +94,7 @@ def _check(model: Model, study: Node):
 
     for step in steps:
         if step.kind not in STEP_MAP:
-            _fail(f"{step.label} is not a Stationary or Eigenfrequency step, the only study steps mapped to NASTRAN-95.")
+            _fail(f"{step.label} is not a Stationary, Eigenfrequency, or Time Dependent step, the only study steps mapped to NASTRAN-95.")
         if str(step.get("initsol", "") or ""):
             _fail(f"{step.label} takes its initial values from another study's solution.")
 
@@ -114,11 +119,15 @@ def _check_component(model: Model, study: Node, comp: Node):
             pid = physics_def(ph.kind).id
             if pid not in SUPPORTED_PHYSICS:
                 _fail(f"{ph.label} is not supported by the NASTRAN-95 backend (solves Solid Mechanics and Heat Transfer only).")
+            if step.kind == "study.time":
+                _fail(f"{step.label} is a Time Dependent step; NASTRAN-95 backend only supports Stationary and Eigenfrequency steps.")
             for f in ph.children:
                 if not f.enabled or f.kind in SUPPORTED_FEATURES[pid]:
                     continue
                 if f.kind in FEATURES and FEATURES[f.kind].section == "post":
                     continue
+                if f.kind in ("ht.source", "ht.radiation", "ht.heatflux"):
+                    _fail(f"{f.label} ({ph.label}) is not mapped to NASTRAN-95 (heat sources, radiation, and heat flux not supported).")
                 _fail(f"{f.label} ({ph.label}) is not mapped to NASTRAN-95.")
             for f in ph.children:
                 if f.enabled and f.kind == "solid.gravity" and f.get("rho_src", "mat") != "mat":
@@ -446,6 +455,7 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         raise NastranRefusal(f"{f.label} is on a boundary that is not perpendicular to the x, y or z axis; "
                              f"NASTRAN-95 constrains displacements in the global axes only.")
 
+    # Solid mechanics boundary conditions
     if active_ph:
         for f in active_ph.children:
             if not f.enabled:
@@ -541,6 +551,7 @@ def write_deck(plan: NastranPlan, mesh, model: Model, out_path: str, overrides: 
         case_lines.append("DISPLACEMENT = ALL")
         case_lines.append("STRESS = ALL")
         case_lines.append("ELFORCE = ALL")
+        case_lines.append("SPCFORCE = ALL")
     if spc_cards:
         case_lines.append(f"SPC = {plan.spc_id}")
     if load_cards and plan.sol != 3:

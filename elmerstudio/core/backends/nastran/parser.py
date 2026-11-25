@@ -4,6 +4,7 @@ Extracts:
 - Displacements: (T1, T2, T3) per grid point
 - Eigenvectors: (T1, T2, T3) per grid point for each extracted mode
 - Stresses: von Mises equivalent stress per element (and, for membranes, the principal stresses)
+- Reaction forces: SPC forces of constraint per grid point
 - Eigenvalues: Mode number, cyclic frequency (Hz), radian frequency (rad/s), generalized mass
 - Temperatures: Point temperatures for heat transfer
 - Fatal error detection
@@ -29,10 +30,14 @@ class NastranResult:
     eigenvectors: dict[int, dict[int, list[float]]] = field(default_factory=dict)  # mode -> nid -> [ux, uy, uz]
     stresses: dict[int, float] = field(default_factory=dict)             # eid -> von Mises (in-plane for membranes)
     principal: dict[int, tuple[float, float]] = field(default_factory=dict)  # membrane eid -> (major, minor)
+    reactions: dict[int, list[float]] = field(default_factory=dict)      # nid -> [Fx, Fy, Fz]
     temperatures: dict[int, float] = field(default_factory=dict)         # nid -> T
     eigenvalues: list[dict] = field(default_factory=list)                # list of {mode, freq_hz, omega, mass}
     fatal_messages: list[str] = field(default_factory=list)
     success: bool = True
+    # Stress components in element/basic coordinate system for later rotation/averaging
+    membrane_stress_comp: dict[int, tuple[float, float, float]] = field(default_factory=dict)  # eid -> (nx, ny, sxy) in element system
+    solid_stress_comp: dict[int, tuple[float, float, float, float, float, float]] = field(default_factory=dict)  # eid -> (sx, sy, sz, tyz, txz, txy) in basic system
 
 
 def _floats(tokens) -> list[float]:
@@ -46,7 +51,7 @@ def _floats(tokens) -> list[float]:
 
 
 def _grid_row(line: str):
-    """(grid ID, [T1, T2, T3]) of a displacement/eigenvector table row, or None.  The row may carry the Fortran
+    """(grid ID, [T1, T2, T3]) of a displacement/eigenvector/SPCFORCE table row, or None.  The row may carry the Fortran
     carriage control '0' in front of the ID ("0      12      G  ...")."""
     tokens = line.split()
     if tokens and tokens[0] == "0":
@@ -111,6 +116,13 @@ def parse_output(out_text: str) -> NastranResult:
         if "T E M P E R A T U R E   V E C T O R" in line:
             section = "TEMP"
             continue
+        # SPCFORCE table header appears as:
+        #   "F O R C E S   O F   S I N G L E - P O I N T   C O N S T R A I N T"
+        # Remove all spaces for matching
+        nospace = line.replace(" ", "")
+        if "FORCESOFSINGLE" in nospace or "SINGLEPOINTCONSTRAINT" in nospace:
+            section = "SPCFORCE"
+            continue
         if "S T R E S S" in line or "F O R C E S   I N   R O D" in line:
             section = "STRESS"
             if "R O D" in line:
@@ -125,10 +137,13 @@ def parse_output(out_text: str) -> NastranResult:
         if RE_EIGEN_HEADER.search(line):
             section = "EIGEN"
             continue
-        if "PAGE" in line or ("NASTRAN" in line and "TITLE" in line) or "END OF JOB" in line:
-            # Page banner or end of job: a table continues on the next page under its header again
+        if "END OF JOB" in line:
             section = None
             section_subtype = None
+            continue
+        if "PAGE" in line or ("NASTRAN" in line and "TITLE" in line):
+            # Page banner: tables continue on the next page under their headers again
+            # Do NOT reset section here; the section continues across pages
             continue
 
         if section in ("DISP", "EIGVEC"):
@@ -136,6 +151,12 @@ def parse_output(out_text: str) -> NastranResult:
             if row is not None:
                 nid, vec = row
                 (res.displacements if section == "DISP" else res.eigenvectors.setdefault(mode, {}))[nid] = vec
+
+        elif section == "SPCFORCE":
+            row = _grid_row(line)
+            if row is not None:
+                nid, vec = row
+                res.reactions[nid] = vec
 
         elif section == "TEMP":
             # Compact rows "ID  TYPE  T(ID)  T(ID+1) ...": consecutive grid IDs from the first one
@@ -158,13 +179,19 @@ def parse_output(out_text: str) -> NastranResult:
                 continue
             eid, vals = int(tokens[0]), _floats(tokens[1:])
             if section_subtype == "MEMBRANE" and len(vals) >= 8:
+                # vals[0]=fibre distance, vals[1]=NORMAL-X, vals[2]=NORMAL-Y, vals[3]=SHEAR-XY, vals[4]=ANGLE, vals[5]=MAJOR, vals[6]=MINOR, vals[7]=MAX-SHEAR
+                nx, ny, sxy = vals[1], vals[2], vals[3]
                 s1, s2 = vals[5], vals[6]
                 res.principal[eid] = (s1, s2)
                 res.stresses[eid] = _von_mises_plane(s1, s2)
+                # Store membrane stress components in element system for later rotation to global
+                res.membrane_stress_comp[eid] = (nx, ny, sxy)
             elif section_subtype == "CTETRA" and len(vals) >= 6:
                 sx, sy, sz, tyz, txz, txy = vals[:6]
                 res.stresses[eid] = ((sx - sy) ** 2 + (sy - sz) ** 2 + (sz - sx) ** 2
                                      + 6 * (txy ** 2 + tyz ** 2 + txz ** 2)) ** 0.5 / 2 ** 0.5
+                # Store solid stress components in basic system
+                res.solid_stress_comp[eid] = (sx, sy, sz, tyz, txz, txy)
             elif section_subtype == "ROD" and vals:
                 res.stresses[eid] = abs(vals[0])
 
