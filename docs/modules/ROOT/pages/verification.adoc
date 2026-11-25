@@ -13,6 +13,11 @@ Every change to Elmer Studio runs a test suite that builds models through the sa
 |Copper bar of the xref:quick-start.adoc[Quick start], T(L) = T~0~ + q~0~L/k |45 °C exactly
 |Cantilever tip deflection vs Euler–Bernoulli |0.3 % (3D and shear effects)
 |Cantilever first eigenfrequency vs 1.875²/(2π)·√(EI/ρAL⁴) |40.80 vs 40.77 Hz
+|Clamped square plate under a uniform load, centre deflection 0.001265·qa⁴/D |0.4 %; the deflection goes as h⁻³ within 0.5 %
+|Simply supported square plate, 0.004062·qa⁴/D |0.6 %
+|Cantilever plate strip: tip deflection qL⁴/8D and slope qL³/6D |0.01 % and 0.03 %
+|Simply supported plate on an elastic foundation vs Navier's series |0.6 %
+|Plate eigenfrequencies, simply supported (π/2)·√(D/ρh)·(m²+n²)/a² and clamped |48.37 vs 48.41 Hz; modes 2 to 4 within 0.7 %; clamped 88.54 vs 88.26 Hz
 |2D parallel-plate capacitor potential |max error 1.6e-13 V
 |Poiseuille channel, centreline velocity vs 1.5·Q/H |0.13 %; mass balance exact
 |1D diffusion, linear profile |4e-14

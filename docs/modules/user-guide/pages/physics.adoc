@@ -27,6 +27,7 @@ Each feature's Settings window has:
 |Interface |Features |Elmer solver
 |xref:reference:physics-ht.adoc[Heat Transfer in Solids] (ht) |Solid, Fluid (prescribed or Laminar-Flow velocity), Heat Source, Temperature, Heat Flux (general or convective), Surface-to-Ambient Radiation, Symmetry, Thermal Insulation |HeatSolver + FluxSolver
 |xref:reference:physics-solid.adoc[Solid Mechanics] (solid) |Linear Elastic Material, Body Load, Gravity, Rotating Frame, Fixed Constraint, Prescribed Displacement, Roller, Symmetry, Boundary Load (force per area, or total force), Spring Foundation, Free; plane stress or plane strain in 2D |StressSolver (stationary, eigenfrequency)
+|xref:reference:physics-plate.adoc[Plate] (plate), 2D |Linear Elastic Material with a thickness, Face Load, Fixed Constraint, Simply Supported, Prescribed Deflection/Rotation, Free |SmitcSolver (stationary, eigenfrequency). See <<plates>>.
 |xref:reference:physics-es.adoc[Electrostatics] (es) |Charge Conservation, Space Charge Density, Ground, Electric Potential, Surface Charge Density, Zero Charge |StatElecSolver
 |xref:reference:physics-ec.adoc[Electric Currents] (ec) |Current Conservation, Ground, Electric Potential, Normal Current Density, Electric Insulation |StatCurrentSolver
 |xref:reference:physics-mf.adoc[Magnetic Fields] (mf), 2D and 2D axisymmetric |Ampère's Law, External Current Density, Magnetic Insulation, Magnetic Potential, Perfect Magnetic Conductor |MagnetoDynamics2D + CalcFields
@@ -47,7 +48,7 @@ Each feature's Settings window has:
 
 Select the interface node itself (for example *Heat Transfer in Solids (ht)*) for settings of the whole interface. The details depend on the interface:
 
-* _Discretization_: the element order, linear or quadratic. The mesh follows it by default.
+* _Discretization_: the element order, linear or quadratic (linear only in the Plate interface). The mesh follows it by default.
 * model options, such as 2D plane stress or plane strain in Solid Mechanics, or primary or secondary current distribution;
 * the choice of Elmer solver, where there is one (see xref:electrochemistry.adoc[Electrochemistry]);
 * _Consistent Stabilization_ (Transport of Diluted Species): *Streamline diffusion*, on by default (<<stabilization>>);
@@ -63,6 +64,21 @@ Solid Mechanics solves Stationary, Time Dependent, Eigenfrequency and Frequency 
 * *Frequency Domain*: the loads are amplitudes and the response is a phasor. `+u+`, `+v+`, `+w+` and `+solid.disp+` are the real parts (the field at t = 0), `+solid.uim+`, `+solid.vim+`, `+solid.wim+` the imaginary parts, and `+solid.dispAmp+` the amplitude, which the default plot shows. Stresses are not computed in this study.
 
 A rod in longitudinal vibration checks all of it against the exact phasor (to 2e-4 across a sweep through its first resonance, damped and undamped), the eigenfrequency c/(4L) to 1e-4, and a forced transient that settles on the frequency-domain amplitude within 1 % (`tests/test_solid_dynamics.py`).
+
+[#plates]
+== Plates
+
+The *Plate* interface (Structural Mechanics, 2D models) bends a flat plate under loads normal to it. The 2D geometry is the midsurface, and the thickness is a setting of *Linear Elastic Material*. It solves Stationary and Eigenfrequency studies with Elmer's SmitcSolver, a Reissner–Mindlin plate: thin and moderately thick plates, with shear deformation.
+
+* The unknowns are the deflection `+plate.w+` and the rotations `+plate.thx+` and `+plate.thy+` of the normal. In a thin plate these are the slopes ∂w/∂x and ∂w/∂y.
+* *Face Load* is a force per unit area, positive in the direction of positive deflection.
+* *Fixed Constraint* clamps an edge (no deflection, no rotation). *Simply Supported* holds the deflection and leaves the edge free to rotate. *Prescribed Deflection/Rotation* sets any of the three. Edges with no feature are *Free*.
+* The elements are linear, so the interface offers no quadratic order, and a mesh whose element order is set to Quadratic is refused. Refine the mesh instead: 20 elements along an edge give the centre deflection of a square plate within 1 %.
+* In expressions of the settings the deflection is `+wp+`: a Face Load `+q0 - k*wp+` is a plate on an elastic foundation, and the solve is then repeated until it converges.
+
+The plate carries bending only. In-plane (membrane) forces, stresses and moments as results, and curved shells are not available: see xref:ROOT:known-limitations.adoc[Known limitations].
+
+The tests solve a clamped and a simply supported square plate, a cantilever strip, prescribed edge deflections and rotations, a plate on an elastic foundation and the eigenfrequencies, each against thin-plate theory (`tests/test_plate.py`, and the table in xref:ROOT:verification.adoc[Verification]).
 
 [#stabilization]
 == Convection-dominated transport

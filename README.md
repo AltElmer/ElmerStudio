@@ -163,6 +163,7 @@ Added with it:
 |---|---|---|
 | Heat Transfer in Solids (ht) | Solid, Fluid (prescribed or spf velocity), Heat Source, Temperature, Heat Flux (general/convective), Surface-to-Ambient Radiation, Symmetry, Thermal Insulation | HeatSolver + FluxSolver |
 | Solid Mechanics (solid) | Linear Elastic Material, Body Load, Gravity, Fixed Constraint, Prescribed Displacement, Roller, Symmetry, Boundary Load (force/pressure), Spring Foundation, Damping (Rayleigh); plane stress/strain | StressSolver (stationary, transient (Bossak), eigenfrequency, frequency response (harmonic)) |
+| Plate (plate), 2D | Linear Elastic Material with a thickness, Face Load, Fixed Constraint, Simply Supported, Prescribed Deflection/Rotation, Free | SmitcSolver (stationary, eigenfrequency) |
 | Electrostatics (es) | Charge Conservation, Space Charge Density, Ground, Electric Potential, Surface Charge Density, Zero Charge | StatElecSolver |
 | Electric Currents (ec) | Current Conservation, Ground, Electric Potential, Normal Current Density, Electric Insulation | StatCurrentSolver |
 | Magnetic Fields (mf), 2D and 2D axisymmetric | Ampère's Law, External Current Density, Magnetic Insulation, Magnetic Potential, Perfect Magnetic Conductor | MagnetoDynamics2D + CalcFields |
@@ -244,7 +245,7 @@ tests/, tools/     regression suites, GUI smoke test, screenshot tours, icon con
 These are deliberately listed, so nobody assumes they exist. The full list, including the ElmerGrid mesher and the OpenFOAM backend, is on the [Known limitations](https://altelmer.github.io/ElmerStudio/known-limitations.html) page.
 
 - **Not available yet:**
-  - shells, plates and beams (Elmer has ShellSolver and the Smitc plate solver; Studio's Solid Mechanics is continuum only);
+  - curved shells and beams (Elmer's ShellSolver and BeamSolver3D need surface and line bodies in 3D); flat plates in bending are available in 2D (the Plate interface);
   - 3D magnetic fields (A-V formulation);
   - turbulence;
   - contact, nonlinear materials and prestressed (harmonic perturbation) structural analysis;

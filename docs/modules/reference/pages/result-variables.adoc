@@ -25,6 +25,9 @@ Variables available in result expressions (plots, datasets, derived values). A v
 |`+solid.wim+` |Displacement field, z component (imaginary part) |`+m+` |scalar
 |`+solid.dispAmp+` |Displacement amplitude |`+m+` |scalar
 |`+solid.mises+` |von Mises stress |`+Pa+` |scalar
+|`+plate.w+` |Deflection |`+m+` |scalar
+|`+plate.thx+` |Rotation of the normal, x |`+rad+` |scalar
+|`+plate.thy+` |Rotation of the normal, y |`+rad+` |scalar
 |`+solid.sx+` |Stress tensor, xx component |`+Pa+` |scalar
 |`+solid.sy+` |Stress tensor, yy component |`+Pa+` |scalar
 |`+solid.sz+` |Stress tensor, zz component |`+Pa+` |scalar
