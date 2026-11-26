@@ -221,6 +221,9 @@ def test_cut_plane_mirror_extrusion(elmer):
     assert np.isclose(loc[:, 0].min(), 0, atol=1e-6) and np.isclose(loc[:, 0].max(), 20, atol=1e-6)
     assert np.isclose(loc[:, 1].max(), 10, atol=1e-6)
     assert abs(cp.integrate("1", fi) - 20e-3 * 10e-3) < 1e-12                   # plane area (m^2)
+    # regression: the cut plane integrates over its OWN 230-point mesh, not the base solution's 1479-point mesh
+    # (gh-#12 / PR #18: _integral must bind to the view, not resolve via __getattr__ to the base solution)
+    assert abs(cp.integrate("T", fi) - 325 * 20e-3 * 10e-3) < 1e-9              # T = 325 K on the whole plane
     # an xy-plane: T varies along the first local axis (x) only
     cz = CutPlane(sol, [0, 0, 5], [0, 0, 1])
     Tz = cz.evaluate("T", fi)
