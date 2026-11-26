@@ -67,6 +67,22 @@ def component_dir(model: Model, study_dir: str, comp_tag: str) -> str:
 
 _XREF = re.compile(r"(?<![\w.])(comp\w*)\.(\w+)(\()?")
 
+# Elmer's keyword-checking messages (ModelDescription.F90, CheckKeyWord): a keyword
+# was not found in the section it was used in ("Unlisted keyword"), given the wrong
+# type ("is given wrong type"), or a section is not referenced by any body
+# ("not used in any Body"). With "Check Keywords Warn" (what sif.py writes) Elmer
+# keeps running, so these are user-visible warnings that an emitted SIF keyword is
+# being ignored by the solver -- exactly the silent-ignore this guard prevents.
+_KEYWORD_PROBLEM = re.compile(
+    r"Unlisted keyword:|is given wrong type:|not used in any Body", re.IGNORECASE
+)
+
+
+def keyword_problems(lines) -> list[str]:
+    """Return the solver.log lines that report a keyword as not found / not used
+    / wrong type.  Used both live (in :meth:`_run_elmer`) and by tests."""
+    return [ln for ln in lines if _KEYWORD_PROBLEM.search(ln)]
+
 
 def cross_references(model: Model, comp: Node) -> list[tuple[str, str, str, str]]:
     """References from *comp*'s settings to other components: [(text, component tag, name, argument)]; the
@@ -544,6 +560,8 @@ class StudyRunner:
             line = line.rstrip("\n")
             ev = rs.feed(line)
             self.emit("log", line)
+            if _KEYWORD_PROBLEM.search(line):
+                self.emit("warning", line)
             if ev == "conv":
                 self.emit("conv", rs.conv[-1])
             elif ev == "step" and rs.step[1]:
