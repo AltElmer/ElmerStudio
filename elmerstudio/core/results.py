@@ -268,7 +268,10 @@ class Solution:
         if self._cmatrix is None:
             path = os.path.join(self.folder, "cmatrix.dat")
             if os.path.isfile(path):
-                self._cmatrix = np.loadtxt(path)
+                try:
+                    self._cmatrix = np.loadtxt(path)
+                except (ValueError, OSError):   # malformed or unreadable matrix file
+                    pass                        # capacitance matrix unavailable for this run
         return self._cmatrix
 
     @property
