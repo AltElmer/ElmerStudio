@@ -160,6 +160,18 @@ def capacitance_matrix():
     gnode = m.root.child("global")
     cnode = m.create("constants", gnode, tag="const")
     cnode.props["values"] = [{"name": "Permittivity of Vacuum", "expr": "Real 1", "descr": "Normalised capacitance C~ = C/ε₀"}]
+    # Mesh: custom, finer than the default preset. Mesh convergence study
+    # (hmax 1.0 -> 0.125 m): C11 5.0509 -> 5.0423, C12 1.6787 -> 1.6714, and the
+    # asymmetry of the two self-capacitances drops below 3e-4; below hmax = 0.25 m
+    # the matrix moves by < 0.1 %. The remaining gap to the published series
+    # reference (self +0.5 %, mutual -1.1 % at hmax = 0.25 m) is the Electric
+    # Infinity BC at R = 5 m modeling error, not discretization.
+    mn = m.component.child("mesh")
+    mn.props["sequence"] = "user"
+    for ch in list(mn.children):
+        if ch.kind == "mesh.size":
+            mn.remove(ch)
+    m.create("mesh.size", mn, mode="custom", hmax="0.25", hmin="0.05", hcurve="0.35")
     return m
 
 

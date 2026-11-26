@@ -257,6 +257,19 @@ class Solution:
         self.moving = bool(self.meta.get("moving_mesh"))   # deforming electrodes: node coordinates per frame
         self._geom_frame = 0
         self._frame_nodes = None
+        self._cmatrix: np.ndarray | None = None
+
+    @property
+    def capacitance_matrix(self) -> np.ndarray | None:
+        """The capacitance matrix written by StatElecSolver (Farads), when the run
+        included ``Calculate Capacitance Matrix = True`` (i.e. at least one
+        ``es.terminal`` boundary). Reads ``cmatrix.dat`` from the solution folder on
+        first access; None when no such file was written."""
+        if self._cmatrix is None:
+            path = os.path.join(self.folder, "cmatrix.dat")
+            if os.path.isfile(path):
+                self._cmatrix = np.loadtxt(path)
+        return self._cmatrix
 
     @property
     def catalog(self) -> list[tuple]:

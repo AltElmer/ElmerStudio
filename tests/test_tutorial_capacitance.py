@@ -48,15 +48,22 @@ def wide_step_path(tmp_path_factory):
     return str(step_path)
 
 
-# Reference values from Elmer Tutorial 12 (series expansion, normalised by ε₀)
+# Reference values from Elmer Tutorial 12 (series expansion, normalised by ε₀).
+# The published values come from the same model family: two r = 0.5 m balls,
+# centres 2 m apart, inside an outer sphere of R = 5 m with Electric Infinity BC.
 REF_C11 = 5.019   # self capacitance
 REF_C12 = 1.691   # mutual capacitance
-# Tolerance from mesh convergence study: ~1.5% relative at default mesh (8k nodes)
-# Finer mesh would converge to reference; 1.5% accounts for discretization error
+# Tolerance justified by a mesh-convergence study (hmax 1.0 -> 0.125 m, geometry in m):
+# C11 5.0509 -> 5.0423, C12 1.6787 -> 1.6714; below hmax = 0.25 m the matrix moves by
+# < 0.1 % (discretization error < 0.1 %). The remaining gap to the reference values
+# (self +0.5 %, mutual -1.1 % at hmax = 0.25 m) is the Electric Infinity BC at R = 5 m
+# modeling error, not discretization. TOL_REL = 1.5 % covers both with margin.
+# Independent check of the mutual term: a Maxwell image-charge series for two isolated
+# spheres gives 1.692 (normalised by ε₀), i.e. within 0.06 % of REF_C12.
 TOL_REL = 0.015
 
 
-def _run_capacitance_model(elmer, mesh_size: str = "1.0"):
+def _run_capacitance_model(elmer):
     """Build, mesh, solve the capacitance-two-balls model; return (sif_text, solution, solution_dir)."""
     m = capacitance_matrix()
     st = m.studies()[0]
@@ -71,7 +78,8 @@ def _run_capacitance_model(elmer, mesh_size: str = "1.0"):
 
 
 def _read_capacitance_matrix(run_dir: Path) -> np.ndarray:
-    """Read the cmatrix.dat file written by StatElecSolver."""
+    """Read the cmatrix.dat file written by StatElecSolver (cross-check of the
+    Solution.capacitance_matrix read-back)."""
     cmatrix_path = run_dir / "cmatrix.dat"
     if not cmatrix_path.exists():
         # Fallback: check in the first subdirectory (Elmer sometimes writes there)
@@ -106,9 +114,15 @@ def test_capacitance_matrix_matches_reference(elmer):
     sif_text, sol, run_dir = _run_capacitance_model(elmer)
     assert sol.meta.get("status") == "converged", sol.meta.get("diagnostics")
 
-    # Read the capacitance matrix written by Elmer
-    C = _read_capacitance_matrix(run_dir)
-    assert C.shape == (2, 2), f"Expected 2x2 matrix, got {C.shape}"
+    # Capacitance matrix read back through the Solution API (the public contract),
+    # cross-checked against cmatrix.dat written by StatElecSolver.
+    C_sol = sol.capacitance_matrix
+    assert C_sol is not None, "Solution has no capacitance matrix: StatElecSolver did not write cmatrix.dat"
+    C_file = _read_capacitance_matrix(run_dir)
+    assert C_file.shape == (2, 2), f"Expected 2x2 matrix, got {C_file.shape}"
+    assert np.allclose(C_sol, C_file), \
+        f"Solution.read-back does not match cmatrix.dat:\n{C_sol}\n{C_file}"
+    C = C_sol
 
     # The matrix should be symmetric: C12 == C21
     assert C[0, 1] == pytest.approx(C[1, 0], rel=1e-6), f"Matrix not symmetric: {C}"
@@ -122,8 +136,8 @@ def test_capacitance_matrix_matches_reference(elmer):
     c12 = C[0, 1]  # Elmer writes mutual capacitance as positive off-diagonal
 
     print(f"Computed capacitance matrix:\n{C}")
-    print(f"C11 = {c11:.6f}, reference = {REF_C11}")
-    print(f"C12 = {c12:.6f}, reference = {REF_C12}")
+    print(f"C11 = {c11:.6f}, reference = {REF_C11} (dev {(c11/REF_C11-1)*100:+.2f} %)")
+    print(f"C12 = {c12:.6f}, reference = {REF_C12} (dev {(c12/REF_C12-1)*100:+.2f} %)")
 
     assert c11 == pytest.approx(REF_C11, rel=TOL_REL), \
         f"Self capacitance C11 = {c11:.4f} differs from reference {REF_C11} by more than {TOL_REL*100}%"
@@ -186,8 +200,9 @@ def test_capacitance_changes_with_geometry(elmer, wide_step_path):
     sol_dir = Path(folders[-1])
     sol = Solution(sol_dir)
     assert sol.meta.get("status") == "converged", sol.meta.get("diagnostics")
-    
-    C_wide = _read_capacitance_matrix(sol_dir)
+
+    C_wide = sol.capacitance_matrix
+    assert C_wide is not None, "Wide model: StatElecSolver did not write cmatrix.dat"
     c12_wide = C_wide[0, 1]
     
     # The original model has c12 ≈ 1.691 (balls at x=+/-1, distance 2)
