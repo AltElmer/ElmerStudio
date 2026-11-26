@@ -1,6 +1,8 @@
 """Example models (the 'Application Libraries'), built with the scripting API."""
 from __future__ import annotations
 
+import numpy as np
+
 from . import builder as B
 from .geometry import build_geometry
 
@@ -113,6 +115,66 @@ def capacitor():
     return m
 
 
+def capacitance_matrix():
+    """Elmer Tutorial 12: Capacitance of two balls.
+
+    Two perfectly conducting balls of radius a = 0.5 m, centres d = 2 m apart,
+    inside an outer sphere of radius 5 m that stands in for free space.
+    The geometry is imported from a STEP file (see issue #10).
+
+    - ``es.terminal`` (Capacitance Body) on the two ball surfaces
+    - ``es.infinity`` (Electric Infinity BC) on the outer sphere
+    - ``StatElecSolver`` with ``Calculate Capacitance Matrix = True``
+    - Permittivity of Vacuum = 1 (normalised capacitance C~ = C/ε₀)
+    """
+    m = B.new_model("3D", ["es"], "stationary")
+    m.root.label = "capacitance_two_balls"
+    _params(m, [])
+    g = m.component.child("geometry")
+    g.props["unit"] = "m"
+    import os
+    step_path = os.path.join(os.path.dirname(__file__), "cad", "capacitance_two_balls.step")
+    imp = m.create("geom.import", g, index=0, tag="imp", file=step_path, heal=True)
+    B.add_material(m, "Air", all_domains=True)
+    geo = build_geometry(m, display=False)
+    es = m.component.child("physics.es")
+    # The import creates one domain (air with two cavities) and three boundaries:
+    # outer sphere + two ball surfaces
+    bdy = geo.numbers["boundary"]
+    assert len(bdy) == 3, f"Expected 3 boundaries, got {len(bdy)}"
+    # Identify boundaries by their area: outer sphere (largest), two balls (equal, smaller)
+    areas = {b: geo.measure["boundary"][b] for b in bdy}
+    outer_b = max(areas, key=areas.get)
+    ball_bs = [b for b in bdy if b != outer_b]
+    assert len(ball_bs) == 2
+    # left ball (center x < 0) gets Capacitance Body 1, right ball gets Capacitance Body 2
+    def cx_of_boundary(b):
+        bb = np.asarray(geo.bbox_of["boundary"][b]).reshape(2, 3)
+        return float((bb[0, 0] + bb[1, 0]) / 2)
+    left_b = [b for b in ball_bs if cx_of_boundary(b) < 0][0]
+    right_b = [b for b in ball_bs if cx_of_boundary(b) > 0][0]
+    B.add_feature(m, es, "es.terminal", [left_b], **{"Capacitance Body": 1})
+    B.add_feature(m, es, "es.terminal", [right_b], **{"Capacitance Body": 2})
+    B.add_feature(m, es, "es.infinity", [outer_b])
+    # Set Permittivity of Vacuum = 1 for normalised capacitance (C~ = C/ε₀)
+    gnode = m.root.child("global")
+    cnode = m.create("constants", gnode, tag="const")
+    cnode.props["values"] = [{"name": "Permittivity of Vacuum", "expr": "Real 1", "descr": "Normalised capacitance C~ = C/ε₀"}]
+    # Mesh: custom, finer than the default preset. Mesh convergence study
+    # (hmax 1.0 -> 0.125 m): C11 5.0509 -> 5.0423, C12 1.6787 -> 1.6714, and the
+    # asymmetry of the two self-capacitances drops below 3e-4; below hmax = 0.25 m
+    # the matrix moves by < 0.1 %. The remaining gap to the published series
+    # reference (self +0.5 %, mutual -1.1 % at hmax = 0.25 m) is the Electric
+    # Infinity BC at R = 5 m modeling error, not discretization.
+    mn = m.component.child("mesh")
+    mn.props["sequence"] = "user"
+    for ch in list(mn.children):
+        if ch.kind == "mesh.size":
+            mn.remove(ch)
+    m.create("mesh.size", mn, mode="custom", hmax="0.25", hmin="0.05", hcurve="0.35")
+    return m
+
+
 def coil_axi():
     """Axisymmetric copper coil around an iron core: magnetic flux density."""
     m = B.new_model("2Daxi", ["mf"], "stationary")
@@ -222,6 +284,7 @@ EXAMPLES = {
     "cantilever": ("Cantilever beam - eigenfrequencies", cantilever_eigen),
     "flow_cylinder": ("Flow past a cylinder - 2D laminar flow", flow_cylinder),
     "capacitor": ("Parallel-plate capacitor - fringing fields (2D electrostatics)", capacitor),
+    "capacitance_matrix": ("Capacitance matrix - two conductors with Electric Infinity BC", capacitance_matrix),
     "coil": ("Coil with iron core - 2D axisymmetric magnetic fields", coil_axi),
     "sphere": ("Sphere quenching - 2D axisymmetric transient heat transfer", transient_sphere),
     "loudspeaker": ("Loudspeaker radiation - 3D acoustics, exterior field and radiation patterns",

@@ -930,6 +930,14 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
     consts = {"Gravity": f"Real {g[0]} {g[1]} {g[2]} 9.80665", "Stefan Boltzmann": SIGMA_SB,
               "Permittivity of Vacuum": 8.8541878128e-12, "Permeability of Vacuum": 1.25663706212e-6,
               "Boltzmann Constant": 1.380649e-23, "Unit Charge": 1.602176634e-19}
+    # Override with model-defined constants
+    gnode = model.root.child("global")
+    cnode = gnode.child("constants") if gnode else None
+    if cnode and cnode.enabled:
+        for row in cnode.get("values", []):
+            nm = str(row.get("name", "")).strip()
+            if nm:
+                consts[nm] = row.get("expr", "0")
 
     # ---- write
     L = []

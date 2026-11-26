@@ -123,6 +123,30 @@ latexmath:[\mathbf{n}\cdot\mathbf{D} = 0]
 
 No settings.
 
+[#es-terminal]
+=== Capacitance Body (terminal)
+
+Selection: Boundaries · Physics ribbon › Boundaries, or right-click the interface in the Model Builder
+
+latexmath:[V = V_0,\quad Q_i = \int_{\Gamma_i} \mathbf{n}\cdot\mathbf{D}\,d\Gamma,\quad C_{ij}=Q_i/V_j]
+
+[cols="3,1,1,2,3",options="header",stripes=even]
+|===
+|Setting |Symbol |Unit |Default |Choices / type
+5+h|Capacitance Body
+|Electric potential |V₀ |`+V+` |`+1[V]+` |Expression
+|Capacitance body number |n | |`+1+` |Expression
+|===
+
+[#es-infinity]
+=== Electric Infinity BC
+
+Selection: Boundaries · Physics ribbon › Boundaries, or right-click the interface in the Model Builder
+
+latexmath:[\mathbf{n}\cdot\mathbf{D} = 0\ \text{at infinity (infinite element)}]
+
+No settings.
+
 == Result variables
 
 [cols="2,4,1",options="header"]

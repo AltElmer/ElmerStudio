@@ -806,17 +806,192 @@ class GeometryBuilder:
             import os
             if not os.path.isfile(path):
                 raise GeometryError(f"{f.label}: file not found: {path}")
-            out = occ.importShapes(path, highestDimOnly=True)
-            if f.get("heal", True):
-                try:
-                    out = occ.healShapes(out) or out
-                except Exception:
-                    pass
-            self.objects[f.tag] = out
+            self.objects[f.tag] = self._import(occ, f, path)
         elif k == "geom.boxsel":
             self.selections.append(f)
         else:
             raise GeometryError(f"Unsupported geometry feature {k}")
+
+    # what a repair may change of the imported measure (volume, or area for a surface model) and still be a repair
+    HEAL_RTOL = 1e-3
+
+    def _import(self, occ, f: Node, path: str) -> list[tuple[int, int]]:
+        """The highest-dimension entities of a CAD file, repaired when 'heal' is on and the repair keeps the geometry.
+
+        Three things about ``occ.healShapes`` (gmsh 4.15) decide how this is written:
+
+        * it works in place, and its sewing step rebuilds each solid from one closed shell, so a solid with internal
+          cavities (a void; the balls cut out of a sphere in issue #10) comes back as loose faces: the volume is gone
+          and cannot be had back from the entities that were passed in;
+        * the dimTags it returns are those of every entity in the model, not of the shapes it was given, so they
+          cannot say what the import consists of (taking them made the import own the earlier objects' entities);
+        * it can leave the faces it replaced behind as loose copies, which would become boundaries of their own.
+
+        * any of its fixes turns a sphere read from a file into a face of the same area that gmsh cannot mesh
+          ("Impossible to mesh periodic surface"): counting and measuring the result is not enough.
+
+        So the import is identified as the entities that were not there before, and a repair that changed anything is
+        kept only when it gives at least as many entities of the highest dimension with the same total measure (or a
+        higher dimension) and its surfaces can still be meshed; what then does not bound those entities is removed.
+        Otherwise the file is read again and repaired without sewing, and when that does not hold either it is taken
+        as it is.  Each step back leaves a message.
+
+        A file that holds faces only (IGES) is not joined into solids by healShapes at any tolerance.  In a 3D
+        geometry the solids are therefore made here: they are the regions that the faces cut out of a box around
+        them (one for each body, also for bodies that touch; a void is a region too, the file does not say which side
+        of a face is material), or, where curved faces do not cut the box, the one closed shell they sew into."""
+        import gmsh
+        before = set(occ.getEntities())
+
+        def new():
+            return [e for e in occ.getEntities() if e not in before]
+
+        def top():
+            dim = max((d for d, _t in new()), default=-1)
+            ents = sorted(e for e in new() if e[0] == dim)
+            return dim, ents, sum(occ.getMass(d, t) for d, t in ents)
+
+        def load():
+            left = new()
+            if left:
+                occ.remove(left, recursive=True)
+            if not occ.importShapes(path, highestDimOnly=True):
+                raise GeometryError(f"{f.label}: nothing imported from {path}")
+            return top()
+
+        def only(ents):
+            """remove what the import left that is not one of these entities or on their boundary"""
+            occ.synchronize()
+            keep, level = set(ents), list(ents)
+            while level and level[0][0] > 0:
+                level = sorted(set(gmsh.model.getBoundary(level, combined=False, oriented=False, recursive=False)))
+                keep.update(level)
+            loose = [e for e in new() if e not in keep]
+            if loose:
+                occ.remove(loose)
+            return ents
+
+        def meshable():
+            """a coarse surface mesh of what the import left: the test of a repair that changed the geometry"""
+            keys = ("Mesh.MeshSizeMin", "Mesh.MeshSizeMax", "Mesh.MeshSizeFromCurvature", "Mesh.ElementOrder",
+                    "Mesh.MeshOnlyVisible")
+            saved = {k: gmsh.option.getNumber(k) for k in keys}
+            occ.synchronize()
+            everything = gmsh.model.getEntities()
+            try:
+                for k, v in zip(keys, (0.0, 1e22, 0, 1, 1)):
+                    gmsh.option.setNumber(k, v)
+                gmsh.model.setVisibility(everything, 0)
+                gmsh.model.setVisibility(new(), 1, recursive=True)
+                gmsh.model.mesh.generate(2)
+                return True
+            except Exception:
+                return False
+            finally:
+                gmsh.model.mesh.clear()
+                gmsh.model.setVisibility(everything, 1)
+                for k, v in saved.items():
+                    gmsh.option.setNumber(k, v)
+
+        dim, ents, measure = load()
+        if not f.get("heal", True):
+            return ents
+        what = {3: "solid", 2: "surface", 1: "curve"}.get(dim, "entity")
+        kept = None                     # the options of the repair that was kept
+        for options, name in (({}, "repair"), ({"sewFaces": False, "makeSolids": False}, "repair without sewing")):
+            asread = set(new())
+            try:
+                occ.healShapes(ents, **options)
+                hdim, healed, hmeasure = top()
+            except Exception as e:      # OpenCASCADE gave up: what it left is not to be trusted either
+                why = str(e)
+            else:
+                same = hdim == dim and len(healed) >= len(ents) and abs(hmeasure - measure) <= self.HEAL_RTOL * abs(measure)
+                if not (healed and (hdim > dim or same)):
+                    why = (f"{len(ents)} {what}(s) of measure {measure:.6g} became {len(healed)} of dimension {hdim}"
+                           f" and measure {hmeasure:.6g}")
+                elif set(new()) == asread or meshable():
+                    dim, ents, kept = hdim, only(healed), options
+                    break
+                else:
+                    why = "its surfaces cannot be meshed"
+            dim, ents, measure = load()
+            self.messages.append(f"{f.label}: the {name} damaged the imported geometry ({why}); it was discarded")
+        else:
+            self.messages.append(f"{f.label}: imported without repair")
+        if not (self.sdim == 3 and dim == 2):
+            return ents
+
+        def faces():
+            """the surfaces of the file once more, as they were before an attempt to make solids of them"""
+            found = load()[1]
+            if kept is not None:
+                occ.healShapes(found, **kept)
+                found = only(top()[1])
+            return found
+
+        def skin(of, combined=False):
+            return set(gmsh.model.getBoundary(of, combined=combined, oriented=False))
+
+        def cells(surfaces):
+            """the regions that the surfaces cut out of a box around them"""
+            boxes = [occ.getBoundingBox(d, t) for d, t in surfaces]
+            lo = [min(b[i] for b in boxes) for i in range(3)]
+            size = [max(b[i + 3] for b in boxes) - lo[i] for i in range(3)]
+            pad = 0.1 * max(size)
+            box = occ.addBox(*(v - pad for v in lo), *(s + 2 * pad for s in size))
+            out = occ.fragment([(3, box)], surfaces)[0]
+            occ.synchronize()
+            outer = [e for e in out if e[0] == 3 and occ.getBoundingBox(*e)[0] < lo[0] - pad / 2]
+            inner = sorted(e for e in out if e[0] == 3 and e not in outer)
+            if len(outer) != 1 or not inner:
+                return []
+            inside, outside = skin(inner), skin(outer)
+            # the box has six faces of its own; a surface that bounds no region is one that closes nothing
+            if len(outside - inside) != 6 or {e for e in out if e[0] == 2} - inside - outside:
+                return []
+            occ.remove(outer)
+            return inner
+
+        def shell(surfaces):
+            """the one solid of the surfaces sewn into a closed shell"""
+            area = sum(occ.getMass(d, t) for d, t in surfaces)
+            solid = (3, occ.addVolume([occ.addSurfaceLoop([t for _d, t in surfaces], sewing=True)]))
+            occ.synchronize()
+            sides = sorted(skin([solid]))
+            between = {}
+            for s in sides:
+                for e in skin([s], combined=True):          # the outline: a seam counts twice and drops out
+                    between.setdefault(e, []).append(s)
+            # closed and two-manifold (bodies that touch sew into a shell that is neither) and in one piece
+            if any(len(pair) != 2 for pair in between.values()):
+                return []
+            reached, front = set(sides[:1]), sides[:1]
+            while front:
+                front = [s for pair in between.values() if set(pair) & set(front) for s in pair if s not in reached]
+                reached.update(front)
+            total = sum(occ.getMass(d, t) for d, t in sides)
+            if len(reached) != len(sides):
+                return []
+            if occ.getMass(*solid) <= 0:
+                return []
+            if abs(total - area) > self.HEAL_RTOL * area:
+                return []
+            return [solid]
+
+        for make in (cells, shell):
+            try:
+                solids = make(ents)
+                if solids and only(solids) and meshable():
+                    self.messages.append(f"{f.label}: the file holds surfaces only; the {len(solids)} region(s) they "
+                                         "enclose became solids")
+                    return solids
+            except Exception:
+                pass
+            ents = faces()
+        self.messages.append(f"{f.label}: the file holds {len(ents)} surface(s) that enclose no volume: "
+                             "there is no solid, so no domain")
+        return ents
 
     def _box_entities(self, res: GeometryResult, f: Node) -> list[int]:
         level = f.get("level", "boundary")

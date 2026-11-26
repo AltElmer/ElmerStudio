@@ -430,6 +430,14 @@ feature("es.init", "Initial Values", "init", "initial_values", "domain", "ic",
         props=[Prop("V0", "Electric potential:", default="0", unit="V", section="Initial Values", symbol="V")])
 feature("es.zc", "Zero Charge", "zc", "default_feature", "boundary", "bc", None, default=True,
         equation=r"$\mathbf{n}\cdot\mathbf{D} = 0$")
+feature("es.terminal", "Capacitance Body (terminal)", "trm", "feature_boundary", "boundary", "bc",
+        lambda n, ctx, d=None: {"Potential": ctx.value(n.get("V0")), "Capacitance Body": int(n.get("Capacitance Body", 1))},
+        props=[Prop("V0", "Electric potential:", default="1[V]", unit="V", section="Capacitance Body", symbol="V₀"),
+               Prop("Capacitance Body", "Capacitance body number:", default=1, unit="", section="Capacitance Body", symbol="n")],
+        equation=r"$V = V_0,\quad Q_i = \int_{\Gamma_i} \mathbf{n}\cdot\mathbf{D}\,d\Gamma,\quad C_{ij}=Q_i/V_j$")
+feature("es.infinity", "Electric Infinity BC", "inf", "feature_boundary", "boundary", "bc",
+        lambda n, ctx, d=None: {"Electric Infinity BC": True},
+        equation=r"$\mathbf{n}\cdot\mathbf{D} = 0\ \text{at infinity (infinite element)}$")
 feature("es.ground", "Ground", "gnd", "feature_boundary", "boundary", "bc",
         lambda n, ctx, d=None: {"Potential": 0.0}, equation=r"$V = 0$")
 feature("es.pot", "Electric Potential", "pot", "feature_boundary", "boundary", "bc",
@@ -449,6 +457,11 @@ feature("es.scharge", "Space Charge Density", "scd", "feature_domain", "domain",
 def _es_solvers(ph, ctx):
     s = {"Equation": "Electrostatics", "Procedure": ("StatElecSolve", "StatElecSolver"), "Variable": "Potential",
          "Calculate Electric Field": True, "Calculate Electric Flux": True, "Calculate Electric Energy": True}
+    # capacitance matrix: triggered by any es.terminal (Capacitance Body) boundary feature
+    terminals = [f for f in ph.children if f.kind == "es.terminal" and f.enabled]
+    if terminals:
+        s["Calculate Capacitance Matrix"] = True
+        s["Capacitance Matrix Filename"] = "cmatrix.dat"
     s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
     return [s]
 
@@ -458,7 +471,7 @@ define_physics(PhysicsDef(
     depvars={"V": ("Potential", "Electric potential", "V")},
     defaults=[("es.ccm", "domain"), ("es.init", "domain"), ("es.zc", "boundary")],
     domain=["es.ccm", "es.scharge", "es.init"],
-    boundary=["es.ground", "es.pot", "es.scd", "es.zc"],
+    boundary=["es.ground", "es.pot", "es.scd", "es.zc", "es.terminal", "es.infinity"],
     mat_props=["epsr"], solvers=_es_solvers, conflicts=("ec",),
     plots=lambda ph, sd, st: [
         {"label": "Electric Potential (es)", "type": "multislice" if sd == 3 else "surface", "expr": "V", "cmap": "RainbowLight", "dims": sd},

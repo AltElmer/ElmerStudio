@@ -11,7 +11,11 @@ register(NodeType("root", "Root", "root", "root", deletable=False, can_disable=F
                       Prop("description", "Description:", "text", "", section="Presentation"),
                   ]))
 register(NodeType("global", "Global Definitions", "global", "global_defs", label="Global Definitions", numbered=False,
-                  deletable=False, can_disable=False, children=["params", "func.analytic", "func.interp"]))
+                  deletable=False, can_disable=False, children=["params", "func.analytic", "func.interp", "constants"]))
+register(NodeType("constants", "Physical Constants", "const", "constants", props=[
+    Prop("values", "", "table", [], section="Physical Constants",
+         columns=[("name", "Name"), ("expr", "Value"), ("descr", "Description")]),
+]))
 register(NodeType("params", "Parameters", "param", "parameters", props=[
     Prop("table", "", "table", [], section="Parameters",
          columns=[("name", "Name"), ("expr", "Expression"), ("value", "Value"), ("descr", "Description")]),
