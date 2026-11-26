@@ -46,6 +46,10 @@ Variables available in result expressions (plots, datasets, derived values). A v
 |`+mf.B+` |Magnetic flux density |`+T+` |vector
 |`+mf.normB+` |Magnetic flux density norm |`+T+` |scalar
 |`+mf.normH+` |Magnetic field norm |`+A/m+` |scalar
+|`+mf.Az+` |Magnetic vector potential, z component |`+Wb/m+` |scalar
+|`+mf.J+` |Current density |`+A/m^2+` |vector
+|`+mf.normJ+` |Current density norm |`+A/m^2+` |scalar
+|`+mf.Q_loss+` |Joule (eddy-current) loss density |`+W/m^3+` |scalar
 |`+spf.u_vec+` |Velocity field |`+m/s+` |vector
 |`+spf.U+` |Velocity magnitude |`+m/s+` |scalar
 |`+spf.u+` |Velocity field, x component |`+m/s+` |scalar
