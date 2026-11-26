@@ -24,27 +24,39 @@ from .study_runner import StudyRunner
 
 
 class HeadlessError(RuntimeError):
-    pass
+    """Base error for headless CLI."""
+    exit_code = 2  # usage / bad arguments
+
+
+class SolverError(HeadlessError):
+    """Solver did not converge or failed."""
+    exit_code = 1
+
+
+class InternalError(HeadlessError):
+    """Unexpected internal error."""
+    exit_code = 3
 
 
 def _apply_params(model: Model, overrides: dict[str, str]) -> None:
     """Write *overrides* into the model's global ``params`` table so the SIF
-    and mesh see them (mirrors the GUI parameter editor)."""
+    and mesh see them (mirrors the GUI parameter editor).
+
+    Raises HeadlessError(exit_code=2) if *overrides* contains a parameter
+    name that does not exist in the model's parameter table.
+    """
     params = model.global_defs.child("params")
     if params is None:
         if not overrides:
             return
-        params = model.create("global.params", model.global_defs, tag="params")
+        raise HeadlessError("model has no parameter table; cannot apply overrides")
     table = list(params.props.get("table") or [])
     names = {str(row.get("name")) for row in table}
     for k, v in overrides.items():
-        row = next((r for r in table if str(r.get("name")) == k), None)
-        if row is None:
-            row = {"name": k, "expr": str(v), "descr": ""}
-            table.append(row)
-            names.add(k)
-        else:
-            row["expr"] = str(v)
+        if k not in names:
+            raise HeadlessError(f"unknown parameter '{k}' (available: {sorted(names)})")
+        row = next(r for r in table if str(r.get("name")) == k)
+        row["expr"] = str(v)
     params.props["table"] = table
 
 
@@ -215,15 +227,18 @@ def run_headless(argv: list[str] | None = None) -> int:
         summary["ok"] = status == "converged"
         out = json.dumps(summary, indent=1, default=str)
         if args.json:
-            os.makedirs(os.path.dirname(os.path.abspath(args.json)) or ".", exist_ok=True)
-            with open(args.json, "w", encoding="utf-8") as f:
-                f.write(out + "\n")
+            if args.json == "-":
+                print(out)
+            else:
+                os.makedirs(os.path.dirname(os.path.abspath(args.json)) or ".", exist_ok=True)
+                with open(args.json, "w", encoding="utf-8") as f:
+                    f.write(out + "\n")
         else:
             print(out)
-        return 0 if summary["ok"] else 1
+        return 0 if summary["ok"] else SolverError("solver did not converge").exit_code
     except SystemExit:
         raise
-    except Exception as exc:  # noqa: BLE001 - CLI boundary: report and exit non-zero
+    except HeadlessError as exc:
         err = {"ok": False, "error": f"{type(exc).__name__}: {exc}", "model": summary.get("model", {}),
                "study": summary.get("study", {})}
         out = json.dumps(err, indent=1, default=str)
@@ -233,7 +248,18 @@ def run_headless(argv: list[str] | None = None) -> int:
                 f.write(out + "\n")
         else:
             print(out, file=sys.stderr)
-        return 1
+        return exc.exit_code
+    except Exception as exc:
+        err = {"ok": False, "error": f"{type(exc).__name__}: {exc}", "model": summary.get("model", {}),
+               "study": summary.get("study", {})}
+        out = json.dumps(err, indent=1, default=str)
+        if args.json:
+            os.makedirs(os.path.dirname(os.path.abspath(args.json)) or ".", exist_ok=True)
+            with open(args.json, "w", encoding="utf-8") as f:
+                f.write(out + "\n")
+        else:
+            print(out, file=sys.stderr)
+        return InternalError(str(exc)).exit_code
     finally:
         if workdir:
             discard_workdir(workdir)

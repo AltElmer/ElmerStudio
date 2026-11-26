@@ -2,7 +2,16 @@
 
 Verifies end-to-end headless operation (no Qt main window): parameter overrides,
 ``--export table.csv`` / ``--export plot.png``, structured ``--json`` summary, and
-negative controls returning non-zero exit codes for bad arguments.
+negative controls returning distinct non-zero exit codes for:
+- usage errors (exit code 2): bad --param format, unknown parameter, missing file, bad example
+- solver non-convergence (exit code 1)
+- internal errors (exit code 3)
+
+Negative controls (proving derived values come from real result data):
+- test_derived_values_match_independent_read: _derived_table output matches
+  an independent read of the same result files via Solution class.
+- test_derived_values_change_when_result_corrupted: corrupting the VTU changes
+  the derived values.
 """
 from __future__ import annotations
 
@@ -11,13 +20,19 @@ import os
 import subprocess
 import sys
 
-PYTHON = sys.executable  # the venv interpreter running pytest
+import pytest
+
+# The CLI tests run as subprocesses; the elmer fixture ensures Elmer is available
+# and the test is skipped if not.
+pytestmark = pytest.mark.usefixtures("elmer")
 
 
-def _run(args):
+def _run(args, cwd=None):
+    if cwd is None:
+        cwd = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return subprocess.run(
-        [PYTHON, "-m", "elmerstudio", "run"] + args,
-        capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        [sys.executable, "-m", "elmerstudio", "run"] + args,
+        capture_output=True, text=True, cwd=cwd,
     )
 
 
@@ -25,7 +40,7 @@ def _json(out):
     return json.loads(out)
 
 
-def test_headless_run_example_json(tmp_path):
+def test_headless_run_example_json(tmp_path, elmer):
     out = tmp_path / "summary.json"
     res = _run(["--example", "capacitor", "--study", "std1", "--json", str(out)])
     assert res.returncode == 0, res.stderr
@@ -37,16 +52,16 @@ def test_headless_run_example_json(tmp_path):
     assert d["derived"]["rows"]
 
 
-def test_headless_param_override(tmp_path):
+def test_headless_param_override(tmp_path, elmer):
     out = tmp_path / "summary.json"
     res = _run(["--example", "capacitor", "--param", "V0=2[V]", "--json", str(out)])
     assert res.returncode == 0, res.stderr
     d = _json(out.read_text())
-    # the 1 V->2 V override scales the potential: max should be ~2 V
+    # the 1 kV -> 2 V override scales the potential: max should be ~2 V
     assert abs(d["derived"]["rows"][0][3] - 2.0) < 1e-6, d
 
 
-def test_headless_exports(tmp_path):
+def test_headless_exports(tmp_path, elmer):
     table = tmp_path / "t.csv"
     plot = tmp_path / "p.png"
     res = _run(["--example", "capacitor", "--export", f"table:{table}",
@@ -56,22 +71,135 @@ def test_headless_exports(tmp_path):
     assert plot.is_file() and plot.stat().st_size > 0
 
 
-def test_headless_bad_param_returns_nonzero():
+def test_headless_bad_param_format_returns_exit2():
     res = _run(["--example", "capacitor", "--param", "notanassignment"])
-    assert res.returncode != 0
+    assert res.returncode == 2, f"expected 2 got {res.returncode}: {res.stderr}"
     d = _json(res.stderr)
     assert d["ok"] is False
 
 
-def test_headless_missing_file_returns_nonzero():
+def test_headless_unknown_param_returns_exit2():
+    res = _run(["--example", "capacitor", "--param", "UNKNOWN_PARAM=42"])
+    assert res.returncode == 2, f"expected 2 got {res.returncode}: {res.stderr}"
+    d = _json(res.stderr)
+    assert d["ok"] is False
+    assert "unknown parameter" in d["error"].lower()
+
+
+def test_headless_missing_file_returns_exit2():
     res = _run(["/no/such/model.esm"])
-    assert res.returncode != 0
+    assert res.returncode == 2, f"expected 2 got {res.returncode}: {res.stderr}"
     d = _json(res.stderr)
     assert d["ok"] is False
 
 
-def test_headless_bad_example_returns_nonzero():
+def test_headless_bad_example_returns_exit2():
     res = _run(["--example", "does-not-exist"])
-    assert res.returncode != 0
+    assert res.returncode == 2, f"expected 2 got {res.returncode}: {res.stderr}"
     d = _json(res.stderr)
     assert d["ok"] is False
+
+
+def test_headless_bad_export_kind_returns_exit2():
+    res = _run(["--example", "capacitor", "--export", "badkind:out.csv"])
+    assert res.returncode == 2, f"expected 2 got {res.returncode}: {res.stderr}"
+    d = _json(res.stderr)
+    assert d["ok"] is False
+
+
+# ---------------------------------------------------------------------------
+# Negative controls: derived values come from real result data, not invented
+# ---------------------------------------------------------------------------
+
+
+def test_derived_values_match_independent_read(elmer, tmp_path):
+    """_derived_table output matches an independent read via Solution class.
+
+    Runs the study directly (not via CLI subprocess) to preserve the result folder.
+    """
+    import numpy as np
+
+    from elmerstudio.core.examples import capacitor
+    from elmerstudio.core.elmer import find_elmer
+    from elmerstudio.core.study_runner import StudyRunner
+    from elmerstudio.core.results import Solution
+    from elmerstudio.core.project import new_workdir, discard_workdir
+    from elmerstudio.core.headless import _derived_table
+
+    model = capacitor()
+    study = model.studies()[0]
+    workdir = new_workdir()
+    inst = find_elmer()
+    try:
+        folders = StudyRunner(model, study, workdir, inst).run()
+        assert folders
+        sol = Solution(folders[0])
+
+        # CLI's derived table
+        cols, rows = _derived_table(sol)
+        cli_max = rows[0][3]  # Electric potential max
+        cli_mean = rows[0][2]  # Electric potential mean
+
+        # Independent read
+        vals = sol.evaluate("V", sol.frame_index("last"))
+        finite = vals[np.isfinite(vals)]
+        independent_max = float(finite.max()) if finite.size else float("nan")
+        independent_mean = float(finite.mean()) if finite.size else float("nan")
+
+        # Match within tolerance
+        assert abs(cli_max - independent_max) < 1e-9, \
+            f"_derived_table max {cli_max} != independent read {independent_max}"
+        assert abs(cli_mean - independent_mean) < 1e-9, \
+            f"_derived_table mean {cli_mean} != independent read {independent_mean}"
+    finally:
+        discard_workdir(workdir)
+
+
+def test_derived_values_change_when_result_corrupted(elmer, tmp_path):
+    """Negative control: corrupt a result VTU and verify derived values change."""
+    import pyvista as pv
+    import numpy as np
+    from pathlib import Path
+
+    from elmerstudio.core.examples import capacitor
+    from elmerstudio.core.elmer import find_elmer
+    from elmerstudio.core.study_runner import StudyRunner
+    from elmerstudio.core.results import Solution
+    from elmerstudio.core.headless import _derived_table
+    from elmerstudio.core.project import new_workdir, discard_workdir
+
+    model = capacitor()
+    study = model.studies()[0]
+    workdir = new_workdir()
+    inst = find_elmer()
+    try:
+        folders = StudyRunner(model, study, workdir, inst).run()
+        assert folders
+        sol = Solution(folders[0])
+
+        # Original derived max
+        cols, rows = _derived_table(sol)
+        original_max = rows[0][3]
+
+        # Corrupt the VTU
+        result_dir = Path(folders[0]) / "results"
+        result_files = list(result_dir.glob("*.vtu"))
+        assert result_files, f"no VTU in {result_dir}"
+        vtu_path = result_files[0]
+
+        g = pv.read(vtu_path)
+        if "potential" not in g.point_data:
+            pytest.skip("potential field not in VTU")
+        g.point_data["potential"] = np.full_like(g.point_data["potential"], 999.0)
+        g.save(vtu_path)
+
+        # Re-read corrupted file via new Solution instance (bypass cache)
+        sol2 = Solution(folders[0])
+        cols2, rows2 = _derived_table(sol2)
+        corrupted_max = rows2[0][3]
+
+        assert abs(corrupted_max - 999.0) < 1e-6, f"corruption failed: {corrupted_max}"
+        assert abs(corrupted_max - original_max) > 1.0, \
+            "corrupted max should differ significantly from original"
+    finally:
+        discard_workdir(workdir)

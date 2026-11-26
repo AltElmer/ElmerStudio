@@ -23,13 +23,33 @@ Positional argument:
   ``busbar``, ``coil``). Use ``--example`` without a value to list them.
 * ``--study TAG`` — study tag/label to run (default: first study).
 * ``--param K=V`` — global parameter override, repeatable (e.g. ``--param V0=2[V]``).
+  The parameter *must* exist in the model's parameter table; unknown parameters
+  cause exit code 2.
 * ``--export KIND:PATH`` — ``table:<csv>`` writes a derived-values table,
   ``plot:<png>`` renders the last frame to a PNG. Repeatable.
 * ``--json FILE`` — write the structured JSON summary (model, study, solver
   status, derived values, exports). Defaults to stdout.
 
-The exit code is `0` when the solve converges, non-zero otherwise or on bad
-arguments. Errors are reported as JSON on stderr (or to ``--json``).
+== Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Solve converged |
+| 1 | Solver did not converge (or failed) |
+| 2 | Usage error: bad arguments, unknown parameter, missing file, bad example |
+| 3 | Internal error (unexpected exception) |
+
+Errors are reported as JSON on stderr (or to ``--json``) with this structure:
+
+[source,json]
+----
+{
+  "ok": false,
+  "error": "HeadlessError: unknown parameter 'FOO' (available: ['V0', 'gap', ...])",
+  "model": {...},
+  "study": {...}
+}
+----
 
 == Derived-value table
 
@@ -40,7 +60,8 @@ The `table` export writes one row per output frame:
 
 using the solution's default scalar field (for electrostatics that is the
 electric potential). The same table is embedded in the JSON summary under
-``derived``.
+``derived``. Values are computed from the actual Elmer result files (VTU),
+not invented — see xref:programming.adoc#negative-controls[Negative controls].
 
 == Python API
 
@@ -71,5 +92,7 @@ process exit code. On success it prints/writes a JSON summary with these keys:
 
 == Negative controls
 
-Invalid ``--param`` (not ``K=V``), a missing model file, or an unknown
-``--example`` all exit non-zero with a JSON error on stderr.
+Invalid ``--param`` (not ``K=V``), a missing model file, an unknown
+``--example``, or an unknown parameter name all exit with code 2 and a JSON
+error on stderr. Solver non-convergence exits with code 1. Unexpected
+exceptions exit with code 3.
