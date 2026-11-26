@@ -51,6 +51,8 @@ Variables available in result expressions (plots, datasets, derived values). A v
 |`+spf.u+` |Velocity field, x component |`+m/s+` |scalar
 |`+spf.v+` |Velocity field, y component |`+m/s+` |scalar
 |`+spf.w+` |Velocity field, z component |`+m/s+` |scalar
+|`+spf.k+` |Turbulent kinetic energy |`+m^2/s^2+` |scalar
+|`+spf.ep+` |Turbulent dissipation rate |`+m^2/s^3+` |scalar
 |`+p+` |Pressure |`+Pa+` |scalar
 |`+acpr.p_t+` |Total acoustic pressure (real part) |`+Pa+` |scalar
 |`+acpr.p_im+` |Total acoustic pressure (imaginary part) |`+Pa+` |scalar
