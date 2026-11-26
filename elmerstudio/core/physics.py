@@ -792,7 +792,12 @@ feature("mf.al", "Ampere's Law", "al", "feature_domain", "domain", "material",
         default=True, props=matprop_props(["mur", "sigma"], "Constitutive Relations"),
         equation=r"$\nabla\times\mathbf{H} = \mathbf{J},\quad \mathbf{B}=\nabla\times\mathbf{A},\quad \mathbf{B}=\mu_0\mu_r\mathbf{H}$")
 feature("mf.init", "Initial Values", "init", "initial_values", "domain", "ic",
-        lambda n, ctx, d: {"Az": 0.0}, default=True, props=[])
+        # A frequency-domain (harmonic) solve must NOT carry an Initial Condition on the complex
+        # harmonic variable: Elmer's MagnetoDynamics2DHarmonic segfaults when one is present
+        # (Elmer's own circuits2D_harmonic_stranded reference gives no IC). Stationary/transient
+        # solves use Az = 0 as the initial guess.
+        lambda n, ctx, d: {} if getattr(ctx, "step", None) is not None and ctx.step.kind == "study.freq" else {"Az": 0.0},
+        default=True, props=[])
 feature("mf.ecd", "External Current Density", "ecd", "feature_domain", "domain", "bodyforce",
         lambda n, ctx, d: {"Current Density": ctx.value(n.get("Jz"))},
         props=[Prop("Jz", "External current density, out-of-plane component:", default="1e6", unit="A/m^2",
@@ -909,13 +914,19 @@ define_physics(PhysicsDef(
 
 def _cir_solvers(ph, ctx):
     harmonic = ctx.step.kind == "study.freq"
-    cad = {"Equation": "CircuitsAndDynamics",
+    cad = {"Equation": "Circuits",
            "Procedure": ("CircuitsAndDynamics", "CircuitsAndDynamicsHarmonic" if harmonic else "CircuitsAndDynamics"),
-           "Variable": "V",
+           "Variable": "X",
+           "No Matrix": True,
            **projection_linsys(ctx)}
     out = {"Equation": "CircuitsOutput", "Procedure": ("CircuitsAndDynamics", "CircuitsOutput"),
            "Calculate Currents": True, "Calculate Voltages": True, "Calculate Impedances": True,
            "__post__": True}
+    # SaveScalars solver to write circuit results to file
+    save_scalars = {"Equation": "SaveScalars", "Procedure": ("SaveData", "SaveScalars"),
+                     "Exec Solver": "After Simulation",
+                     "Filename": "circuit.dat",
+                     "__post__": True}
     # register lumped components (children of the `cir` physics node) as Elmer `Component` sections
     # Only Resistor is supported by Elmer's CircuitsAndDynamics as a lumped component.
     # Coils are handled by mf.coil (Component Type = Coil).
@@ -935,7 +946,9 @@ def _cir_solvers(ph, ctx):
                 continue
             ctx._seen_components.add(key)
             ctx.components.append({"Name": child.label or "Resistor", "Component Type": "Resistor", "Resistance": number})
-    return [cad, out]
+    # Generate MATC circuit definitions for the CircuitsAndDynamics solver
+    _generate_circuit_matc_definitions(ctx, ph)
+    return [cad, out, save_scalars]
 
 
 def _cir_vsource(n, ctx, d=None):
@@ -985,6 +998,148 @@ def _cir_isource(n, ctx, d=None):
         return {"testsource Re": round(re, 12), "testsource Im": round(im, 12)}
     else:
         return {"testsource Re": I0}
+
+
+def _generate_circuit_matc_definitions(ctx, ph):
+    """Generate MATC circuit definitions for CircuitsAndDynamics solver.
+    
+    This creates the $ Circuits, $ C.1.variables, $ C.1.name.*, $ C.1.A, $ C.1.B, etc.
+    variables that the CircuitsAndDynamics solver expects.
+    
+    Implements a simple series circuit topology:
+    - All elements in series (same current)
+    - Sum of voltages = 0 (KVL)
+    - Voltage sources define their voltage via B matrix diagonal
+    
+    Includes circuit components (Resistors, Coils) and sources (cir.vsource, cir.isource).
+    Components are referenced by their 1-based index in the Component sections."""
+    # Circuit components: Resistors and Coils from ctx.components
+    # Both are part of the circuit topology
+    circuit_components = [c for c in ctx.components if c.get("Component Type") in ("Resistor", "Coil")]
+    
+    # Count circuit elements: sources + components
+    # Sources are features on domains (cir.vsource, cir.isource)
+    num_elements = len(circuit_components)
+    
+    # Also count sources from BodyForce features
+    sources = []
+    for child in ph.children:
+        if child.kind in ("cir.vsource", "cir.isource"):
+            sources.append(child)
+    
+    num_sources = len(sources)
+    total_elements = num_elements + num_sources
+    if total_elements == 0:
+        return
+    
+    n_vars = 2 * total_elements  # current and voltage for each element
+    
+    # Generate MATC definitions as strings to be added to SIF
+    lines = []
+    lines.append(f"$ Circuits = 1")
+    
+    # Permutation vector: identity for now (can be optimized later)
+    lines.append(f"$ C.1.perm = zeros({n_vars})")
+    for i in range(n_vars):
+        lines.append(f"$ C.1.perm({i}) = {i}")
+    
+    lines.append(f"$ C.1.variables = {n_vars}")
+    lines.append(f"$ C.1.A = zeros({n_vars},{n_vars})")
+    lines.append(f"$ C.1.B = zeros({n_vars},{n_vars})")
+    lines.append(f"$ C.1.Mre = zeros({n_vars},{n_vars})")
+    lines.append(f"$ C.1.Mim = zeros({n_vars},{n_vars})")
+    
+    # Variable names - need to map each element to its component index
+    # The Component sections are written in order of ctx.components
+    # Find the index of each circuit component in ctx.components
+    comp_indices = {}
+    for idx, comp in enumerate(ctx.components):
+        if comp.get("Component Type") in ("Resistor", "Coil"):
+            comp_indices[id(comp)] = idx + 1  # 1-based index
+    
+    var_idx = 1
+    # Sources first
+    for child in sources:
+        if child.kind == "cir.vsource":
+            lines.append(f'$ C.1.name.{var_idx} = "i_{child.label or 'Vsource'}"')
+            var_idx += 1
+            lines.append(f'$ C.1.name.{var_idx} = "v_{child.label or 'Vsource'}"')
+            var_idx += 1
+        elif child.kind == "cir.isource":
+            lines.append(f'$ C.1.name.{var_idx} = "i_{child.label or 'Isource'}"')
+            var_idx += 1
+            lines.append(f'$ C.1.name.{var_idx} = "v_{child.label or 'Isource'}"')
+            var_idx += 1
+    # Circuit components (resistors and coils) - use component index
+    for comp in circuit_components:
+        comp_id = comp_indices.get(id(comp), 1)
+        lines.append(f'$ C.1.name.{var_idx} = "i_component({comp_id})"')
+        var_idx += 1
+        lines.append(f'$ C.1.name.{var_idx} = "v_component({comp_id})"')
+        var_idx += 1
+    
+    # Build B matrix for series topology
+    # Variables layout: [i_src1, v_src1, i_src2, v_src2, ..., i_comp1, v_comp1, i_comp2, v_comp2, ...]
+    # For each element: even index = current, odd index = voltage
+    
+    # Equation 0: Voltage source definition (first source's voltage)
+    if sources:
+        lines.append(f"$ C.1.B(0,0) = 1")
+        lines.append(f'$ C.1.source.1 = "{sources[0].label or 'Source'}"')
+    
+    # For series circuit with multiple elements:
+    # KCL: all currents equal -> i_0 = i_2 = i_4 = ...
+    # KVL: sum of voltages = 0 -> v_0 + v_2 + v_4 + ... = 0 (for sources) + v_1 + v_3 + ... = 0 (for components)
+    
+    # Simple case: 1 source + 2 components (coil + resistor) = 6 variables
+    # Variables: 0=i_src, 1=v_src, 2=i_coil, 3=v_coil, 4=i_res, 5=v_res
+    # Eq 0: v_src = V0 (B(0,0)=1)
+    # Eq 1 (KVL): v_src + v_coil + v_res = 0 -> B(1,1)=1, B(1,3)=1, B(1,5)=1
+    # Eq 2 (KCL): i_src - i_coil = 0 -> B(2,0)=1, B(2,2)=-1
+    # Eq 3 (KCL): i_coil - i_res = 0 -> B(3,2)=1, B(3,4)=-1
+    # Eq 4,5: additional constraints or identity
+    
+    # General series topology for any number of elements
+    if total_elements >= 2:
+        # KVL equation (row 1): sum of all voltages = 0
+        # Voltage variables are at odd indices: 1, 3, 5, ...
+        kvl_terms = []
+        for elem_idx in range(total_elements):
+            var_idx_voltage = elem_idx * 2 + 1
+            kvl_terms.append(f"$ C.1.B(1,{var_idx_voltage}) = 1")
+        lines.extend(kvl_terms)
+        
+        # KCL equations (rows 2, 3, ...): consecutive currents equal
+        # Current variables are at even indices: 0, 2, 4, ...
+        for kcl_row in range(2, total_elements):
+            # i_{kcl_row-2} - i_{kcl_row-1} = 0
+            var_idx_curr_prev = (kcl_row - 2) * 2
+            var_idx_curr_next = (kcl_row - 1) * 2
+            lines.append(f"$ C.1.B({kcl_row},{var_idx_curr_prev}) = 1")
+            lines.append(f"$ C.1.B({kcl_row},{var_idx_curr_next}) = -1")
+        
+        # Permutation vector: identity for now
+        # TODO: optimize permutation like Elmer test
+    
+    # Special case: 1 source + 1 component (2 elements, 4 variables)
+    if total_elements == 2 and len(sources) == 1 and len(circuit_components) == 1:
+        # Variables: 0=i_src, 1=v_src, 2=i_comp, 3=v_comp
+        # Eq 0: v_src = V0 (B(0,0)=1)
+        # Eq 1 (KVL): v_src + v_comp = 0 -> B(1,1)=1, B(1,3)=1
+        # Eq 2 (KCL): i_src - i_comp = 0 -> B(2,0)=1, B(2,2)=-1
+        # Eq 3: identity
+        lines.append(f"$ C.1.B(1,1) = 1")
+        lines.append(f"$ C.1.B(1,3) = 1")
+        lines.append(f"$ C.1.B(2,0) = 1")
+        lines.append(f"$ C.1.B(2,2) = -1")
+        # Permutation vector like Elmer test: [0, 3, 1, 2]
+        lines.append(f"$ C.1.perm(0) = 0")
+        lines.append(f"$ C.1.perm(1) = 3")
+        lines.append(f"$ C.1.perm(2) = 1")
+        lines.append(f"$ C.1.perm(3) = 2")
+    
+    # Store the MATC definitions in ctx for SIF generation
+    ctx.circuit_matc_defs = lines
 
 
 feature("cir.resistor", "Resistor", "resistor", "feature_domain", "domain", "bodyforce",
