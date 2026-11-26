@@ -60,6 +60,15 @@ CATALOG = [
     ("mf.B", "magnetic flux density", "vec", "Magnetic flux density", "T", "vector"),
     ("mf.normB", "magnetic flux density", "mag", "Magnetic flux density norm", "T", "scalar"),
     ("mf.normH", "magnetic field strength", "mag", "Magnetic field norm", "A/m", "scalar"),
+    ("mf.H", "magnetic field strength", "vec", "Magnetic field", "A/m", "vector"),
+    ("mf.Bx", "magnetic flux density", 0, "Magnetic flux density, x component", "T", "scalar"),
+    ("mf.By", "magnetic flux density", 1, "Magnetic flux density, y component", "T", "scalar"),
+    ("mf.Hx", "magnetic field strength", 0, "Magnetic field, x component", "A/m", "scalar"),
+    ("mf.Hy", "magnetic field strength", 1, "Magnetic field, y component", "A/m", "scalar"),
+    # 0.5 B.H, from the two fields Elmer writes
+    ("mf.Wm", "magnetic field strength", "wm", "Magnetic energy density", "J/m^3", "scalar"),
+    # Global scalar from SaveScalars (res: magnetic field energy); src is dummy (not in VTK arrays)
+    ("mf.W_mag", "", None, "Magnetic field energy (global scalar)", "J", "scalar"),
     ("spf.u_vec", "velocity", "vec", "Velocity field", "m/s", "vector"),
     ("spf.U", "velocity", "mag", "Velocity magnitude", "m/s", "scalar"),
     ("spf.u", "velocity", 0, "Velocity field, x component", "m/s", "scalar"),
@@ -92,10 +101,18 @@ CATALOG = [
 # result quantities reconstructed from nodal reaction loads (integrated with the lumped weights)
 _BFLUX = re.compile(r"\b(?:" + "|".join(re.escape(a).replace(r"\.", r"[._]") for a, _s, c, *_r in CATALOG
                                        if c in ("bflux", "-bflux")) + r")\b")
+# Elmer's global results, one number per saved frame, which SaveScalars writes to a file as "res: <name>":
+# (name in expressions, names in that file (the first one found), label, unit in a planar 2D model, unit in an
+# axisymmetric one, True when Elmer integrates an axisymmetric model per radian and the full turn is meant)
+SCALARS = [
+    ("mf.W_mag", ("res: magnetic field energy", "res: electromagnetic field energy"), "Total magnetic energy",
+     "J/m", "J", True),
+]
 # short aliases accepted in expressions (and used by default plots)
 SHORT = {"mises": "solid.mises", "disp": "solid.disp", "normE": "es.normE", "normJ": "ec.normJ",
          "normB": "mf.normB", "U": "spf.U", "p_re": "acpr.p_t", "Lp": "acpr.Lp", "abs_p": "acpr.absp",
-         "Qrh": "ec.Qrh", "tflux": "ht.tfluxMag", "phil": "cd.phil"}
+         "Qrh": "ec.Qrh", "tflux": "ht.tfluxMag", "phil": "cd.phil",
+         "mf_wm": "mf.Wm", "magnetic_field_energy": "mf.W_mag", "mf_w_mag": "mf.W_mag"}
 UNIT_FAMILIES = [
     ["K", "degC", "degF"], ["Pa", "kPa", "MPa", "GPa", "bar", "psi"], ["m", "cm", "mm", "um", "nm"],
     ["V", "mV", "kV"], ["V/m", "kV/m", "V/mm", "kV/mm"], ["m/s", "mm/s", "cm/s", "km/h"],
@@ -257,6 +274,8 @@ class Solution:
         self.moving = bool(self.meta.get("moving_mesh"))   # deforming electrodes: node coordinates per frame
         self._geom_frame = 0
         self._frame_nodes = None
+        self._scalars = (None, {})       # (file stamp, {name: one value per saved frame}): see scalars()
+        self._side_cache = (None, {})    # (frame, per-domain field values): see sides()
 
     @property
     def catalog(self) -> list[tuple]:
@@ -336,9 +355,13 @@ class Solution:
         return self._frame_nodes["f0"]
 
     def _frames(self) -> list[Frame]:
-        files = sorted(glob.glob(os.path.join(self.folder, "results", "case_t*.vtu")))
-        if not files:
-            files = sorted(glob.glob(os.path.join(self.folder, "results", "*.pvtu")))
+        res = os.path.join(self.folder, "results")
+        files = sorted(glob.glob(os.path.join(res, "case_t*.vtu")))
+        sides = sorted(glob.glob(os.path.join(res, "sides_t*.vtu")))       # the per-body fields, one file per save
+        if not files:                                                       # a parallel run
+            sides = sorted(glob.glob(os.path.join(res, "sides_t*.pvtu")))
+            files = [f for f in sorted(glob.glob(os.path.join(res, "*.pvtu"))) if f not in sides]
+        self._files, self._side_files = files, sides
         out = []
         if self.kind == "study.eigen":
             eig = self.meta.get("eigen", [])
@@ -365,6 +388,91 @@ class Solution:
     def frame_labels(self):
         return [fr.label for fr in self.frames]
 
+    def scalars(self) -> dict:
+        """Elmer's global results as SaveScalars wrote them: {name in lower case: one value per saved frame}.
+        The names are in the file <scalars>.names ("   3: res: magnetic field energy"), the values in the columns
+        of <scalars>, one row per save.  Empty when the run wrote none."""
+        name = self.meta.get("scalars")
+        if not name:
+            return {}
+        path = os.path.join(self.folder, "results", str(name))
+        try:
+            stamp = (os.path.getmtime(path), os.path.getsize(path))
+        except OSError:
+            return {}
+        if stamp != self._scalars[0]:
+            out = {}
+            try:
+                with open(path + ".names") as f:
+                    cols = {int(m.group(1)) - 1: m.group(2).strip().lower()
+                            for m in re.finditer(r"^\s*(\d+):\s*(\S.*)$", f.read(), re.M)}
+                with open(path) as f:
+                    rows = [[float(x) for x in line.split()] for line in f if line.strip()]
+                width = min((len(r) for r in rows), default=0)
+                out = {nm: np.array([r[j] for r in rows]) for j, nm in cols.items() if j < width}
+            except (OSError, ValueError):
+                out = {}
+            self._scalars = (stamp, out)
+        return self._scalars[1]
+
+    def scalar(self, name: str, i: int) -> float | None:
+        """The global result *name* (see SCALARS) at frame *i*; None when the run did not write it."""
+        entry = next((e for e in SCALARS if e[0] == name), None)
+        data = self.scalars() if entry else {}
+        col = next((data[src] for src in (entry[1] if entry else ()) if src in data), None)
+        if col is None or not len(col):
+            return None
+        files = getattr(self, "_files", [])
+        if self.kind in ("study.time", "study.freq") and len(col) == len(files):
+            row = i                                  # one row per saved frame
+        elif i == len(self.frames) - 1:
+            row = len(col) - 1                       # a stationary solution: the converged state is the last row
+        else:
+            return None
+        if not 0 <= row < len(col):
+            return None
+        turn = 2 * math.pi if entry[5] and self.sdim == 2 and self.meta.get("axi") else 1.0
+        return float(col[row]) * turn
+
+    def sides(self, i: int) -> dict:
+        """Fields that jump at material interfaces, per domain: {array: {domain: (node indices, values)}}.
+
+        Elmer's nodal fields are continuous: at an interface node they hold one value, an average over both
+        materials (the magnetic field at an iron surface, wrong on either side by orders of magnitude).  For the
+        fields in meta "side_fields" Elmer also wrote the elemental field averaged within each body, in a second
+        file whose nodes are doubled at the body interfaces.  Empty when the run has no such file."""
+        if self._side_cache[0] == i:
+            return self._side_cache[1]
+        out: dict = {}
+        files = getattr(self, "_files", [])
+        sfiles = getattr(self, "_side_files", [])
+        fields = [str(f).lower() for f in (self.meta.get("side_fields") or [])]
+        fr = self.frames[i] if 0 <= i < len(self.frames) else None
+        if fields and fr is not None and not fr.mode and len(sfiles) == len(files) and fr.file in files:
+            import pyvista as pv
+            self._set_geometry(i)
+            g = pv.read(sfiles[files.index(fr.file)])
+            if "GeometryIds" in g.cell_data:
+                gid = np.asarray(g.cell_data["GeometryIds"])
+                bulk = np.array([_VTK_DIM.get(int(t), -1) == self.sdim for t in g.celltypes])
+                pts = np.asarray(g.points, float) / self.scale
+                nodes = np.asarray(self.topo.nodes, float)
+                data = {k.lower(): np.asarray(g.point_data[k], float) for k in g.point_data.keys()}
+                for d, blocks in self.topo.bulk.items():
+                    cells = np.where(bulk & (gid == int(d)))[0]
+                    if not len(cells) or not blocks:
+                        continue
+                    pid = np.unique(np.asarray(g.extract_cells(cells).point_data["vtkOriginalPointIds"]))
+                    dn = np.unique(np.concatenate([np.asarray(c).ravel() for _gt, c in blocks]))
+                    at = _match_points(nodes[dn], pts[pid])
+                    ok = at >= 0
+                    for f in fields:
+                        if f in data:
+                            name = f[:-2] if f.endswith(" e") else f      # "<field> e": Elmer's elemental twin
+                            out.setdefault(name, {})[int(d)] = (dn[ok], data[f][pid[at[ok]]])
+        self._side_cache = (i, out)
+        return out
+
     def frame_index(self, sel) -> int:
         if not self.frames:
             return -1
@@ -379,7 +487,19 @@ class Solution:
         return i
 
     # -- raw arrays mapped onto our topology
-    def arrays(self, i: int) -> dict:
+    def arrays(self, i: int, side: int | None = None) -> dict:
+        """The arrays of frame *i* on the nodes.  *side*: a domain number; the fields that jump at material
+        interfaces (see sides()) then hold that domain's values at its nodes, interface nodes included."""
+        if side is not None:
+            base = self.arrays(i)
+            out = dict(base)
+            for name, doms in self.sides(i).items():
+                hit = doms.get(int(side))
+                if hit is not None and name in base and np.ndim(base[name]) > 0 and np.shape(base[name])[1:] == np.shape(hit[1])[1:]:
+                    a = np.array(base[name], dtype=float)
+                    a[hit[0]] = hit[1]
+                    out[name] = a
+            return out
         self._set_geometry(i)
         if i in self._cache:
             return self._cache[i]
@@ -451,6 +571,9 @@ class Solution:
                 if comp == "cmag" and src + " im" not in arr:      # an amplitude needs the imaginary part
                     continue
                 out.append((alias, label, unit, kind))
+        for name, _src, label, unit2d, unit_axi, _turn in SCALARS:       # Elmer's global results: one number
+            if self.scalar(name, i) is not None:
+                out.append((name, label, unit_axi if self.meta.get("axi") else unit2d, "scalar"))
         known = {c[1] for c in self.catalog}
         for k, a in arr.items():
             if k not in known and "eigenmode" not in k:
@@ -460,8 +583,8 @@ class Solution:
             out.append(("z", "z-coordinate", "m", "scalar"))
         return out
 
-    def names(self, i: int) -> dict:
-        arr = self.arrays(i)
+    def names(self, i: int, side: int | None = None) -> dict:
+        arr = self.arrays(i, side)
         names: dict = {}
         for alias, src, comp, label, unit, kind in self.catalog:
             if src not in arr:
@@ -492,6 +615,11 @@ class Solution:
             elif comp == "spl":
                 pabs = np.linalg.norm(a, axis=1) if a.ndim == 2 else np.abs(a)
                 v = 20 * np.log10(np.maximum(pabs / math.sqrt(2), 1e-30) / 20e-6)
+            elif comp == "wm":                         # magnetic energy density 0.5 B.H
+                b = arr.get("magnetic flux density")
+                if b is None or np.shape(b) != np.shape(a):
+                    continue
+                v = 0.5 * np.sum(np.atleast_2d(a.T).T * np.atleast_2d(b.T).T, axis=1)
             else:
                 if a.ndim < 2 or comp >= a.shape[1]:
                     continue
@@ -511,6 +639,10 @@ class Solution:
         if self.kind == "study.freq" and 0 <= i < len(self.frames):
             names["freq"] = self.frames[i].value
         n = len(self.topo.nodes)
+        for gname, *_rest in SCALARS:                   # Elmer's global results: numbers, not fields
+            val = self.scalar(gname, i)
+            if val is not None:
+                names[gname.replace(".", "_")] = val
         for gname, (src, ents, factor) in self.globals.items():     # e.g. cd.es1.Itot = sum of reaction loads
             a = arr.get(src)
             if a is None:
@@ -761,10 +893,45 @@ class Solution:
                                       f"{m.group(1)} (its Solution dataset)")
         return s
 
-    def evaluate(self, expr: str, i: int | None = None) -> np.ndarray:
+    def _domain_operators(self, e: str, i: int) -> tuple[str, dict]:
+        """The domain operators of *e* (expanded, dotted) worked out domain by domain, as integrate() and maxmin()
+        do: *e* with each call replaced by a name, and the values of those names."""
+        ops = {nm: (k, ents) for nm, (k, lv, ents) in self.operators.items() if lv == "domain"}
+        vals: dict = {}
+        if not ops:
+            return e, vals
+        pat = re.compile(r"(?<![\w.])(" + "|".join(re.escape(nm) for nm in sorted(ops, key=len, reverse=True))
+                         + r")\s*\(")
+        out, pos = [], 0
+        while True:
+            m = pat.search(e, pos)
+            if not m:
+                break
+            depth, j = 1, m.end()
+            while j < len(e) and depth:
+                depth += {"(": 1, ")": -1}.get(e[j], 0)
+                j += 1
+            if depth:                                  # unbalanced: the parser reports it
+                break
+            kind, ents = ops[m.group(1)]
+            arg, key = e[m.end():j - 1], f"opvalue{len(vals)}_"
+            if kind in ("maximum", "minimum"):
+                vals[key] = self.maxmin(arg, i, "domain", ents)[0 if kind == "maximum" else 1]
+            else:
+                vals[key] = self.integrate(arg, i, "domain", ents, average=(kind == "average"))
+            out.append(e[pos:m.start()] + key)
+            pos = j
+        return "".join(out) + e[pos:], vals
+
+    def evaluate(self, expr: str, i: int | None = None, side: int | None = None) -> np.ndarray:
+        """*expr* on the nodes.  *side*: a domain number; fields that jump at material interfaces then hold that
+        domain's values at its nodes (see sides()), which is what an integral over the domain needs."""
         i = self.frame_index(i)
-        names = {**self.params, **self.names(i)}
+        names = {**self.params, **self.names(i, side)}
         e = _dotted(self._expand(self._own(expr)))
+        if self.sides(i):
+            e, vals = self._domain_operators(e, i)
+            names.update(vals)
         v = units.evaluate(e, names, self._operator_funcs())
         v = np.asarray(np.real(v), dtype=float)
         if v.ndim == 0:
@@ -803,6 +970,9 @@ class Solution:
         for alias, src, comp, label, unit, kind in self.catalog:
             if alias == e or alias.replace(".", "_") == e:
                 return label, unit
+        for name, _src, label, unit2d, unit_axi, _turn in SCALARS:
+            if name == e or name.replace(".", "_") == e:
+                return label, unit_axi if self.meta.get("axi") else unit2d
         from .acoustics import EFC_LABELS, EFC_NAME, INCIDENT_LABELS
         m = EFC_NAME.fullmatch(e)
         if m:
@@ -831,8 +1001,17 @@ class Solution:
 
         *revolved*: on a 2D axisymmetric model, integrate in the revolved geometry (weight 2 pi r), as COMSOL's
         "Compute integral in revolved geometry"; ignored on other models.  Off: the r-z plane measure."""
-        vals = self.evaluate(expr, i)
         rev = bool(revolved) and self.sdim == 2 and bool(self.meta.get("axi"))
+        fi = self.frame_index(i)
+        if level == "domain" and self.sides(fi):
+            # each domain with its own side of the fields that jump at the interfaces between them
+            doms = [int(d) for d in (sorted(self.topo.bulk) if entities is None else entities) if int(d) in self.topo.bulk]
+            if not doms:
+                return float("nan")
+            parts = [self._integral(self.evaluate(expr, fi, side=d), "domain", [d], rev) for d in doms]
+            tot, size = sum(t for t, _s in parts), sum(s_ for _t, s_ in parts)
+            return (tot / size if size else float("nan")) if average else tot
+        vals = self.evaluate(expr, i)
         if level == "boundary" and self._bflux(expr):
             # a flux density reconstructed from nodal reaction loads: integrate with the lumped (HRZ) weights that
             # reconstructed it, so integrals over boundary subsets add up to the electrode current exactly (the
@@ -852,10 +1031,18 @@ class Solution:
         return self._integrate_values(vals, level, entities, average, revolved=rev)
 
     def _integrate_values(self, vals, level="domain", entities=None, average=False, revolved=False):
+        tot, size = self._integral(vals, level, entities, revolved)
+        if average:
+            return tot / size if size else float("nan")
+        return tot
+
+    def _integral(self, vals, level="domain", entities=None, revolved=False) -> tuple[float, float]:
+        """(integral of the nodal values, measure) over the entities."""
+        nan = float("nan")
         g = self.bulk_grid() if level == "domain" else self.boundary_grid()
         idname = "dom" if level == "domain" else "bnd"
         if g.n_cells == 0:
-            return float("nan")
+            return nan, nan
         g = g.copy()
         g.points = self.topo.nodes * self.scale
         if revolved:                                  # 2D axisymmetric, revolved geometry: weight 2 pi r
@@ -867,7 +1054,7 @@ class Solution:
         if entities is not None:
             mask = np.isin(g.cell_data[idname], list(entities))
             if not mask.any():
-                return float("nan")
+                return nan, nan
             g = g.extract_cells(np.where(mask)[0])
         r = _split_quadratic_edges(g).integrate_data()
         tot = float(r.point_data["f"][0])
@@ -876,10 +1063,8 @@ class Solution:
         else:
             dim = self.sdim if level == "domain" else self.sdim - 1
             size_key = {3: "Volume", 2: "Area", 1: "Length"}.get(dim, "Volume")
-            size = float(r.cell_data[size_key][0]) if size_key in r.cell_data else float("nan")
-        if average:
-            return tot / size if size else float("nan")
-        return tot
+            size = float(r.cell_data[size_key][0]) if size_key in r.cell_data else nan
+        return tot, size
 
     def maxmin(self, expr, i, level="domain", entities=None):
         r = self.maxmin_locations(expr, i, level, entities)
@@ -887,6 +1072,23 @@ class Solution:
 
     def maxmin_locations(self, expr, i, level="domain", entities=None):
         """Max/min values and the coordinates (SI) where they occur, like COMSOL's Max/Min evaluation."""
+        fi = self.frame_index(i)
+        if level == "domain" and self.sides(fi):
+            # each domain with its own side of the fields that jump at the interfaces between them
+            P = self.topo.nodes * self.scale
+            nan = float("nan")
+            best = {"max": nan, "min": nan, "xmax": [nan] * 3, "xmin": [nan] * 3}
+            for d in (sorted(self.topo.bulk) if entities is None else entities):
+                mask = self._node_mask("domain", [int(d)])
+                vals = self.evaluate(expr, fi, side=int(d))
+                idx = np.where(mask & np.isfinite(vals))[0]
+                if not len(idx):
+                    continue
+                for key, pick, better in (("max", np.argmax, np.greater), ("min", np.argmin, np.less)):
+                    k = idx[pick(vals[idx])]
+                    if math.isnan(best[key]) or better(vals[k], best[key]):
+                        best[key], best["x" + key] = float(vals[k]), P[k].tolist()
+            return best
         vals = self.evaluate(expr, i)
         mask = self._node_mask(level, entities)
         if mask is None:
@@ -978,6 +1180,32 @@ def _split_quadratic_edges(g):
 
 # interface prefixes: tds.tflux, and a second instance's tds1.tflux
 _DOTTED = re.compile(r"\b((?:ht|solid|es|ec|mf|spf|acpr|tds|pde|cd|tcd)\d*)((?:\.\w+)+)")
+
+
+# VTK cell type -> dimension of the cell
+_VTK_DIM = {1: 0, 3: 1, 21: 1, 5: 2, 9: 2, 22: 2, 23: 2, 28: 2,
+            10: 3, 12: 3, 13: 3, 14: 3, 24: 3, 25: 3, 26: 3, 27: 3, 29: 3}
+
+
+def _match_points(P, Q) -> np.ndarray:
+    """For each row of *P* the index of the same point in *Q* (-1: not there), by coordinates."""
+    P, Q = np.atleast_2d(np.asarray(P, float)), np.atleast_2d(np.asarray(Q, float))
+    idx = np.full(len(P), -1, dtype=np.int64)
+    if not len(P) or not len(Q):
+        return idx
+    span = float(np.ptp(np.vstack([P, Q]), axis=0).max()) or 1.0
+    keys = np.round(np.vstack([Q, P]) / span * 1e7).astype(np.int64)
+    uniq, inv = np.unique(keys, axis=0, return_inverse=True)
+    inv = np.asarray(inv).ravel()
+    first = np.full(len(uniq), -1, dtype=np.int64)
+    first[inv[:len(Q)]] = np.arange(len(Q))
+    idx[:] = first[inv[len(Q):]]
+    for k in np.where(idx < 0)[0]:           # a coordinate on a rounding edge: the nearest point, if it coincides
+        d = np.linalg.norm(Q - P[k], axis=1)
+        j = int(np.argmin(d))
+        if d[j] <= 1e-6 * span:
+            idx[k] = j
+    return idx
 
 
 def _dotted(expr: str) -> str:

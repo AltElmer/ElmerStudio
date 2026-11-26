@@ -102,6 +102,10 @@ class _View:
     line_eval = Solution.line_eval
     integrate = Solution.integrate
     _integrate_values = Solution._integrate_values
+    # bound to the VIEW: it uses self.bulk_grid() / self.topo.nodes / self.sdim, which a derived view
+    # (cut plane, mirror, extrusion, grid) redefines; via __getattr__ it would otherwise bind to the
+    # base solution and integrate the view's values over the base mesh -- wrong shape, wrong result
+    _integral = Solution._integral
 
     def maxmin_locations(self, expr, i, level="domain", entities=None):
         vals = self.evaluate(expr, i)

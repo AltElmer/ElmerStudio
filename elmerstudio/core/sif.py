@@ -104,7 +104,11 @@ def fmt_num(v: float) -> str:
     return f"{v:.12g}" if ("e" in f"{v:.12g}" or "." in f"{v:.12g}") else f"{v:.12g}.0"
 
 
-FILE_KEYS = {"Solver Input File", "Output File Name", "Control Procedure", "Output File", "Restart File"}
+FILE_KEYS = {"Solver Input File", "Output File Name", "Control Procedure", "Output File", "Restart File", "Filename"}
+# the second result file: elemental fields averaged within each body, its nodes doubled at the body interfaces
+SIDES_NAME = "sides"
+# the file SaveScalars writes Elmer's global results ("res: ...") to, one row per saved frame
+SCALARS_FILE = "scalars.dat"
 
 
 def kw_line(key: str, val, indent="  ") -> str:
@@ -174,6 +178,10 @@ class SifContext:
         self.equation_extra: dict = {}
         self.nonlinear: set[str] = set()
         self.warnings: list[str] = []
+        # asked for by the physics: elemental fields to write per body (they jump at material interfaces), and
+        # Elmer's global results ("res: ...") to write with SaveScalars
+        self.side_fields: list[str] = []
+        self.save_scalars = False
         self._current_physics: Node | None = None
         self.active = self._active_physics()
         self.fields = self._fields()
@@ -797,6 +805,22 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
         # Elmer 9 keeps a harmonic solution as a complex mode ("<var> HarmonicMode1"): write both parts
         out_solver["Eigen Vector Component"] = "complex"
     solvers.append(SolverEntry(None, out_solver, True))
+    if ctx.side_fields and not eigen:
+        # Elmer's nodal fields are continuous, so a field that jumps at a material interface (H at a permeability
+        # step) is averaged across it.  Its elemental twin, averaged within each body only, goes to a second file
+        # whose nodes are doubled at the body interfaces; the first file keeps the nodal fields, for the plots.
+        side = {**out_solver, "Equation": "Result Output Sides", "Output File Name": SIDES_NAME,
+                "Discontinuous Bodies": True}
+        fields = list(dict.fromkeys(ctx.side_fields))
+        for j, name in enumerate(fields, 1):
+            side[f"Vector Field {j}"] = name
+        solvers.append(SolverEntry(None, side, True))
+        meta["side_fields"] = fields
+    if ctx.save_scalars:
+        solvers.append(SolverEntry(None, {"Equation": "Save Scalars", "Procedure": ("SaveData", "SaveScalars"),
+                                          "Filename": SCALARS_FILE, "Parallel Reduce": True,
+                                          "Exec Solver": "After Saving"}, True))
+        meta["scalars"] = SCALARS_FILE
     for i, s in enumerate(solvers, 1):
         s.sid = i
 
@@ -888,7 +912,8 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
             # restart file); save the converged solution once, at the end
             sim["Output Intervals"] = [0]
             for s in solvers:
-                if s.keywords.get("Procedure") == ("ResultOutputSolve", "ResultOutputSolver"):
+                if s.keywords.get("Procedure") in (("ResultOutputSolve", "ResultOutputSolver"),
+                                                   ("SaveData", "SaveScalars")):
                     s.keywords["Exec Solver"] = "After Simulation"
             try:
                 ctol = float(units.evaluate(str(step.get("coupling_tol", "1e-6") or "1e-6")))

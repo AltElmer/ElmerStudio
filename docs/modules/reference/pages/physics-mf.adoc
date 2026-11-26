@@ -115,5 +115,12 @@ No settings.
 |`+mf.B+` |Magnetic flux density |`+T+`
 |`+mf.normB+` |Magnetic flux density norm |`+T+`
 |`+mf.normH+` |Magnetic field norm |`+A/m+`
+|`+mf.H+` |Magnetic field |`+A/m+`
+|`+mf.Bx+` |Magnetic flux density, x component |`+T+`
+|`+mf.By+` |Magnetic flux density, y component |`+T+`
+|`+mf.Hx+` |Magnetic field, x component |`+A/m+`
+|`+mf.Hy+` |Magnetic field, y component |`+A/m+`
+|`+mf.Wm+` |Magnetic energy density |`+J/m^3+`
+|`+mf.W_mag+` |Magnetic field energy (global scalar) |`+J+`
 |===
 
