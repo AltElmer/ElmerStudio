@@ -971,7 +971,11 @@ class GeometryBuilder:
                 front = [s for pair in between.values() if set(pair) & set(front) for s in pair if s not in reached]
                 reached.update(front)
             total = sum(occ.getMass(d, t) for d, t in sides)
-            if len(reached) != len(sides) or occ.getMass(*solid) <= 0 or abs(total - area) > self.HEAL_RTOL * area:
+            if len(reached) != len(sides):
+                return []
+            if occ.getMass(*solid) <= 0:
+                return []
+            if abs(total - area) > self.HEAL_RTOL * area:
                 return []
             return [solid]
 
