@@ -314,57 +314,6 @@ feature("solid.bodyload", "Body Load", "bl", "feature_domain", "domain", "bodyfo
         props=vec_props("F", "F_V", "N/m^3", "Force"), equation=r"$\mathbf{F}_V$")
 
 
-def _solid_prestress(n, ctx, d):
-    # Pre Stress in Material section: components depend on dimension
-    # 3D: xx, yy, zz, xy, yz, xz (6)
-    # 2D plane: xx, yy, xy (3)
-    # 2D axisymmetric: rr, zz, rz, tt (4)
-    sxx = ctx.value(n.get("Sxx", "0"))
-    syy = ctx.value(n.get("Syy", "0"))
-    szz = ctx.value(n.get("Szz", "0"))
-    sxy = ctx.value(n.get("Sxy", "0"))
-    syz = ctx.value(n.get("Syz", "0"))
-    sxz = ctx.value(n.get("Sxz", "0"))
-    if ctx.sdim == 3:
-        return {"Pre Stress": [sxx, syy, szz, sxy, syz, sxz]}
-    elif ctx.axi:
-        # axisymmetric: rr, zz, rz, tt -> map Sxx=rr, Syy=zz, Sxy=rz, Szz=tt
-        return {"Pre Stress": [sxx, syy, sxy, szz]}
-    else:
-        # 2D plane: xx, yy, xy
-        return {"Pre Stress": [sxx, syy, sxy]}
-
-
-def _solid_prestrain(n, ctx, d):
-    # Pre Strain in Material section: same component ordering as Pre Stress
-    exx = ctx.value(n.get("Exx", "0"))
-    eyy = ctx.value(n.get("Eyy", "0"))
-    ezz = ctx.value(n.get("Ezz", "0"))
-    exy = ctx.value(n.get("Exy", "0"))
-    eyz = ctx.value(n.get("Eyz", "0"))
-    exz = ctx.value(n.get("Exz", "0"))
-    if ctx.sdim == 3:
-        return {"Pre Strain": [exx, eyy, ezz, exy, eyz, exz]}
-    elif ctx.axi:
-        return {"Pre Strain": [exx, eyy, exy, ezz]}
-    else:
-        return {"Pre Strain": [exx, eyy, exy]}
-
-
-_feature_visible_z = lambda cc: (lambda p: cc != "z" or p.get("__sdim", 3) == 3)
-
-
-feature("solid.prestress", "Pre Stress", "prestress", "feature_domain", "domain", "material",
-        _solid_prestress,
-        props=[Prop(f"S{c}", f"S_{c}:", default="0", unit="Pa", section="Pre Stress", symbol="S",
-                    visible=_feature_visible_z(c)) for c in ("xx", "yy", "zz", "xy", "yz", "xz")],
-        equation=r"$\mathbf{S}_0$ (initial stress / prestress, activates geometric stiffness)")
-feature("solid.prestrain", "Pre Strain", "prestrain", "feature_domain", "domain", "material",
-        _solid_prestrain,
-        props=[Prop(f"E{c}", f"E0_{c}:", default="0", unit="", section="Pre Strain", symbol="E0",
-                    visible=_feature_visible_z(c)) for c in ("xx", "yy", "zz", "xy", "yz", "xz")],
-        equation=r"$\boldsymbol{\epsilon}_0$ (initial / prestrain)")
-
 def _solid_gravity(n, ctx, d):
     rho = ctx.matnum(n, "rho", d, src_key="rho_src")
     return {f"Stress Bodyforce {i + 1}": ctx.value(f"({rho})*({n.get('g' + c, '0')})") for i, c in enumerate("xyz"[:ctx.sdim])}
@@ -424,10 +373,6 @@ def _solid_solvers(ph, ctx):
     if ctx.sdim == 2 and not ctx.axi and ph.get("plane", "strain") == "stress":
         ctx.equation_extra["Plane Stress"] = True
     nl = nonlin(maxit=1)
-    if ph.get("prestressed"):
-        # Prestressed / geometrically stiffened system (prestressed eigenfrequency,
-        # linear buckling with Stability Analysis = True).
-        s["Geometric Stiffness"] = True
     s.update(ctx.solver_settings(ph, nl))
     if ctx.step.kind == "study.time":
         # second order in time: Elmer's Bossak scheme (its default for such systems, alpha = -0.05)
@@ -474,10 +419,7 @@ define_physics(PhysicsDef(
     equation=r"$-\nabla\cdot\mathbf{S} = \mathbf{F}_V,\quad \mathbf{S}=\mathbf{C}:\boldsymbol{\epsilon}(\mathbf{u})$"),
     extra_props=[Prop("plane", "2D approximation:", "choice", "strain",
                       choices=[("strain", "Plane strain"), ("stress", "Plane stress")], section="2D Approximation",
-                      visible=lambda p: p.get("__sdim", 3) == 2 and not p.get("__axi", False)),
-                 Prop("prestressed", "Prestressed (geometric stiffness):", "bool", False,
-                      section="Geometric Nonlinearity",
-                      tip="Geometric Stiffness = True for prestressed eigenfrequency / linear buckling")])
+                      visible=lambda p: p.get("__sdim", 3) == 2 and not p.get("__axi", False))])
 
 
 # =========================================================================== Shell Mechanics

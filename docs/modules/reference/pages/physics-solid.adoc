@@ -29,9 +29,6 @@ Material properties used: Young's modulus (E), Poisson's ratio (ν), Density (ρ
 |Element order | | |Quadratic |Linear, Quadratic
 5+h|2D Approximation
 |2D approximation | | |Plane strain |Plane strain, Plane stress
-5+h|Geometric Nonlinearity
-|Prestressed (geometric stiffness) +
-_Geometric Stiffness = True for prestressed eigenfrequency / linear buckling_ | | |Off |Check box
 5+h|Elmer Solver
 |Additional Elmer solver keywords +
 _Lines appended verbatim to this interface's Solver section in the .sif file_ | | | |Text (multi-line)
@@ -236,46 +233,6 @@ Selection: Boundaries (all by default) · Physics ribbon › Boundaries, or righ
 latexmath:[\mathbf{S}\cdot\mathbf{n} = \mathbf{0}]
 
 No settings.
-
-== Other features
-
-[#solid-prestress]
-=== Pre Stress
-
-Selection: Domains
-
-latexmath:[$\mathbf{S}_0$ (initial stress / prestress, activates geometric stiffness)]
-
-[cols="3,1,1,2,3",options="header",stripes=even]
-|===
-|Setting |Symbol |Unit |Default |Choices / type
-5+h|Pre Stress
-|S_xx |S |`+Pa+` |`+0+` |Expression
-|S_yy |S |`+Pa+` |`+0+` |Expression
-|S_zz |S |`+Pa+` |`+0+` |Expression
-|S_xy |S |`+Pa+` |`+0+` |Expression
-|S_yz |S |`+Pa+` |`+0+` |Expression
-|S_xz |S |`+Pa+` |`+0+` |Expression
-|===
-
-[#solid-prestrain]
-=== Pre Strain
-
-Selection: Domains
-
-latexmath:[$\boldsymbol{\epsilon}_0$ (initial / prestrain)]
-
-[cols="3,1,1,2,3",options="header",stripes=even]
-|===
-|Setting |Symbol |Unit |Default |Choices / type
-5+h|Pre Strain
-|E0_xx |E0 | |`+0+` |Expression
-|E0_yy |E0 | |`+0+` |Expression
-|E0_zz |E0 | |`+0+` |Expression
-|E0_xy |E0 | |`+0+` |Expression
-|E0_yz |E0 | |`+0+` |Expression
-|E0_xz |E0 | |`+0+` |Expression
-|===
 
 == Result variables
 

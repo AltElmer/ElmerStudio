@@ -119,10 +119,6 @@ def kw_line(key: str, val, indent="  ") -> str:
     if isinstance(val, SifValue):
         return f"{indent}{key} = {val.text}"
     if isinstance(val, list):
-        # Check if all elements are SifValue with Real type
-        if all(isinstance(x, SifValue) and x.text.startswith('Real ') for x in val):
-            nums = ' '.join(x.text[5:] for x in val)  # strip 'Real '
-            return f"{indent}{key}({len(val)}) = Real {nums}"
         return f"{indent}{key}({len(val)}) = " + " ".join(str(x) for x in val)
     s = str(val)
     if key in FILE_KEYS:
@@ -146,15 +142,8 @@ class SifValue:
         return self.text
 
 
-def _freeze_val(v):
-    if isinstance(v, SifValue):
-        return v.text
-    if isinstance(v, list):
-        return tuple(_freeze_val(x) for x in v)
-    return v
-
 def _freeze(d: dict):
-    return tuple(sorted((k, _freeze_val(v)) for k, v in d.items()))
+    return tuple(sorted((k, v.text if isinstance(v, SifValue) else v) for k, v in d.items()))
 
 
 # --------------------------------------------------------------------------- context
