@@ -53,7 +53,6 @@ def _channel(m, turbulence_model="k_epsilon", U0="0.1", hmax="1.5e-3"):
         # converging segregated defaults: k-epsilon's fixed point is unstable,
         # both solvers run under-relaxed at 0.5 and the iteration budget is
         # in the thousands (Elmer's own references converge at 1e-4..1e-5)
-        ph.props["turb_relax"] = "0.5"
         ph.props["turb_iters"] = "2500"
         # initial turbulence consistent with inlet: k = 1.5*(U*I)^2, eps = 0.09^0.75*k^1.5/L
         # U0 is string, turb_I=0.05, turb_L=5e-3

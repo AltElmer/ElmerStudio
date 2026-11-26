@@ -1031,27 +1031,18 @@ def _spf_solvers(ph, ctx):
         raise SifError(f"{ph.label}: the k-epsilon model is verified for stationary studies in 2D and 2D "
                        "axisymmetric models only")
     try:
-        relax = float(units.evaluate(str(ph.get("turb_relax", "0.5") or "0.5")))
         iters = int(ph.get("turb_iters", 2500) or 2500)
     except Exception as exc:
         raise SifError(f"{ph.label}: {exc}") from exc
-    if not 0.0 < relax <= 1.0 or iters < 1:
-        raise SifError(f"{ph.label}: the under-relaxation factor must lie in (0, 1] and the iteration count be positive")
-    # segregated iteration as in Elmer's own k-epsilon cases: the turbulence solve comes FIRST so the turbulent
-    # viscosity is current when the momentum equation is solved; one under-relaxed solve of the flow and of the
-    # turbulence per coupling (steady-state) iteration.  KESolver is a pure Picard solver (Elmer 9.0 sets but
-    # never acts on "Nonlinear System Newton After Iterations"), and its k/epsilon fixed point is unstable under
-    # relaxation when velocity is held fixed, so both solvers run one sweep per coupling iteration and let the
-    # outer segregated iteration march the turbulence downstream.  This is slow (~1 % per iteration) and is why
-    # turbulent cases need a generous iteration budget; it is also exactly how Elmer's own k-epsilon references
-    # behave (Steady State Max Iterations 200-500, tolerance 1e-4..1e-5).
-    # KESolver's k/epsilon fixed point is the unstable one (production feeds dissipation feeds production), so it
-    # takes the stronger damping (relax 0.5); FlowSolve keeps the user factor.  With both at 0.5 a segregated
-    # k-epsilon channel converges to Elmer's own 1e-4..1e-5 coupling tolerance in a few thousand iterations;
-    # looser relaxation (0.75/0.5, as in Elmer's k-omega references) limit-cycles for k-epsilon, which is why
-    # the defaults below are stronger than Elmer's k-omega numbers.
-    ke_nl = nonlin(maxit=1, tol=1e-6, newton_after=1000, relax=0.5)
-    ns_nl = nonlin(maxit=1, tol=1e-6, newton_after=1000, relax=relax)
+    if iters < 1:
+        raise SifError(f"{ph.label}: the iteration count must be positive")
+    # segregated iteration as in Elmer's own k-epsilon cases (e.g. fem/tests/Step_ke): the turbulence solve comes
+    # FIRST so the turbulent viscosity is current when the momentum equation is solved; one under-relaxed solve
+    # of the flow and of the turbulence per coupling (steady-state) iteration.  Elmer's reference uses relax=0.75
+    # for BOTH solvers with Newton acceleration after 20/10 iterations, converging in ~200 steady-state iterations
+    # at 1e-5 tolerance.  This is much faster than the pure Picard 0.5/0.5 defaults which need thousands of iterations.
+    ke_nl = nonlin(maxit=1, tol=1e-6, newton_after=20, relax=0.75)
+    ns_nl = nonlin(maxit=1, tol=1e-6, newton_after=10, relax=0.75)
     ke = {"Equation": "K-Epsilon", "Procedure": ("KESolver", "KESolver"),
           "Variable": "K-eps[Kinetic Energy:1 Kinetic Dissipation:1]", "Stabilization Method": "Stabilized"}
     ke.update(ctx.solver_settings(ph, dict(ke_nl)))
