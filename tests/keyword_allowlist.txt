@@ -1,0 +1,22 @@
+# Keyword allowlist for the Elmer Studio keyword guard.
+#
+# Part (a) of the guard (tests/test_keyword_guard.py) generates the SIF for every
+# node/study type the package emits and asserts that every `Keyword = ...` name is
+# listed in the installed SOLVER.KEYWORDS (found via the `elmer` fixture at
+# <elmer home>/share/elmersolver/lib/SOLVER.KEYWORDS) OR appears in this file.
+#
+# Format: one keyword name per line (case-insensitive), optionally followed by an
+# inline comment that CITES the Elmer source file which reads the keyword, e.g.:
+#
+#   MyKeyword   # src/modules/SomeSolver.F90: reads MyKeyword in section 'bc'
+#
+# An allowlist entry is only justified when Elmer Studio intentionally emits a
+# keyword that is genuinely read by Elmer but missing from SOLVER.KEYWORDS; each
+# such entry MUST carry a source citation. Prefer fixing the emitter over
+# allow-listing.
+#
+# ---------------------------------------------------------------------------
+# Currently EMPTY: every keyword Elmer Studio emits is listed in SOLVER.KEYWORDS
+# (verified name- and section-aware against the installed copy). No allowlist
+# entries are required. Add entries here only when an emitter intentionally
+# emits a keyword absent from SOLVER.KEYWORDS, with a source citation.

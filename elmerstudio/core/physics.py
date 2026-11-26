@@ -790,8 +790,13 @@ feature("mf.al", "Ampere's Law", "al", "feature_domain", "domain", "material",
         lambda n, ctx, d: {"Relative Permeability": ctx.matval(n, "mur", d), "Electric Conductivity": ctx.matval(n, "sigma", d)},
         default=True, props=matprop_props(["mur", "sigma"], "Constitutive Relations"),
         equation=r"$\nabla\times\mathbf{H} = \mathbf{J},\quad \mathbf{B}=\nabla\times\mathbf{A},\quad \mathbf{B}=\mu_0\mu_r\mathbf{H}$")
+# "Initial Values" for the magnetostatic (mf) physics deliberately emits no Elmer
+# keyword: the dependent variable Az defaults to 0, and an explicit "Az = ..." in an
+# Initial Condition section is NOT a listed Elmer keyword (SOLVER.KEYWORDS only lists
+# Az under 'bc'), so Elmer would report it as an unlisted keyword and ignore it unless
+# Check Keywords is set to warn/abort. Emitting nothing avoids that silent ignore.
 feature("mf.init", "Initial Values", "init", "initial_values", "domain", "ic",
-        lambda n, ctx, d: {"Az": 0.0}, default=True, props=[])
+        lambda n, ctx, d: {}, default=True, props=[])
 feature("mf.ecd", "External Current Density", "ecd", "feature_domain", "domain", "bodyforce",
         lambda n, ctx, d: {"Current Density": ctx.value(n.get("Jz"))},
         props=[Prop("Jz", "External current density, out-of-plane component:", default="1e6", unit="A/m^2",
