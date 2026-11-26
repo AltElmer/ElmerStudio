@@ -837,7 +837,8 @@ define_physics(PhysicsDef(
 # ("Wall Law" + "Boundary Layer Thickness", read by FlowSolve and by KESolver).  The constants are those of
 # Launder and Spalding (1974), which are also KESolver's defaults.
 KE_CONSTANTS = {"KE SigmaK": 1.0, "KE SigmaE": 1.3, "KE C1": 1.44, "KE C2": 1.92, "KE Cmu": 0.09, "KE Clip": 1.0e-6}
-SPF_TURBULENT = lambda p: (p.get("__physics") or {}).get("turbulence_model", "laminar") != "laminar"  # noqa: E731
+def SPF_TURBULENT(vis):
+    return (vis.get("__physics") or {}).get("turbulence_model", "laminar") != "laminar"
 
 
 def _spf_turbulent(node) -> bool:
