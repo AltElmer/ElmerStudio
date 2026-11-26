@@ -62,8 +62,9 @@ def _channel(m, turbulence_model="k_epsilon", U0="0.1", hmax="1.5e-3"):
         L = 5e-3
         k0 = 1.5 * (U * I) ** 2
         ep0 = (0.09 ** 0.75) * (k0 ** 1.5) / L
-        ph.props["k0"] = str(k0)
-        ph.props["ep0"] = str(ep0)
+        init = next(f for f in ph.children if f.kind == "spf.init")
+        init.props["k0"] = str(k0)
+        init.props["ep0"] = str(ep0)
     inlet = geo.select("boundary", xmax=0)        # left edge (x == 0)
     outlet = geo.select("boundary", xmin=Lc)      # right edge (x == Lc)
     walls = [b for b in geo.select("boundary") if b not in inlet and b not in outlet]
