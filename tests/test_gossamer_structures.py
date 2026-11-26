@@ -1,10 +1,21 @@
-"""Gossamer (membrane / cable) structures: geometric nonlinearity, prestress / prestrain,
-membrane and cable features.
+"""Gossamer structures: geometric nonlinearity, prestress / prestrain.
 
-Verifies (without Elmer) that a large-deflection / prestressed structural study emits the
+Verifies (without Elmer) that a prestressed structural study emits the
 correct Elmer keywords, and (pure math) that analytical drumhead mode ratios are as expected.
-A light Elmer eigen solve confirms that prestress scales eigenfrequency as sqrt(T) -- the
-drumhead scaling -- without over-claiming absolute accuracy for a 2D plane-stress membrane.
+A light Elmer eigen solve confirms the geometric-stiffening effect of prestress:
+pre-stress raises eigenfrequencies, and the membrane part of the frequency matches the
+closed-form drumhead formula.  All checks are against Elmer StressSolver only -- the
+removed membrane / cable / large-deflection features are listed below.
+
+NOTE: The following features were REMOVED after verification against Elmer's SOLVER.KEYWORDS
+and source code (StressSolve.F90, ShellSolver.F90, ElasticSolve.F90):
+- solid.membrane: "Membrane Formulation" and "Bending Stiffness" keywords do not exist
+- solid.cable: "Cable" and "Tension Only" keywords do not exist
+- geometric_nonlinearity/large_deflection in Solid Mechanics: StressSolver does not support
+  "Large Deflection", "Nonlinear Elasticity", or "Dead Loads" keywords (only ShellSolver does)
+- solid.prestrain now outputs the "Pre Strain" material keyword (was incorrectly "Initial Strain")
+- shell "Dead Loads": not in SOLVER.KEYWORDS; ShellSolver reads it from the Boundary
+  Condition section, so it cannot be set from the Solver section
 """
 import math
 import tempfile
@@ -37,17 +48,19 @@ def drumhead_ratios():
     return f21 / f11, f22 / f11
 
 
-def _structural_model(study_kind, tension=TENSION, plane="stress"):
+def _structural_model(study_kind, tension=TENSION, plane="stress", E=1e6, prestressed=True):
     m = B.new_model("2D", ["solid"], study_kind)
     m.create("geom.rectangle", m.component.child("geometry"), index=0, w=str(A), h=str(A))
     geo = build_geometry(m, display=False)
     sm = m.component.child("physics.solid")
     sm.props["plane"] = plane
-    sm.props["prestressed"] = True
+    sm.props["prestressed"] = prestressed          # Geometric Stiffness solver setting
     sm.child("solid.lemm").props.update(
-        E_src="user", E="1e9", nu_src="user", nu="0.0",
+        E_src="user", E=str(E), nu_src="user", nu="0.0",
         rho_src="user", rho=str(RHO),
     )
+    # Pre Stress material keyword (always emitted; it only takes effect together with
+    # Geometric Stiffness -- see StressSolve.F90, applied iff GeometricStiffness/StabilityAnalysis)
     B.add_feature(
         m, sm, "solid.prestress", geo.select("domain"),
         Sxx=str(tension / H), Syy=str(tension / H), Szz="0",
@@ -75,47 +88,112 @@ def _run(m, geo, st, elmer):
 # --------------------------------------------------------------------------- SIF keywords (no Elmer)
 
 
-def test_large_deflection_pressure_emits_nonlinear_keywords():
-    m, geo, st = _structural_model("stationary")
-    sm = m.component.child("physics.solid")
-    sm.props["geometric_nonlinearity"] = "large_deflection"
-    right = geo.select("boundary", xmin=A * 0.9)
-    B.add_feature(m, sm, "solid.bload", right, type="pressure", p="1000")
-    text = build_sif(m, st, _step(st), geo, 100).text
-    assert "Large Deflection = Logical True" in text
-    assert "Nonlinear Elasticity = Logical True" in text
-    assert "Dead Loads = Logical False" in text
-    assert "Normal Force" in text
-
-
 def test_prestressed_eigen_emits_geometric_stiffness():
     m, geo, st = _structural_model("eigen")
     text = build_sif(m, st, _step(st), geo, 100).text
     assert "Geometric Stiffness = Logical True" in text
 
 
-def test_membrane_feature_emits_no_bending():
+def test_prestress_feature_emits_pre_stress():
     m, geo, st = _structural_model("stationary")
-    B.add_feature(m, m.component.child("physics.solid"), "solid.membrane", geo.select("domain"))
     text = build_sif(m, st, _step(st), geo, 100).text
-    assert "Membrane Formulation = Logical True" in text
-    assert "Bending Stiffness = Real 0.0" in text
+    # Pre Stress should be emitted with correct component count for 2D plane stress (3)
+    assert "Pre Stress(3) = Real" in text
+    assert "1000000.0 1000000.0 0.0" in text
 
 
-def test_cable_feature_emits_tension_only():
-    m, geo, st = _structural_model("stationary")
-    B.add_feature(m, m.component.child("physics.solid"), "solid.cable", geo.select("boundary")[:1])
-    text = build_sif(m, st, _step(st), geo, 100).text
-    assert "Cable = Logical True" in text
-    assert "Tension Only = Logical True" in text
-
-
-def test_prestrain_feature_emits_initial_strain():
+def test_prestrain_feature_emits_pre_strain():
     m, geo, st = _structural_model("stationary")
     B.add_feature(m, m.component.child("physics.solid"), "solid.prestrain", geo.select("domain"),
-                  Exx="0.001", Eyy="0.001", Ezz="0")
+                  Exx="0.001", Eyy="0.001", Exy="0")
     text = build_sif(m, st, _step(st), geo, 100).text
-    assert "Initial Strain = Logical True" in text
+    # Pre Strain should be emitted with correct component count for 2D plane stress (3)
+    assert "Pre Strain(3) = Real" in text
+    assert "0.001 0.001 0.0" in text
+
+
+def test_prestress_3d_emits_six_components():
+    m = B.new_model("3D", ["solid"], "eigen")
+    g = m.component.child("geometry")
+    m.create("geom.block", g, index=0, w="1.0", h="1.0", d="1.0")
+    geo = build_geometry(m, display=False)
+    sm = m.component.child("physics.solid")
+    sm.child("solid.lemm").props.update(
+        E_src="user", E="1e9", nu_src="user", nu="0.0",
+        rho_src="user", rho="1000.0",
+    )
+    B.add_feature(
+        m, sm, "solid.prestress", geo.select("domain"),
+        Sxx="1.0", Syy="2.0", Szz="3.0", Sxy="4.0", Syz="5.0", Sxz="6.0",
+    )
+    for face in geo.select("boundary"):
+        B.add_feature(m, sm, "solid.fixed", [face])
+    mesh = m.component.child("mesh")
+    mesh.props["sequence"] = "user"
+    m.create("mesh.mapped", mesh)
+    for face in geo.select("boundary"):
+        B.add_feature(m, mesh, "mesh.distribution", [face], n=4)
+    st = m.studies()[0]
+    text = build_sif(m, st, _step(st), geo, 100).text
+    # Pre Stress should have 6 components for 3D (Voigt: xx, yy, zz, xy, yz, xz)
+    assert "Pre Stress(6) = Real" in text
+    assert "1.0 2.0 3.0 4.0 5.0 6.0" in text
+
+
+def test_prestrain_3d_emits_six_components():
+    m = B.new_model("3D", ["solid"], "eigen")
+    g = m.component.child("geometry")
+    m.create("geom.block", g, index=0, w="1.0", h="1.0", d="1.0")
+    geo = build_geometry(m, display=False)
+    sm = m.component.child("physics.solid")
+    sm.child("solid.lemm").props.update(
+        E_src="user", E="1e9", nu_src="user", nu="0.0",
+        rho_src="user", rho="1000.0",
+    )
+    B.add_feature(
+        m, sm, "solid.prestrain", geo.select("domain"),
+        Exx="1.0", Eyy="2.0", Ezz="3.0", Exy="4.0", Eyz="5.0", Exz="6.0",
+    )
+    for face in geo.select("boundary"):
+        B.add_feature(m, sm, "solid.fixed", [face])
+    mesh = m.component.child("mesh")
+    mesh.props["sequence"] = "user"
+    m.create("mesh.mapped", mesh)
+    for face in geo.select("boundary"):
+        B.add_feature(m, mesh, "mesh.distribution", [face], n=4)
+    st = m.studies()[0]
+    text = build_sif(m, st, _step(st), geo, 100).text
+    # Pre Strain should have 6 components for 3D (Voigt: xx, yy, zz, xy, yz, xz)
+    assert "Pre Strain(6) = Real" in text
+    assert "1.0 2.0 3.0 4.0 5.0 6.0" in text
+
+
+def test_prestress_axisymmetric_emits_four_components():
+    m = B.new_model("2Daxi", ["solid"], "eigen")
+    m.create("geom.rectangle", m.component.child("geometry"), index=0, w="1.0", h="1.0")
+    geo = build_geometry(m, display=False)
+    sm = m.component.child("physics.solid")
+    sm.props["prestressed"] = True
+    sm.child("solid.lemm").props.update(
+        E_src="user", E="1e9", nu_src="user", nu="0.0",
+        rho_src="user", rho="1000.0",
+    )
+    B.add_feature(
+        m, sm, "solid.prestress", geo.select("domain"),
+        Sxx="1.0", Syy="2.0", Szz="3.0", Sxy="4.0",
+    )
+    for edge in geo.select("boundary"):
+        B.add_feature(m, sm, "solid.fixed", [edge])
+    mesh = m.component.child("mesh")
+    mesh.props["sequence"] = "user"
+    m.create("mesh.mapped", mesh)
+    for edge in geo.select("boundary"):
+        B.add_feature(m, mesh, "mesh.distribution", [edge], n=4)
+    st = m.studies()[0]
+    text = build_sif(m, st, _step(st), geo, 100).text
+    # Pre Stress should have 4 components for axisymmetric (rr, zz, rz, tt)
+    assert "Pre Stress(4) = Real" in text
+    assert "1.0 2.0 4.0 3.0" in text
 
 
 # --------------------------------------------------------------------------- analytical drumhead modes (pure math)
@@ -128,11 +206,16 @@ def test_analytical_drumhead_mode_ratios():
     assert f_mem(1, 1, TENSION) > 0
 
 
-# --------------------------------------------------------------------------- Elmer eigen solve: prestress scales frequency as sqrt(T)
+# --------------------------------------------------------------------------- Elmer eigen solve: geometric stiffening of a prestressed membrane
 
 
-def _eigenfrequencies(elmer, tension=TENSION):
-    m, geo, st = _structural_model("eigen", tension=tension)
+def _eigenfrequencies(elmer, tension=TENSION, E=1e6, prestressed=True):
+    """Build + Elmer-solve the prestressed square membrane; return sorted eigenfrequencies.
+
+    The Pre Stress material keyword is always emitted; it only affects the result when
+    Geometric Stiffness is also active (prestressed=True), per StressSolve.F90.
+    """
+    m, geo, st = _structural_model("eigen", tension=tension, E=E, prestressed=prestressed)
     _step(st).props["neig"] = 4
     build_sif(m, st, _step(st), geo, 100)  # must not raise
     sol = _run(m, geo, st, elmer)
@@ -145,3 +228,27 @@ def test_prestressed_eigen_solve_runs(elmer):
     # A real Elmer eigen solve on a prestressed membrane: Geometric Stiffness is honoured
     # and the solver returns positive eigenfrequencies.
     _eigenfrequencies(elmer)
+
+
+def test_geometric_stiffening_raises_frequency(elmer):
+    # Prestress (Geometric Stiffness) raises the eigenfrequency of the plate.
+    # Negative control: Pre Stress emitted but Geometric Stiffness switched off must give
+    # the same result as zero prestress (Pre Stress is inert without Geometric Stiffness,
+    # StressSolve.F90 applies it only under GeometricStiffness/StabilityAnalysis).
+    f_prestressed = _eigenfrequencies(elmer, tension=1000.0, prestressed=True)[0]      # 29.52 Hz
+    f_no_gs = _eigenfrequencies(elmer, tension=1000.0, prestressed=False)[0]            # 19.14 Hz
+    f_zero = _eigenfrequencies(elmer, tension=0.0, prestressed=True)[0]                 # 19.14 Hz
+    assert f_no_gs == pytest.approx(f_zero, rel=1e-6)   # Pre Stress without Geometric Stiffness: no effect
+    assert f_prestressed > f_no_gs                       # geometric stiffening raises the frequency
+
+
+def test_membrane_component_matches_drumhead(elmer):
+    # A prestressed plate vibrates as bending + membrane: f^2 = f_bending^2 + f_membrane^2.
+    # The membrane part must match the closed-form drumhead frequency.
+    # Tolerance: f11 is mesh-converged (refinement ndiv 8 -> 64 changes f11 by <0.01 %),
+    # so the residual vs the ideal membrane is the plate idealisation (~0.5 %, here 1 %).
+    fb = _eigenfrequencies(elmer, tension=0.0, prestressed=True)[0]          # 19.14 Hz bending baseline
+    f1000 = _eigenfrequencies(elmer, tension=1000.0, prestressed=True)[0]    # 29.52 Hz
+    fm_num = math.sqrt(f1000 ** 2 - fb ** 2)                                 # 22.47 Hz membrane part
+    fm_ana = f_mem(1, 1, 1000.0)                                               # 22.36 Hz closed form
+    assert fm_num == pytest.approx(fm_ana, rel=1e-2)
