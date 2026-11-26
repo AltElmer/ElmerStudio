@@ -34,6 +34,10 @@ def _channel(m, turbulence_model="k_epsilon", U0="0.1", hmax="1.5e-3"):
     and a turbulence intensity + length scale at the inlet; these are real
     Elmer requirements, not UI defaults (Node.get does not fall back to Prop
     defaults).
+
+    For turbulent cases, initial k/epsilon are set consistent with the inlet
+    turbulence (k = 1.5*(U*I)^2, eps = 0.09^0.75*k^1.5/L) so the segregated
+    iteration doesn't waste thousands of steps ramping up from 1e-3.
     """
     H, Lc = 0.01, 0.1
     m.create("geom.rectangle", m.component.child("geometry"), index=0, w=str(Lc), h=str(H))
@@ -51,6 +55,15 @@ def _channel(m, turbulence_model="k_epsilon", U0="0.1", hmax="1.5e-3"):
         # in the thousands (Elmer's own references converge at 1e-4..1e-5)
         ph.props["turb_relax"] = "0.5"
         ph.props["turb_iters"] = "2500"
+        # initial turbulence consistent with inlet: k = 1.5*(U*I)^2, eps = 0.09^0.75*k^1.5/L
+        # U0 is string, turb_I=0.05, turb_L=5e-3
+        U = float(U0)
+        I = 0.05
+        L = 5e-3
+        k0 = 1.5 * (U * I) ** 2
+        ep0 = (0.09 ** 0.75) * (k0 ** 1.5) / L
+        ph.props["k0"] = str(k0)
+        ph.props["ep0"] = str(ep0)
     inlet = geo.select("boundary", xmax=0)        # left edge (x == 0)
     outlet = geo.select("boundary", xmin=Lc)      # right edge (x == Lc)
     walls = [b for b in geo.select("boundary") if b not in inlet and b not in outlet]
