@@ -17,6 +17,7 @@ Use them to see how a model of a given kind is set up: open the nodes one by one
 |Sphere quenching |`sphere` |2D axisymmetric |Heat Transfer in Solids, time dependent |A half-disc sector revolved into a steel sphere at 600 °C, cooled by convection for 300 s.
 |Loudspeaker radiation |`loudspeaker` |3D |Pressure Acoustics, frequency domain |A piston on a closed box in a sphere of air; Spherical Wave Radiation; Exterior Field Calculation; radiation patterns.
 |Spherical scatterer |`scatterer` |2D axisymmetric |Pressure Acoustics, frequency domain |A rigid sphere in an incident plane wave; the scattered field against the analytic series.
+|Capacitance matrix - two balls |`capacitance_matrix` |3D |Electrostatics, stationary |Two conducting balls in an outer sphere; STEP import; Capacitance Body terminals; Electric Infinity BC; capacitance matrix vs series expansion.
 |===
 
 == Gallery

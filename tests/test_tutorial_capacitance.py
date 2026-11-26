@@ -13,15 +13,11 @@ Includes a negative control: a model without terminals must not request a capaci
 """
 from __future__ import annotations
 
-import os
-import sys
 import tempfile
 from pathlib import Path
 
 import numpy as np
 import pytest
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from elmerstudio.core import builder as B
 from elmerstudio.core.examples import capacitance_matrix
