@@ -1,4 +1,6 @@
 * text=auto
 *.sh text eol=lf
 *.bat text eol=crlf
+*.adoc text eol=lf
+*.md text eol=lf
 *.png binary

@@ -372,7 +372,8 @@ def _solid_solvers(ph, ctx):
          "Variable": f"-dofs {ctx.sdim} Displacement", "Calculate Stresses": True, "Displace Mesh": False}
     if ctx.sdim == 2 and not ctx.axi and ph.get("plane", "strain") == "stress":
         ctx.equation_extra["Plane Stress"] = True
-    s.update(ctx.solver_settings(ph, nonlin(maxit=1)))
+    nl = nonlin(maxit=1)
+    s.update(ctx.solver_settings(ph, nl))
     if ctx.step.kind == "study.time":
         # second order in time: Elmer's Bossak scheme (its default for such systems, alpha = -0.05)
         s["Timestepping Method"] = "Bossak"
@@ -410,7 +411,8 @@ define_physics(PhysicsDef(
              "w": ("Displacement 3", "Displacement field, z component", "m")},
     defaults=[("solid.lemm", "domain"), ("solid.init", "domain"), ("solid.free", "boundary")],
     domain=["solid.lemm", "solid.damp", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init"],
-    boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring", "solid.free"],
+    boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring",
+              "solid.free"],
     mat_props=["E", "nu", "rho"], solvers=_solid_solvers, plots=_solid_plots,
     description="Linear elastic stress analysis: stationary, transient (Bossak), eigenfrequencies and frequency "
                 "response with Rayleigh damping. Elmer StressSolver.",
