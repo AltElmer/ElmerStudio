@@ -11,7 +11,7 @@ Magnetostatics with out-of-plane currents (2D, 2D axisymmetric). Elmer MagnetoDy
 |Category |AC/DC › Electromagnetic Fields
 |Name (tag) |`+mf+`
 |Space dimensions |2D, 2D axisymmetric
-|Studies |Stationary, Time Dependent
+|Studies |Stationary, Time Dependent, Frequency Domain
 |Dependent variables |`+Az+` Magnetic vector potential, z component (`+Wb/m+`)
 |Default features |<<mf-al,Ampere's Law>>, <<mf-init,Initial Values>>, <<mf-mi,Magnetic Insulation>>
 |===
@@ -106,6 +106,26 @@ latexmath:[\mathbf{n}\times\mathbf{H} = \mathbf{0}]
 
 No settings.
 
+== Other features
+
+[#mf-coil]
+=== Coil excitation
+
+Selection: Domains
+
+latexmath:[\nabla\times\mathbf H=\mathbf J_z,\quad \mathbf J_z=N\,I/A_c\ (stranded),\quad \nabla\times\mathbf H=\sigma\mathbf E\ (massive)]
+
+[cols="3,1,1,2,3",options="header",stripes=even]
+|===
+|Setting |Symbol |Unit |Default |Choices / type
+5+h|Coil
+|Coil type | | |Stranded (current-driven) |Stranded (current-driven), Massive (voltage-driven), Foil winding
+|Coil current |I |`+A+` |`+1+` |Expression
+|Coil voltage |V |`+V+` |`+1+` |Expression
+|Number of turns |N |`+1+` |`+1+` |Expression
+|Coil cross section |A_c |`+m^2+` |`+1e-4+` |Expression
+|===
+
 == Result variables
 
 [cols="2,4,1",options="header"]
@@ -115,5 +135,9 @@ No settings.
 |`+mf.B+` |Magnetic flux density |`+T+`
 |`+mf.normB+` |Magnetic flux density norm |`+T+`
 |`+mf.normH+` |Magnetic field norm |`+A/m+`
+|`+mf.Az+` |Magnetic vector potential, z component |`+Wb/m+`
+|`+mf.J+` |Current density |`+A/m^2+`
+|`+mf.normJ+` |Current density norm |`+A/m^2+`
+|`+mf.Q_loss+` |Joule (eddy-current) loss density |`+W/m^3+`
 |===
 

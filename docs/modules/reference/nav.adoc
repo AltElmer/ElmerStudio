@@ -8,6 +8,7 @@
 *** xref:physics-ec.adoc[Electric Currents (ec)]
 *** xref:physics-cd.adoc[Secondary Current Distribution (cd)]
 *** xref:physics-mf.adoc[Magnetic Fields (mf)]
+*** xref:physics-cir.adoc[Electrical Circuit (cir)]
 *** xref:physics-spf.adoc[Laminar Flow (spf)]
 *** xref:physics-acpr.adoc[Pressure Acoustics, Frequency Domain (acpr)]
 *** xref:physics-tds.adoc[Transport of Diluted Species (tds)]
