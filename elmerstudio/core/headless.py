@@ -131,10 +131,15 @@ def _export_table(cols, rows, path: str) -> None:
 
 
 def _export_plot(sol: Solution, path: str) -> None:
-    """Render the last frame's default scalar field to a PNG (off-screen)."""
+    """Render the last frame's default scalar field to a PNG (off-screen).
+
+    The off-screen flag is passed to the Plotter constructor only; the pyvista
+    ``OFF_SCREEN`` global is deliberately left untouched so a headless plot
+    export cannot force every later plotter (e.g. the GUI's graphics widget)
+    to be created off-screen with no interactor.
+    """
     import pyvista as pv
 
-    pv.OFF_SCREEN = True
     pl = pv.Plotter(off_screen=True, window_size=[700, 500])
     try:
         g = sol.bulk_grid()
