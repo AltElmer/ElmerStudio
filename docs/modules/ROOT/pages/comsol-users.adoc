@@ -48,7 +48,7 @@ Result variables use COMSOL's scoped names where possible: `+T+`, `+ht.tfluxMag+
 |Boundary-layer meshes |Not exposed.
 |Adaptive mesh refinement |Not available.
 |Magnetic fields |2D and 2D axisymmetric only; no 3D A–V formulation.
-|Turbulence, contact, structural transient and frequency response |Not available yet.
+|Contact, structural transient and frequency response |Not available yet.
 |Acoustic BEM and PMLs |Open domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation.
 |Probes and animations |Not available yet.
 |Application Builder, LiveLink |Not available.

@@ -29,6 +29,13 @@ Material properties used: Density (ρ), Dynamic viscosity (μ).
 |Element order | | |Linear |Linear, Quadratic
 5+h|Physical Model
 |Neglect inertial term (Stokes flow) | | |Off |Check box
+5+h|Turbulence
+|Turbulence model +
+_k-epsilon: Reynolds-averaged flow with the standard k-epsilon model (Elmer KESolver) and wall functions on No slip walls. Stationary studies, 2D and 2D axisymmetric._ | | |None (laminar flow) |None (laminar flow), k-epsilon
+|Under-relaxation factor +
+_Of the flow and of the turbulence solve in every segregated iteration. k-epsilon's fixed point is unstable, so both solves are damped with the same factor. 0.75 is the value verified to converge the segregated channel at 1e-5 coupling tolerance; a damping factor other than 1 in the study's Solver Configurations takes its place._ | | |`+0.75+` |Expression
+|Segregated iterations +
+_Largest number of flow and turbulence solves in turn. Segregated k-epsilon converges only tenths of a percent per iteration once wall functions are valid, so a well-posed turbulent case needs a few thousand iterations to reach Elmer's own 1e-4..1e-5 coupling tolerance. The study's Max coupling iterations applies instead when larger._ | | |`+2500+` |Integer
 5+h|Elmer Solver
 |Additional Elmer solver keywords +
 _Lines appended verbatim to this interface's Solver section in the .sif file_ | | | |Text (multi-line)
@@ -83,9 +90,6 @@ latexmath:[\mathbf{F} = \rho\mathbf{g}]
 |g x | |`+m/s^2+` |`+0+` |Expression
 |g y | |`+m/s^2+` |`+-g_const+` |Expression
 |g z | |`+m/s^2+` |`+0+` |Expression
-5+h|Density
-|Density |ρ | |From material |From material, User defined
-|rho |ρ |`+kg/m^3+` |`+0+` |Expression
 |===
 
 [#spf-init]
@@ -101,6 +105,10 @@ Selection: Domains (all by default) · Physics ribbon › Domains, or right-clic
 |Velocity field y | |`+m/s+` |`+0+` |Expression
 |Velocity field z | |`+m/s+` |`+0+` |Expression
 |Pressure |p |`+Pa+` |`+0+` |Expression
+|Turbulent kinetic energy +
+_Must be positive. A value of the order of (0.05·U)² for a flow speed U starts the iteration well._ |k |`+m^2/s^2+` |`+1e-3+` |Expression
+|Turbulent dissipation rate +
+_Must be positive. 0.09·k²/ε is the initial turbulent kinematic viscosity._ |ε |`+m^2/s^3+` |`+1e-3+` |Expression
 |===
 
 == Boundary features
@@ -116,7 +124,11 @@ latexmath:[\mathbf{u} = \mathbf{0}]
 |===
 |Setting |Symbol |Unit |Default |Choices / type
 5+h|Boundary Condition
-|Wall condition | | |No slip |No slip, Slip
+|Wall condition +
+_With the k-epsilon model a No slip wall uses wall functions._ | | |No slip |No slip, Slip
+5+h|Wall Functions
+|Wall distance +
+_Wall functions (k-epsilon): the boundary of the model lies this far off the physical wall, in the logarithmic layer. Choose it so that δ_w·u_τ/ν is between about 30 and 300._ |δ_w |`+m+` | |Expression
 |===
 
 [#spf-inlet]
@@ -139,6 +151,13 @@ latexmath:[\mathbf{u} = -U_0\mathbf{n}]
 |u0 z | |`+m/s+` |`+0+` |Expression
 5+h|Pressure Conditions
 |Pressure |p₀ |`+Pa+` |`+0+` |Expression
+5+h|Turbulence Conditions
+|Turbulence intensity +
+_k-epsilon model: the inflow carries k = 3/2·(U·I)², with U the inflow speed_ |I |`+1+` |`+0.05+` |Expression
+|Turbulence length scale +
+_k-epsilon model: the inflow carries ε = 0.09^(3/4)·k^(3/2)/L. About 7 % of the hydraulic diameter for a fully developed duct flow._ |L |`+m+` | |Expression
+|Reference velocity +
+_k-epsilon model: the speed U that the turbulence intensity refers to at a pressure inlet_ |U |`+m/s+` | |Expression
 |===
 
 [#spf-outlet]
@@ -188,6 +207,8 @@ No settings.
 |`+spf.u+` |Velocity field, x component |`+m/s+`
 |`+spf.v+` |Velocity field, y component |`+m/s+`
 |`+spf.w+` |Velocity field, z component |`+m/s+`
+|`+spf.k+` |Turbulent kinetic energy |`+m^2/s^2+`
+|`+spf.ep+` |Turbulent dissipation rate |`+m^2/s^3+`
 |`+p+` |Pressure |`+Pa+`
 |===
 

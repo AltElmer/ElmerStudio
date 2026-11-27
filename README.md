@@ -246,7 +246,6 @@ These are deliberately listed, so nobody assumes they exist. The full list, incl
 - **Not available yet:**
   - shells, plates and beams (Elmer has ShellSolver and the Smitc plate solver; Studio's Solid Mechanics is continuum only);
   - 3D magnetic fields (A-V formulation);
-  - turbulence;
   - contact, nonlinear materials and prestressed (harmonic perturbation) structural analysis;
   - damped (complex) eigenfrequencies;
   - boundary elements (BEM) and perfectly matched layers: open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;
@@ -257,6 +256,7 @@ These are deliberately listed, so nobody assumes they exist. The full list, incl
   - the Application Builder;
   - reading or writing COMSOL `.mph` files.
 - **Partly supported:**
+  - k-epsilon turbulence for the spf interface (Wall Law wall functions on No slip walls): stationary studies, 2D and 2D axisymmetric; k-omega SST is not implemented;
   - boundary layers are meshed in 2D and 2D axisymmetric models only;
   - Solid Mechanics in a Frequency Domain study: no stresses, zero-phase loads, and Roller/Symmetry only on boundaries perpendicular to a coordinate axis;
   - damping is Rayleigh damping only; a Time Dependent structural study starts at rest;

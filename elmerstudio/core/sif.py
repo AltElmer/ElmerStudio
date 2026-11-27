@@ -721,11 +721,13 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
 
     # ---- solvers (species transport last: it reads the flow velocity and the electrolyte potential's gradient)
     solvers: list[SolverEntry] = []
+    coupling_min = 0            # a solver may demand more coupling iterations than the study default
     for ph in sorted(ctx.active, key=lambda p: physics_def(p.kind).id == "tds"):
         ctx._current_physics = ph
         pd = physics_def(ph.kind)
         for s in pd.solvers(ph, ctx):
             post = bool(s.pop("__post__", False))
+            coupling_min = max(coupling_min, int(s.pop("__coupling_min__", 0)))
             solvers.append(SolverEntry(ph, s, post))
     ctx._current_physics = None
     for s in solvers:
@@ -838,7 +840,7 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                  "Coordinate System": "Axi Symmetric" if axi else f"Cartesian {sd}D",
                  "Coordinate Mapping": [1, 2, 3]}
     n_primary = sum(1 for s in solvers if not s.post)
-    coupling = int(step.get("coupling", 30) or 30)
+    coupling = max(int(step.get("coupling", 30) or 30), coupling_min)
     if transient:
         tfac = units.unit_info(step.get("tunit", "s"))[0]
         times = [t * tfac for t in parse_list(step.get("times", "range(0,0.1,1)"), ctx.params)]

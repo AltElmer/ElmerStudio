@@ -7,7 +7,6 @@ This list is deliberately explicit.
 
 * shells, plates and beams: Elmer has ShellSolver and the Smitc plate solver, but Solid Mechanics in Studio is continuum only;
 * 3D magnetic fields (A–V formulation);
-* turbulence;
 * contact, nonlinear materials and prestressed (harmonic perturbation) structural analysis;
 * damped (complex) eigenfrequencies: the eigenfrequency study ignores Damping;
 * acoustic boundary elements (BEM) and perfectly matched layers. Open acoustic domains use Spherical Wave Radiation, and the field beyond the mesh comes from the Exterior Field Calculation;
@@ -20,6 +19,7 @@ This list is deliberately explicit.
 
 == Partly supported
 
+* k-epsilon turbulence for the spf interface (Wall Law wall functions on No slip walls): stationary studies, 2D and 2D axisymmetric; k-omega SST is not implemented;
 * Boundary layers are meshed in 2D and 2D axisymmetric models only (gmsh's boundary-layer field is two-dimensional); in 3D the *Boundary Layers* node is not offered, and Studio's single node takes the boundaries directly (COMSOL nests them in a *Boundary Layer Properties* subnode).
 * Solid Mechanics in a Frequency Domain study: stresses are not computed (Elmer gives those of the real part only), loads have zero phase, and a Roller or Symmetry condition must lie on a boundary perpendicular to a coordinate axis (Elmer's harmonic solve does not rotate a normal-tangential constraint back, so other boundaries are refused). Eigenfrequency studies constrain such boundaries the same way; on an inclined or curved one they keep Elmer's normal-tangential form, with a warning.
 * Damping is Rayleigh damping (mass and stiffness proportional), as in COMSOL's Damping subnode; loss-factor damping is not offered. A Time Dependent structural study starts at rest (zero initial velocity).

@@ -831,33 +831,117 @@ define_physics(PhysicsDef(
     equation=r"$\nabla\times(\mu_0^{-1}\mu_r^{-1}\nabla\times\mathbf{A}) = \mathbf{J}_e$"))
 
 
-# =========================================================================== Laminar Flow
-feature("spf.fp", "Fluid Properties", "fp", "feature_domain", "domain", "material",
-        lambda n, ctx, d: {"Density": ctx.matval(n, "rho", d), "Viscosity": ctx.matval(n, "mu", d)}, default=True,
+# =========================================================================== Laminar and Turbulent Flow
+# Turbulence is Elmer's standard k-epsilon model: KESolver solves k and epsilon, FlowSolve reads the turbulent
+# viscosity through the material's "Viscosity Model = ke", and walls carry Reichardt's law of the wall
+# ("Wall Law" + "Boundary Layer Thickness", read by FlowSolve and by KESolver).  The constants are those of
+# Launder and Spalding (1974), which are also KESolver's defaults.
+KE_CONSTANTS = {"KE SigmaK": 1.0, "KE SigmaE": 1.3, "KE C1": 1.44, "KE C2": 1.92, "KE Cmu": 0.09, "KE Clip": 1.0e-6}
+def SPF_TURBULENT(vis):
+    return (vis.get("__physics") or {}).get("turbulence_model", "laminar") != "laminar"
+
+
+def _spf_turbulent(node) -> bool:
+    ph = node if node.kind.startswith("physics.") else node.ancestor("physics.")
+    return ph is not None and ph.get("turbulence_model", "laminar") == "k_epsilon"
+
+
+def _spf_need(n, key, what):
+    v = str(n.get(key, "") or "").strip()
+    if not v:
+        from .sif import SifError
+        raise SifError(f"{n.label}: the k-epsilon model needs {what}")
+    return v
+
+
+def _spf_fp(n, ctx, d):
+    out = {"Density": ctx.matval(n, "rho", d), "Viscosity": ctx.matval(n, "mu", d)}
+    if _spf_turbulent(n):
+        out.update({"Viscosity Model": "ke", **KE_CONSTANTS})
+    return out
+
+
+def _spf_init(n, ctx, d):
+    out = {**{f"Velocity {i + 1}": ctx.value(n.get(f"u{c}", "0")) for i, c in enumerate("xyz"[:ctx.sdim])},
+           "Pressure": ctx.value(n.get("p0", "0"))}
+    if _spf_turbulent(n):
+        out["Kinetic Energy"] = ctx.value(n.get("k0", "1e-3") or "1e-3")
+        out["Kinetic Dissipation"] = ctx.value(n.get("ep0", "1e-3") or "1e-3")
+    return out
+
+
+def _spf_wall(n, ctx, d=None):
+    if n.get("cond", "noslip") != "noslip":
+        return {"Normal-Tangential Velocity": True, "Velocity 1": 0.0}
+    if not _spf_turbulent(n):
+        return {f"Velocity {i + 1}": 0.0 for i in range(ctx.sdim)}
+    # wall functions: the boundary lies in the logarithmic layer, a distance delta_w off the physical wall; the
+    # flow does not cross it and Reichardt's law gives the wall shear stress, k and epsilon there. delta_w is a
+    # genuine Elmer requirement (KESolver reads "Boundary Layer Thickness" with no default), so an explicit No
+    # slip wall must carry it. Auto-created default wall features are placeholders (overridden by explicit
+    # wall/inlet/outlet features) and are therefore not required to carry it.
+    kws = {"Normal-Tangential Velocity": True, "Velocity 1": 0.0, "Wall Law": True}
+    dw = str(n.get("delta_w", "") or "").strip()
+    if dw:
+        kws["Boundary Layer Thickness"] = ctx.value(dw)
+    elif not bool(n.meta.get("default")):
+        from .sif import SifError
+        raise SifError(f"{n.label}: the k-epsilon model needs delta_w (wall distance) on a No slip wall "
+                       "(wall functions)")
+    return kws
+
+
+feature("spf.fp", "Fluid Properties", "fp", "feature_domain", "domain", "material", _spf_fp, default=True,
         props=matprop_props(["rho", "mu"], "Fluid Properties"),
         equation=r"$\rho(\mathbf{u}\cdot\nabla)\mathbf{u} = \nabla\cdot[-p\mathbf{I}+\mu(\nabla\mathbf{u}+\nabla\mathbf{u}^T)] + \mathbf{F},\ \nabla\cdot\mathbf{u}=0$")
-feature("spf.init", "Initial Values", "init", "initial_values", "domain", "ic",
-        lambda n, ctx, d: {**{f"Velocity {i + 1}": ctx.value(n.get(f"u{c}", "0")) for i, c in enumerate("xyz"[:ctx.sdim])},
-                           "Pressure": ctx.value(n.get("p0", "0"))},
+feature("spf.init", "Initial Values", "init", "initial_values", "domain", "ic", _spf_init,
         default=True, props=[*vec_props("u", "Velocity field", "m/s", "Initial Values"),
-                             Prop("p0", "Pressure:", default="0", unit="Pa", section="Initial Values", symbol="p")])
-feature("spf.wall", "Wall", "wall", "default_feature", "boundary", "bc",
-        lambda n, ctx, d=None: ({f"Velocity {i + 1}": 0.0 for i in range(ctx.sdim)} if n.get("cond", "noslip") == "noslip"
-                                else {"Normal-Tangential Velocity": True, "Velocity 1": 0.0}),
+                             Prop("p0", "Pressure:", default="0", unit="Pa", section="Initial Values", symbol="p"),
+                             Prop("k0", "Turbulent kinetic energy:", default="1e-3", unit="m^2/s^2",
+                                  section="Initial Values", symbol="k", visible=SPF_TURBULENT,
+                                  tip="Must be positive. A value of the order of (0.05·U)² for a flow speed U "
+                                      "starts the iteration well."),
+                             Prop("ep0", "Turbulent dissipation rate:", default="1e-3", unit="m^2/s^3",
+                                  section="Initial Values", symbol="ε", visible=SPF_TURBULENT,
+                                  tip="Must be positive. 0.09·k²/ε is the initial turbulent kinematic viscosity.")])
+feature("spf.wall", "Wall", "wall", "default_feature", "boundary", "bc", _spf_wall,
         default=True, props=[Prop("cond", "Wall condition:", "choice", "noslip",
-                                  choices=[("noslip", "No slip"), ("slip", "Slip")], section="Boundary Condition")],
+                                  choices=[("noslip", "No slip"), ("slip", "Slip")], section="Boundary Condition",
+                                  tip="With the k-epsilon model a No slip wall uses wall functions."),
+                             Prop("delta_w", "Wall distance:", default="", unit="m", section="Wall Functions",
+                                  symbol="δ_w",
+                                  visible=lambda p: SPF_TURBULENT(p) and p.get("cond", "noslip") == "noslip",
+                                  tip="Wall functions (k-epsilon): the boundary of the model lies this far off the "
+                                      "physical wall, in the logarithmic layer. Choose it so that "
+                                      "δ_w·u_τ/ν is between about 30 and 300.")],
         equation=r"$\mathbf{u} = \mathbf{0}$")
 
 
-def _spf_inlet(n, ctx, d=None):
+def _spf_inlet_turbulence(n, ctx):
+    """k and epsilon of an inlet from the turbulence intensity I and length scale L:
+    k = 3/2 (U I)^2,  epsilon = C_mu^(3/4) k^(3/2) / L."""
     if n.get("type", "velocity") == "pressure":
-        return {"External Pressure": ctx.value(n.get("p0"))}
+        speed = _spf_need(n, "Uref", "a reference velocity at a pressure inlet")
+    elif n.get("spec", "normal") == "normal":
+        speed = n.get("U0", "0")
+    else:
+        speed = "sqrt(" + "+".join(f"({n.get(f'u{c}', '0')})^2" for c in "xyz"[:ctx.sdim]) + ")"
+    k = f"1.5*(({speed})*({_spf_need(n, 'turb_I', 'a turbulence intensity at the inlet')}))^2"
+    length = _spf_need(n, "turb_L", "a turbulence length scale at the inlet")
+    return {"Kinetic Energy": ctx.value(k),
+            "Kinetic Dissipation": ctx.value(f"{KE_CONSTANTS['KE Cmu'] ** 0.75!r}*({k})^1.5/({length})")}
+
+
+def _spf_inlet(n, ctx, d=None):
+    turb = _spf_inlet_turbulence(n, ctx) if _spf_turbulent(n) else {}
+    if n.get("type", "velocity") == "pressure":
+        return {"External Pressure": ctx.value(n.get("p0")), **turb}
     if n.get("spec", "normal") == "normal":
         out = {"Normal-Tangential Velocity": True, "Velocity 1": ctx.value(f"-({n.get('U0', '0')})")}
         for i in range(1, ctx.sdim):
             out[f"Velocity {i + 1}"] = 0.0
-        return out
-    return {f"Velocity {i + 1}": ctx.value(n.get(f"u{c}", "0")) for i, c in enumerate("xyz"[:ctx.sdim])}
+        return {**out, **turb}
+    return {**{f"Velocity {i + 1}": ctx.value(n.get(f"u{c}", "0")) for i, c in enumerate("xyz"[:ctx.sdim])}, **turb}
 
 
 feature("spf.inlet", "Inlet", "inl", "feature_boundary", "boundary", "bc", _spf_inlet,
@@ -872,7 +956,17 @@ feature("spf.inlet", "Inlet", "inl", "feature_boundary", "boundary", "bc", _spf_
                       visible=(lambda cc: (lambda p: p.get("type", "velocity") == "velocity" and p.get("spec") == "field"
                                            and (cc != "z" or p.get("__sdim", 3) == 3)))(c)) for c in "xyz"],
                Prop("p0", "Pressure:", default="0", unit="Pa", section="Pressure Conditions", symbol="p₀",
-                    visible=lambda p: p.get("type") == "pressure")],
+                    visible=lambda p: p.get("type") == "pressure"),
+               Prop("turb_I", "Turbulence intensity:", default="0.05", unit="1", section="Turbulence Conditions",
+                    symbol="I", visible=SPF_TURBULENT,
+                    tip="k-epsilon model: the inflow carries k = 3/2·(U·I)², with U the inflow speed"),
+               Prop("turb_L", "Turbulence length scale:", default="", unit="m", section="Turbulence Conditions",
+                    symbol="L", visible=SPF_TURBULENT,
+                    tip="k-epsilon model: the inflow carries ε = 0.09^(3/4)·k^(3/2)/L. About 7 % of the hydraulic "
+                        "diameter for a fully developed duct flow."),
+               Prop("Uref", "Reference velocity:", default="", unit="m/s", section="Turbulence Conditions",
+                    symbol="U", visible=lambda p: SPF_TURBULENT(p) and p.get("type") == "pressure",
+                    tip="k-epsilon model: the speed U that the turbulence intensity refers to at a pressure inlet")],
         equation=r"$\mathbf{u} = -U_0\mathbf{n}$")
 def _spf_outlet(n, ctx, d=None):
     out = {"External Pressure": ctx.value(n.get("p0"))} if str(n.get("p0", "0")).strip() not in ("0", "0[Pa]") else {}
@@ -895,18 +989,28 @@ feature("spf.symmetry", "Symmetry", "sym", "feature_boundary", "boundary", "bc",
         equation=r"$\mathbf{u}\cdot\mathbf{n} = 0$")
 feature("spf.open", "Open Boundary", "open", "feature_boundary", "boundary", "bc", None,
         equation=r"$[-p\mathbf{I}+\mathbf{K}]\mathbf{n} = \mathbf{0}$")
-feature("spf.vf", "Volume Force", "vf", "feature_domain", "domain", "bodyforce",
-        lambda n, ctx, d: {f"Flow Bodyforce {i + 1}": ctx.value(n.get(f"F{c}", "0")) for i, c in enumerate("xyz"[:ctx.sdim])},
+def _spf_vf(n, ctx, d):
+    """FlowSolve's "Flow Bodyforce" is a force per unit mass (it multiplies it by the density): F/rho, with the
+    density of the Fluid Properties of that domain."""
+    from .sif import _entities
+    ph = n.ancestor("physics.")
+    fp = next((f for f in reversed(ph.children) if f.kind == "spf.fp" and f.enabled
+               and d in _entities(ctx, f, "domain")), None)
+    if fp is None:
+        from .sif import SifError
+        raise SifError(f"{n.label}: domain {d} has no Fluid Properties")
+    rho = ctx.matnum(fp, "rho", d, src_key="rho_src")
+    return {f"Flow Bodyforce {i + 1}": ctx.value(f"({n.get(f'F{c}', '0')})/({rho})")
+            for i, c in enumerate("xyz"[:ctx.sdim])}
+
+
+feature("spf.vf", "Volume Force", "vf", "feature_domain", "domain", "bodyforce", _spf_vf,
         props=vec_props("F", "F", "N/m^3", "Volume Force"), equation=r"$\mathbf{F}$")
-
-
-def _spf_gravity(n, ctx, d):
-    rho = ctx.matnum(n, "rho", d, src_key="rho_src")
-    return {f"Flow Bodyforce {i + 1}": ctx.value(f"({rho})*({n.get('g' + c, '0')})") for i, c in enumerate("xyz"[:ctx.sdim])}
-
-
-feature("spf.gravity", "Gravity", "grav", "feature_domain", "domain", "bodyforce", _spf_gravity,
-        props=[*vec_props("g", "g", "m/s^2", "Gravity", ("0", "-g_const", "0")), *matprop_props(["rho"], "Density")],
+# gravity is already a force per unit mass
+feature("spf.gravity", "Gravity", "grav", "feature_domain", "domain", "bodyforce",
+        lambda n, ctx, d: {f"Flow Bodyforce {i + 1}": ctx.value(n.get("g" + c, "0"))
+                           for i, c in enumerate("xyz"[:ctx.sdim])},
+        props=vec_props("g", "g", "m/s^2", "Gravity", ("0", "-g_const", "0")),
         equation=r"$\mathbf{F} = \rho\mathbf{g}$")
 
 
@@ -916,8 +1020,37 @@ def _spf_solvers(ph, ctx):
          "Variable": f"Flow Solution[Velocity:{d} Pressure:1]", "Stabilize": True}
     if ph.get("stokes", False):
         ctx.equation_extra["NS Convect"] = False
-    s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 30), tol=1e-6, newton_after=5, relax=1.0)))
-    return [s]
+    if not _spf_turbulent(ph):
+        s.update(ctx.solver_settings(ph, nonlin(maxit=ctx.nl_iters(ph, 30), tol=1e-6, newton_after=5, relax=1.0)))
+        return [s]
+    from . import units
+    from .sif import SifError
+    if ph.get("stokes", False):
+        raise SifError(f"{ph.label}: the k-epsilon model and Stokes flow exclude each other")
+    if ctx.step.kind != "study.stationary" or ctx.sdim == 3:
+        raise SifError(f"{ph.label}: the k-epsilon model is verified for stationary studies in 2D and 2D "
+                       "axisymmetric models only")
+    try:
+        relax = float(units.evaluate(str(ph.get("turb_relax", "0.75") or "0.75")))
+        iters = int(ph.get("turb_iters", 2500) or 2500)
+    except Exception as exc:
+        raise SifError(f"{ph.label}: {exc}") from exc
+    if not 0.0 < relax <= 1.0 or iters < 1:
+        raise SifError(f"{ph.label}: the under-relaxation factor must lie in (0, 1] and the iteration count be positive")
+    # segregated iteration as in Elmer's own k-epsilon cases (e.g. fem/tests/Step_ke): the turbulence solve comes
+    # FIRST so the turbulent viscosity is current when the momentum equation is solved; one under-relaxed solve
+    # of the flow and of the turbulence per coupling (steady-state) iteration.  The under-relaxation factor is
+    # driven by the Turbulence > Under-relaxation factor Prop (default 0.75, the value verified to converge the
+    # segregated channel at the coupling tolerance); Elmer's reference uses relax=0.75 for BOTH solvers with
+    # Newton acceleration after 20/10 iterations, converging in ~200 steady-state iterations at 1e-5 tolerance.
+    ke_nl = nonlin(maxit=1, tol=1e-6, newton_after=20, relax=relax)
+    ns_nl = nonlin(maxit=1, tol=1e-6, newton_after=10, relax=relax)
+    ke = {"Equation": "K-Epsilon", "Procedure": ("KESolver", "KESolver"),
+          "Variable": "K-eps[Kinetic Energy:1 Kinetic Dissipation:1]", "Stabilization Method": "Stabilized"}
+    ke.update(ctx.solver_settings(ph, dict(ke_nl)))
+    s.update(ctx.solver_settings(ph, dict(ns_nl)))
+    s["__coupling_min__"] = iters
+    return [ke, s]
 
 
 define_physics(PhysicsDef(
@@ -935,7 +1068,24 @@ define_physics(PhysicsDef(
         {"label": "Pressure (spf)", "type": "surface" if sd == 3 else "contour", "expr": "p", "cmap": "RainbowLight", "dims": sd}],
     description="Incompressible laminar Navier-Stokes flow (P1-P1 stabilized). Elmer FlowSolve.",
     equation=r"$\rho\frac{\partial\mathbf{u}}{\partial t}+\rho(\mathbf{u}\cdot\nabla)\mathbf{u} = \nabla\cdot[-p\mathbf{I}+\mu(\nabla\mathbf{u}+\nabla\mathbf{u}^T)]+\mathbf{F},\ \ \nabla\cdot\mathbf{u}=0$"),
-    extra_props=[Prop("stokes", "Neglect inertial term (Stokes flow)", "bool", False, section="Physical Model")])
+    extra_props=[Prop("stokes", "Neglect inertial term (Stokes flow)", "bool", False, section="Physical Model"),
+                 Prop("turbulence_model", "Turbulence model:", "choice", "laminar",
+                      choices=[("laminar", "None (laminar flow)"), ("k_epsilon", "k-epsilon")],
+                      section="Turbulence",
+                      tip="k-epsilon: Reynolds-averaged flow with the standard k-epsilon model (Elmer KESolver) and "
+                          "wall functions on No slip walls. Stationary studies, 2D and 2D axisymmetric."),
+                 Prop("turb_relax", "Under-relaxation factor:", default="0.75", section="Turbulence",
+                      visible=lambda p: p.get("turbulence_model", "laminar") != "laminar",
+                      tip="Of the flow and of the turbulence solve in every segregated iteration. k-epsilon's "
+                          "fixed point is unstable, so both solves are damped with the same factor. 0.75 is the "
+                          "value verified to converge the segregated channel at 1e-5 coupling tolerance; a damping "
+                          "factor other than 1 in the study's Solver Configurations takes its place."),
+                 Prop("turb_iters", "Segregated iterations:", "int", 2500, section="Turbulence",
+                      visible=lambda p: p.get("turbulence_model", "laminar") != "laminar",
+                      tip="Largest number of flow and turbulence solves in turn. Segregated k-epsilon converges "
+                          "only tenths of a percent per iteration once wall functions are valid, so a well-posed "
+                          "turbulent case needs a few thousand iterations to reach Elmer's own 1e-4..1e-5 "
+                          "coupling tolerance. The study's Max coupling iterations applies instead when larger.")])
 
 
 # =========================================================================== Pressure Acoustics, Frequency Domain

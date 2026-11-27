@@ -483,6 +483,8 @@ class SettingsWindow(QWidget):
         d = dict(node.props)
         d["__sdim"] = self.ctx.sdim()
         d["__axi"] = self.ctx.is_axi()
+        ph = node.ancestor("physics.")                 # a feature's fields may depend on its interface's settings
+        d["__physics"] = dict(ph.props) if ph is not None else {}
         return d
 
     def _build(self, node: Node, nt):

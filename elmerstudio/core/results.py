@@ -65,6 +65,8 @@ CATALOG = [
     ("spf.u", "velocity", 0, "Velocity field, x component", "m/s", "scalar"),
     ("spf.v", "velocity", 1, "Velocity field, y component", "m/s", "scalar"),
     ("spf.w", "velocity", 2, "Velocity field, z component", "m/s", "scalar"),
+    ("spf.k", "kinetic energy", None, "Turbulent kinetic energy", "m^2/s^2", "scalar"),
+    ("spf.ep", "kinetic dissipation", None, "Turbulent dissipation rate", "m^2/s^3", "scalar"),
     ("p", "pressure", None, "Pressure", "Pa", "scalar"),
     ("acpr.p_t", "pressure wave", 0, "Total acoustic pressure (real part)", "Pa", "scalar"),
     ("acpr.p_im", "pressure wave", 1, "Total acoustic pressure (imaginary part)", "Pa", "scalar"),
