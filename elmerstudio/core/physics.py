@@ -1109,9 +1109,11 @@ def _generate_circuit_matc_definitions(ctx, ph):
             kvl_terms.append(f"$ C.1.B(1,{var_idx_voltage}) = 1")
         lines.extend(kvl_terms)
         
-        # KCL equations (rows 2, 3, ...): consecutive currents equal
+        # KCL equations (rows 2, 3, ...): consecutive currents equal.
+        # For n elements there are n-1 independent KCL equations forming a chain,
+        # so the last row index is total_elements (inclusive).
         # Current variables are at even indices: 0, 2, 4, ...
-        for kcl_row in range(2, total_elements):
+        for kcl_row in range(2, total_elements + 1):
             # i_{kcl_row-2} - i_{kcl_row-1} = 0
             var_idx_curr_prev = (kcl_row - 2) * 2
             var_idx_curr_next = (kcl_row - 1) * 2
