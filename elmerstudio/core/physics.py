@@ -422,58 +422,6 @@ define_physics(PhysicsDef(
                       visible=lambda p: p.get("__sdim", 3) == 2 and not p.get("__axi", False))])
 
 
-# =========================================================================== Shell Mechanics
-def _shell_solvers(ph, ctx):
-    s = {"Equation": "Shell", "Procedure": ("ShellSolve", "ShellSolver"),
-         "Variable": f"-dofs {ctx.sdim} Displacement", "Calculate Stresses": True, "Displace Mesh": False}
-    if ctx.sdim == 2 and not ctx.axi and ph.get("plane", "strain") == "stress":
-        ctx.equation_extra["Plane Stress"] = True
-    nl = nonlin(maxit=1)
-    if ph.get("geometric_nonlinearity") == "large_deflection":
-        # Geometrically nonlinear (large-deflection) analysis: follower/normal pressure
-        # (Normal Pressure body force) and a nonlinear (Newton) solution strategy.
-        # "Dead Loads" is not a documented Elmer keyword (absent from SOLVER.KEYWORDS) and
-        # ShellSolver reads it from the Boundary Condition section, not the Solver section, so
-        # it is not set here.
-        # Note: Geometric Stiffness is NOT implemented in ShellSolver (calls Fatal),
-        # so prestressed eigenfrequency/buckling is not available for shells.
-        s["Large Deflection"] = True
-        nl = nonlin(maxit=10)
-    s.update(ctx.solver_settings(ph, nl))
-    return [s]
-
-
-def _shell_plots(ph, sdim, study):
-    return _solid_plots(ph, sdim, study)
-
-
-_shell_common_props = [Prop("plane", "2D approximation:", "choice", "strain",
-                            choices=[("strain", "Plane strain"), ("stress", "Plane stress")],
-                            section="2D Approximation",
-                            visible=lambda p: p.get("__sdim", 3) == 2 and not p.get("__axi", False)),
-                       Prop("geometric_nonlinearity", "Geometric nonlinearity:", "choice", "linear",
-                            choices=[("linear", "Linear (small strain)"), ("large_deflection", "Large deflection")],
-                            section="Geometric Nonlinearity")]
-
-
-define_physics(PhysicsDef(
-    id="shell", name="Shell Mechanics", icon="physics_shell", category="Structural Mechanics",
-    studies=("stationary", "time", "eigen", "freq"),
-    depvars={"u": ("Displacement 1", "Displacement field, x component", "m"),
-             "v": ("Displacement 2", "Displacement field, y component", "m"),
-             "w": ("Displacement 3", "Displacement field, z component", "m")},
-    defaults=[("solid.lemm", "domain"), ("solid.init", "domain"), ("solid.free", "boundary")],
-    domain=["solid.lemm", "solid.damp", "solid.bodyload", "solid.gravity", "solid.rotframe", "solid.init"],
-    boundary=["solid.fixed", "solid.disp", "solid.roller", "solid.symmetry", "solid.bload", "solid.spring",
-              "solid.free"],
-    mat_props=["E", "nu", "rho"], solvers=_shell_solvers, plots=_shell_plots,
-    description="Thin-shell structural analysis: stationary, transient, eigenfrequencies and "
-                "frequency response. Elmer ShellSolver with geometric nonlinearity (Large Deflection)."
-                " Note: Geometric Stiffness (prestressed eigen/buckling) is not implemented in ShellSolver.",
-    equation=r"$-\nabla\cdot\mathbf{S} = \mathbf{F}_V,\quad \mathbf{S}=\mathbf{C}:\boldsymbol{\epsilon}(\mathbf{u})$"),
-    _shell_common_props)
-
-
 # =========================================================================== Electrostatics
 feature("es.ccm", "Charge Conservation", "ccm", "feature_domain", "domain", "material",
         lambda n, ctx, d: {"Relative Permittivity": ctx.matval(n, "epsr", d)}, default=True,
