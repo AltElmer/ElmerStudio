@@ -8,8 +8,8 @@ asserted here is verified against Elmer's SOLVER.KEYWORDS and KESolver.F90.
 The end-to-end runs drive ElmerSolver (a segregated k-epsilon channel at
 U = 10 m/s, Re = 1e5). Segregated k-epsilon converges only tenths of a
 percent per coupling iteration once wall functions are valid, so these tests
-use Elmer-matching converging defaults (relaxation 0.5 on both solvers, a
-few thousand segregated iterations, coupling tolerance 1e-5) and each run
+use Elmer-matching converging defaults (under-relaxation 0.75 on both
+solvers, 2500 segregated iterations, coupling tolerance 1e-5) and each run
 takes a couple of minutes.
 """
 from __future__ import annotations
@@ -18,6 +18,7 @@ import math
 import tempfile
 
 import numpy as np
+import pytest
 
 from elmerstudio.core import builder as B
 from elmerstudio.core.geometry import build_geometry
@@ -51,7 +52,8 @@ def _channel(m, turbulence_model="k_epsilon", U0="0.1", hmax="1.5e-3"):
     ph.props["turbulence_model"] = turbulence_model
     if turbulence_model != "laminar":
         # converging segregated defaults: k-epsilon's fixed point is unstable,
-        # both solvers run under-relaxed at 0.5 and the iteration budget is
+        # both solvers run under-relaxed at 0.75 (the Turbulence >
+        # Under-relaxation factor Prop default) and the iteration budget is
         # in the thousands (Elmer's own references converge at 1e-4..1e-5)
         ph.props["turb_iters"] = "2500"
         # initial turbulence consistent with inlet: k = 1.5*(U*I)^2, eps = 0.09^0.75*k^1.5/L
@@ -77,14 +79,14 @@ def _run_study(m, inst, tmp, coupling_tol="1e-5"):
     st = m.studies()[0]
     step = B.study_steps(st)[0]
     # the study template defaults coupling_tol to 1e-6; Elmer's own turbulent
-    # references converge at 1e-4..1e-5, and that is what the runner judges
+    # references converge at 1e-4..1e-5, and that is what the runner judges.
+    # The looser 1e-5 here is the spf turbulence setup only (finding (a) of the
+    # PR #22 review); all other physics keep the 1e-6 global default in sif.py.
     step.props["coupling_tol"] = coupling_tol
-    # KNOWN LIMITATION: on Linux (Elmer 26.2 from CSC PPA) the segregated
-    # k-epsilon channel does not reach 1e-5 coupling tolerance within 2500
-    # iterations, while Windows (Elmer 9.0) does. The solver settings match
-    # Elmer's own fem/tests/Step_ke.sif (relax=0.75, Newton after 20/10).
-    # Allow unconverged solutions so physical verification can proceed.
-    st.props["nonconv"] = "keep"
+    # nonconv="stop": StudyRunner.run() raises StudyNotConverged when the
+    # segregated iteration does not reach the coupling tolerance, so reaching
+    # here means the turbulent channel converged (not merely ran to the iteration cap).
+    st.props["nonconv"] = "stop"
     return StudyRunner(m, st, tmp, inst).run()
 
 
@@ -133,22 +135,74 @@ def test_turbulence_laminar_emits_no_model():
 
 def test_turbulent_channel_solve(elmer):
     """End-to-end stationary k-epsilon channel: Elmer accepts the turbulent SIF,
-    the segregated run converges to its coupling tolerance, and turbulence
-    results (k, epsilon) are written to the VTU output."""
+    the segregated run converges to its coupling tolerance (StudyRunner.run()
+    raises StudyNotConverged otherwise, so reaching here means converged), and
+    turbulence results (k, epsilon) are written to the VTU output."""
     m = B.new_model("2D", ["spf"], "stationary")
     geo, ph = _channel(m, "k_epsilon", U0="10")
     tmp = tempfile.mkdtemp(prefix="es_turb_")
     folders = _run_study(m, elmer, tmp, "1e-5")
     sol = Solution(folders[-1])
     bind_results(m, sol, geo)
-    # StudyRunner.run() raising StudyNotConverged means Elmer ran out of
-    # iterations; reaching here means the turbulent SIF converged.
     vel = np.asarray(sol.evaluate("spf.U", 0), dtype=float)
     assert float(np.nanmax(np.abs(vel))) > 0.0, "turbulent channel produced no flow"
     k = np.asarray(sol.evaluate("spf.k", 0), dtype=float)
     ep = np.asarray(sol.evaluate("spf.ep", 0), dtype=float)
     assert np.all(np.isfinite(k)) and float(np.nanmax(np.abs(k))) > 0.0
     assert np.all(np.isfinite(ep)) and float(np.nanmax(np.abs(ep))) > 0.0
+
+
+def test_turb_relax_default_emits_verified_value():
+    """With turb_relax unset, the SIF carries the verified-converging default
+    (0.75), not the stale Prop default (0.5)."""
+    m = B.new_model("2D", ["spf"], "stationary")
+    geo, ph = _channel(m, "k_epsilon", U0="10")
+    st = m.studies()[0]
+    step = B.study_steps(st)[0]
+    sif = build_sif(m, st, step, geo, 1).text
+    assert sif.count("Nonlinear System Relaxation Factor = Real 0.75") >= 2
+    assert "Nonlinear System Relaxation Factor = Real 0.5" not in sif
+
+
+@pytest.mark.parametrize("turb_relax", ["0.25", "0.5", "0.9"])
+def test_turb_relax_drives_sif(turb_relax):
+    """Changing turb_relax changes the under-relaxation emitted for BOTH the
+    turbulence (KESolver) and the flow (FlowSolve) segregated solvers.
+
+    Structural guard: on the unfixed code this test FAILS because relax=0.75
+    was hardcoded in _spf_solvers and the declared turb_relax Prop was never
+    read. After the fix the Prop drives both solvers, so changing it changes
+    the emitted relaxation."""
+    m = B.new_model("2D", ["spf"], "stationary")
+    geo, ph = _channel(m, "k_epsilon", U0="10")
+    ph.props["turb_relax"] = turb_relax
+    st = m.studies()[0]
+    step = B.study_steps(st)[0]
+    sif = build_sif(m, st, step, geo, 1).text
+    assert sif.count(f"Nonlinear System Relaxation Factor = Real {turb_relax}") >= 2
+
+
+def test_turbulence_model_feeds_momentum_negative_control():
+    """Negative control: on identical channel geometry and Re, the only
+    difference between the two builds is the turbulence model. Therefore the
+    presence of "Viscosity Model = String ke" in the material -- which
+    FlowSolve reads to build the turbulent viscosity of the momentum equation
+    -- must be caused by the turbulence model alone. If turbulence did not
+    feed momentum, the material would not carry Viscosity Model = ke and this
+    test must fail."""
+    sifs = {}
+    for turbulence_model in ("k_epsilon", "laminar"):
+        m = B.new_model("2D", ["spf"], "stationary")
+        geo, ph = _channel(m, turbulence_model, U0="10")
+        st = m.studies()[0]
+        step = B.study_steps(st)[0]
+        sifs[turbulence_model] = build_sif(m, st, step, geo, 1).text
+    turbulent = sifs["k_epsilon"]
+    laminar = sifs["laminar"]
+    assert 'Viscosity Model = String "ke"' in turbulent
+    assert "KE Cmu = Real 0.09" in turbulent
+    assert "Viscosity Model" not in laminar
+    assert "KE " not in laminar
 
 
 def _log_law_error(sol, H, Lc, rho, mu):
@@ -191,8 +245,13 @@ def _material(m):
 
 def test_turbulent_channel_log_law(elmer):
     """Verification: fully developed turbulent channel vs the log law, with the
-    tolerance taken from a mesh refinement run (coarse -> fine must not degrade
-    the log-law error beyond noise)."""
+    tolerance taken from a mesh refinement run (coarse 44% -> fine 10% on this
+    mesh, measured; refinement must improve the fit).  The k-epsilon constant
+    Cmu=0.09 is wired into the material (KE Cmu = Real 0.09, asserted in
+    test_turbulence_sif_emits_k_epsilon); a Cmu=0.18 mutation does NOT worsen
+    the log-law fit on this metric (measured 6.5% vs 9.8%), so no
+    Cmu-mutation failure is observable here and that claim is reduced to the
+    refinement-supported tolerance below."""
     errors = []
     for hmax in ("1.2e-3", "6e-4"):
         m = B.new_model("2D", ["spf"], "stationary")
@@ -208,10 +267,10 @@ def test_turbulent_channel_log_law(elmer):
         assert err is not None, f"mesh hmax={hmax} cannot host the log-law check"
         errors.append(err)
     (err_c, n_c), (err_f, n_f) = errors
-    # tolerance from the mesh refinement run: fine-mesh log-law error (~21%)
-    # with margin -> 40% acceptance; refinement must not break down entirely
-    assert err_f < 0.40, f"fine-mesh log-law error {err_f:.3g} exceeds tolerance ({n_f} points)"
-    assert err_f < err_c + 0.35, f"log-law error {err_c:.3g} (coarse) -> {err_f:.3g} (fine): refinement broke down"
+    # refinement-supported tolerance: fine-mesh log-law error measured 9.8%,
+    # acceptance 15% (~50% margin); refinement must improve (not degrade) the fit
+    assert err_f < 0.15, f"fine-mesh log-law error {err_f:.3g} exceeds tolerance ({n_f} points)"
+    assert err_f < err_c, f"log-law error {err_c:.3g} (coarse) -> {err_f:.3g} (fine): refinement broke down"
 
 
 def test_turbulence_results_require_turbulence_interface(elmer):

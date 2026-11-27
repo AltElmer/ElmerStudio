@@ -893,7 +893,7 @@ def build_sif(model: Model, study: Node, step: Node, geo, n_nodes: int = 0, over
                 if s.keywords.get("Procedure") == ("ResultOutputSolve", "ResultOutputSolver"):
                     s.keywords["Exec Solver"] = "After Simulation"
             try:
-                ctol = float(units.evaluate(str(step.get("coupling_tol", "1e-5") or "1e-5")))
+                ctol = float(units.evaluate(str(step.get("coupling_tol", "1e-6") or "1e-6")))
             except Exception:
                 ctol = 1e-6
             try:
