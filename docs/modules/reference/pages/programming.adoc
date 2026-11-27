@@ -32,19 +32,21 @@ from elmerstudio.core.geometry import build_geometry
 m = B.new_model("2D", ["es"], "stationary")
 m.root.label = "my_capacitor"
 
-# Global parameters
-B.add_parameters(m, [
-    ("V0", "1[kV]", "Plate voltage"),
-    ("gap", "2[mm]", "Plate gap"),
-])
+# Global parameters (name, expression, description)
+m.global_defs.child("params").props["table"] = [
+    {"name": "V0", "expr": "1[kV]", "descr": "Plate voltage"},
+    {"name": "gap", "expr": "2[mm]", "descr": "Plate gap"},
+    {"name": "tp", "expr": "0.5[mm]", "descr": "Plate thickness"},
+    {"name": "wp", "expr": "10[mm]", "descr": "Plate width"},
+]
 
 # Geometry
 g = m.component.child("geometry")
 g.props["unit"] = "mm"
-box = B.add_block(m, g, w="40", h="30", base="center")
-p1 = B.add_block(m, g, w="10", h="0.5", base="center", y="(gap+0.5)/2")
-p2 = B.add_block(m, g, w="10", h="0.5", base="center", y="-(gap+0.5)/2")
-B.add_difference(m, g, input=[box.tag], tools=[p1.tag, p2.tag])
+box = m.create("geom.rectangle", g, index=0, w="40", h="30", base="center")
+p1 = m.create("geom.rectangle", g, index=1, w="wp", h="tp", base="center", y="(gap+tp)/2")
+p2 = m.create("geom.rectangle", g, index=2, w="wp", h="tp", base="center", y="-(gap+tp)/2")
+m.create("geom.difference", g, index=3, input=[box.tag], tools=[p1.tag, p2.tag])
 
 # Material
 B.add_material(m, "Air", all_domains=True)
@@ -58,6 +60,8 @@ B.add_feature(m, es, "es.pot",
 B.add_feature(m, es, "es.ground",
               geo.select("boundary", xmin=-5, xmax=5, ymin=-1.5, ymax=-1))
 
+model = m
+study = m.studies()[0]
 # The model `m` can now be saved (.esm), exported to SIF+mesh, or run headless
 ----
 
@@ -65,13 +69,15 @@ Key builder functions (see `builder.py` for the full list):
 
 | Function | Purpose |
 |----------|---------|
-| `new_model(dim, physics, study)` | Create empty model with physics interfaces and study type |
-| `add_parameters(m, rows)` | Add global parameters (name, expression, description) |
-| `add_material(m, name, domains)` | Assign material from library or by name |
-| `add_feature(m, physics, feature_tag, selection, **kwargs)` | Add physics feature (BC, source, etc.) |
-| `add_block / add_cylinder / ...` | Geometry primitives (return node for selection) |
-| `add_union / add_difference / add_array` | Boolean and array operations |
-| `study_steps(study)` | Get solver steps of a study for configuration |
+| `new_model(dim, physics, study)` | Empty model with global definitions, one component and a study |
+| `add_component(m, sdim)` | Another component (geometry, mesh, materials) |
+| `add_physics(m, pid)` | A physics interface (es, ht, spf, ...) on the component |
+| `add_feature(m, ph, kind, selection, **props)` | Physics feature / BC / source on an interface |
+| `add_material(m, name, domains, all_domains)` | Material from the library, on domains or everywhere |
+| `add_study(m, step_kind, label)` / `add_step(m, st, step_kind)` | A study and its enabled steps |
+| `study_steps(st)` / `ensure_solver_configs(m, st)` | Study steps; solver configurations per physics |
+| `m.create("geom.rectangle", g, ...)` | Geometry primitives and booleans (geom.rectangle, geom.difference, geom.union, geom.array ...) |
+| `m.global_defs.child("params").props["table"]` | Global parameters: rows of {name, expr, descr} |
 
 == Running a study
 
@@ -82,15 +88,12 @@ ElmerSolver. It returns a list of solution folder paths (one per study step).
 ----
 from elmerstudio.core.study_runner import StudyRunner
 from elmerstudio.core.elmer import find_elmer
-from elmerstudio.core.project import new_workdir, discard_workdir
+from elmerstudio.core.project import new_workdir
 
 inst = find_elmer()          # raises if Elmer not found
 workdir = new_workdir()
-try:
-    folders = StudyRunner(model, study, workdir, inst).run()
-    # folders = [".../std1/sol_0_0", ...]
-finally:
-    discard_workdir(workdir) # clean up temp files
+folders = StudyRunner(model, study, workdir, inst).run()
+# folders = [".../std1/sol_0_0", ...]
 ----
 
 `StudyRunner` arguments:
@@ -129,7 +132,7 @@ V = sol.evaluate("V", "last")          # numpy array, length = number of nodes
 energy = sol.integrate("es.We", "last", level="domain")
 
 # Max/min potential on the upper plate boundary
-vmax, vmin = sol.maxmin("V", "last", level="boundary", entities=[upper_plate_bnd])
+vmax, vmin = sol.maxmin("V", "last", level="domain")
 
 # Probe at specific coordinates (SI units)
 val = sol.point_eval("V", "last", [(0.0, 0.001, 0.0)])  # returns array
@@ -171,17 +174,20 @@ the electric potential). You can replicate or extend this in your own scripts:
 ----
 from elmerstudio.core.results import Solution
 from elmerstudio.core.headless import _derived_table
+from elmerstudio.core.project import discard_workdir
 
-sol = Solution(folder)
+sol = Solution(folders[0])
 cols, rows = _derived_table(sol)
 # cols = ["frame", "time", "Electric potential mean", "Electric potential max", ...]
-# rows = [[1, 0.0, 1.0, 2.0, 0.0, 1.19e-3]]
+# rows = [[1, 0.0, 500.0, 1000.0, 0.0, 0.595]]
 
 import csv
 with open("derived.csv", "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(cols)
     w.writerows(rows)
+
+discard_workdir(workdir)
 ----
 
 == Headless CLI and Python API
@@ -232,19 +238,19 @@ The `--json` output (stdout or file) has this structure:
     "label": "capacitor_fringe",
     "file": null,
     "example": "capacitor",
-    "studies": [{"tag": "std1", "label": "Standard"}],
-    "params": {"V0": 1000.0, "gap": 0.002, ...}
+    "studies": [{"tag": "std1", "label": "Study 1"}],
+    "params": {"V0": 1000.0, "gap": 0.002, "tp": 0.0005, "wp": 0.01}
   },
-  "study": {"tag": "std1", "label": "Standard"},
+  "study": {"tag": "std1", "label": "Study 1"},
   "solve": {
     "status": "converged",
     "folders": [".../std1/sol_0_0"],
     "frames": 1,
-    "diagnostics": null
+    "diagnostics": []
   },
   "derived": {
     "columns": ["frame", "time", "Electric potential mean", "Electric potential max", ...],
-    "rows": [[1, 0.0, 1.0, 2.0, 0.0, 1.19e-3]]
+    "rows": [[1, 0.0, 500.0, 1000.0, 0.0, 0.595]]
   },
   "exports": {"table": "results.csv", "plot": "results.png"}
 }
@@ -254,17 +260,19 @@ The `--json` output (stdout or file) has this structure:
 
 [source,python]
 ----
-from elmerstudio.core.project import load, save
+from elmerstudio.core.project import discard_workdir, load, save
 
-# Load .esm file
-model, workdir = load("path/to/model.esm")
-model.file_path = "path/to/model.esm"
+# Save the model built above, then load it back
+save(model, str(tmp_path / "capacitor.esm"), None)
+model, workdir = load(str(tmp_path / "capacitor.esm"))
+model.file_path = str(tmp_path / "capacitor.esm")
 
 # Modify parameters
 model.global_defs.child("params").props["table"][0]["expr"] = "2[kV]"
 
 # Save (writes .esm with embedded geometry/mesh)
-save(model, "path/to/modified.esm")
+save(model, str(tmp_path / "capacitor_modified.esm"), workdir)
+discard_workdir(workdir)
 ----
 
 == Known limitations (Programming API)
@@ -292,13 +300,18 @@ import csv
 
 def make_capacitor(V0):
     m = B.new_model("2D", ["es"], "stationary")
-    B.add_parameters(m, [("V0", V0, "Plate voltage"), ("gap", "2[mm]", "")])
+    m.global_defs.child("params").props["table"] = [
+        {"name": "V0", "expr": V0, "descr": "Plate voltage"},
+        {"name": "gap", "expr": "2[mm]", "descr": "Plate gap"},
+        {"name": "tp", "expr": "0.5[mm]", "descr": "Plate thickness"},
+        {"name": "wp", "expr": "10[mm]", "descr": "Plate width"},
+    ]
     g = m.component.child("geometry")
     g.props["unit"] = "mm"
-    box = B.add_block(m, g, w="40", h="30", base="center")
-    p1 = B.add_block(m, g, w="10", h="0.5", base="center", y="1.25")
-    p2 = B.add_block(m, g, w="10", h="0.5", base="center", y="-1.25")
-    B.add_difference(m, g, input=[box.tag], tools=[p1.tag, p2.tag])
+    box = m.create("geom.rectangle", g, index=0, w="40", h="30", base="center")
+    p1 = m.create("geom.rectangle", g, index=1, w="wp", h="tp", base="center", y="(gap+tp)/2")
+    p2 = m.create("geom.rectangle", g, index=2, w="wp", h="tp", base="center", y="-(gap+tp)/2")
+    m.create("geom.difference", g, index=3, input=[box.tag], tools=[p1.tag, p2.tag])
     B.add_material(m, "Air", all_domains=True)
     geo = build_geometry(m, display=False)
     es = m.component.child("physics.es")

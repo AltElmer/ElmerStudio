@@ -20,7 +20,7 @@ from .examples import EXAMPLES
 from .model import Model
 from .project import discard_workdir, load as load_project, new_workdir
 from .results import Solution
-from .study_runner import StudyRunner
+from .study_runner import StudyRunner, StudyRunError
 
 
 class HeadlessError(RuntimeError):
@@ -161,7 +161,10 @@ def _export_plot(sol: Solution, path: str) -> None:
 def run_headless(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="elmerstudio run", add_help=True)
     ap.add_argument("source", nargs="?", help="model file (.esm) to run")
-    ap.add_argument("--example", help="run a built-in example instead of a .esm file")
+    _EXAMPLE_LIST = object()  # sentinel: --example given without a value
+    ap.add_argument("--example", nargs="?", const=_EXAMPLE_LIST, default=None,
+                    help='run a built-in example instead of a .esm file (capacitor, busbar, ...). '
+                         'Pass --example without a value to list them')
     ap.add_argument("--study", help="study tag/label to run (default: first study)")
     ap.add_argument("--param", action="append", default=[], metavar="K=V",
                     help="global parameter override (repeatable), e.g. --param V0=2[V]")
@@ -169,6 +172,10 @@ def run_headless(argv: list[str] | None = None) -> int:
                     help="export kind:path (table:<csv> or plot:<png>), repeatable")
     ap.add_argument("--json", help="write the structured JSON summary to this file (default: stdout)")
     args = ap.parse_args(argv)
+
+    if args.example is _EXAMPLE_LIST:
+        print("Built-in examples: " + ", ".join(sorted(EXAMPLES)))
+        return 0
 
     summary: dict[str, Any] = {"ok": False, "model": {}, "study": {}, "solve": {},
                                "derived": {"columns": [], "rows": []}, "exports": {}}
@@ -195,7 +202,24 @@ def run_headless(argv: list[str] | None = None) -> int:
         summary["study"] = {"tag": study.tag, "label": study.label}
 
         inst = find_elmer()
-        folders = StudyRunner(model, study, workdir, inst).run()
+        try:
+            folders = StudyRunner(model, study, workdir, inst).run()
+        except StudyRunError as exc:
+            summary["solve"] = {
+                "status": exc.status,
+                "folders": [exc.folder],
+                "frames": 0,
+                "diagnostics": exc.diagnostics,
+            }
+            summary["ok"] = False
+            out = json.dumps(summary, indent=1, default=str)
+            if args.json:
+                os.makedirs(os.path.dirname(os.path.abspath(args.json)) or ".", exist_ok=True)
+                with open(args.json, "w", encoding="utf-8") as f:
+                    f.write(out + "\n")
+            else:
+                print(out, file=sys.stderr)
+            return SolverError("solver run did not converge").exit_code
 
         sols = [Solution(f) for f in folders]
         last = sols[-1]

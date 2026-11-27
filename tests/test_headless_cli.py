@@ -106,6 +106,62 @@ def test_headless_bad_export_kind_returns_exit2():
     d = _json(res.stderr)
     assert d["ok"] is False
 
+def test_headless_example_lists_examples():
+    res = _run(["--example"])
+    assert res.returncode == 0, f"expected 0 got {res.returncode}: {res.stderr}"
+    from elmerstudio.core.examples import EXAMPLES
+    for name in sorted(EXAMPLES):
+        assert name in res.stdout, f"example {name!r} not listed: {res.stdout}"
+
+
+def _nonlinear_pde_esm(tmp_path, nonconv: str) -> str:
+    """A nonlinear stationary PDE (c = 1 + u^2) with nl_maxit=2: iterations run out
+    before the tolerance is met, so the run ends with status "not converged"."""
+    from elmerstudio.core import builder as B
+    from elmerstudio.core.geometry import build_geometry
+    from elmerstudio.core.project import save
+
+    m = B.new_model("2D", ["pde"], "stationary")
+    m.root.label = "nonlinear_pde"
+    g = m.component.child("geometry")
+    g.props["unit"] = "m"
+    m.create("geom.rectangle", g, index=0, w="1.5", h="1", base="center")
+    geo = build_geometry(m, display=False)
+    pde = m.component.child("physics.pde")
+    pde.child("pde.cfeq").props.update(c="1+u^2", f="20", da="0")
+    B.add_feature(m, pde, "pde.dir", geo.numbers["boundary"], r="0")
+    st = m.studies()[0]
+    st.props["nonconv"] = nonconv
+    B.ensure_solver_configs(m, st).children[0].props.update(nl_maxit=2, nl_tol="1e-12")
+
+    path = str(tmp_path / "nonlinear_pde.esm")
+    save(m, path, None)
+    return path
+
+
+@pytest.mark.parametrize("nonconv", ["stop", "keep"])
+def test_headless_nonconverged_returns_exit1(tmp_path, elmer, nonconv):
+    esm = _nonlinear_pde_esm(tmp_path, nonconv)
+    out = tmp_path / "summary.json"
+    res = _run([esm, "--json", str(out)])
+    assert res.returncode == 1, f"expected 1 got {res.returncode}: {res.stderr}"
+    d = _json(out.read_text())
+    assert d["ok"] is False
+    assert d["solve"]["status"] == "not converged"
+    assert d["solve"]["diagnostics"], f"no diagnostics: {d}"
+    assert d["solve"]["folders"], "no output folders recorded"
+
+
+def test_headless_corrupt_file_returns_exit3(tmp_path):
+    bad = tmp_path / "corrupt.esm"
+    bad.write_bytes(b"this is not an ElmerStudio model file")
+    out = tmp_path / "summary.json"
+    res = _run([str(bad), "--json", str(out)])
+    assert res.returncode == 3, f"expected 3 got {res.returncode}: {res.stderr}"
+    d = _json(out.read_text())
+    assert d["ok"] is False
+    assert "zip" in d["error"].lower()
+
 
 # ---------------------------------------------------------------------------
 # Negative controls: derived values come from real result data, not invented
