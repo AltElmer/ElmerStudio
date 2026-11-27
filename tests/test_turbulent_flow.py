@@ -25,7 +25,7 @@ from elmerstudio.core.geometry import build_geometry
 from elmerstudio.core.nodes import bind_results
 from elmerstudio.core.results import Solution
 from elmerstudio.core.sif import build_sif
-from elmerstudio.core.study_runner import StudyRunner
+from elmerstudio.core.study_runner import StudyRunner, StudyNotConverged
 
 
 def _channel(m, turbulence_model="k_epsilon", U0="0.1", hmax="1.5e-3"):
