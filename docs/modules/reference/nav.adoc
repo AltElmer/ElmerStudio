@@ -24,3 +24,5 @@
 ** xref:export.adoc[Export]
 ** xref:result-variables.adoc[Result variables]
 ** xref:expressions.adoc[Expressions and units]
+** xref:programming.adoc[Programming]
+** xref:headless.adoc[Headless CLI and Python API]

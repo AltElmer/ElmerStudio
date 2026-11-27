@@ -296,6 +296,18 @@ def main():
                 "Results ribbon › Export")
     variables_page(out, nav)
     expressions_page(out, nav)
+    # Programming page (manually maintained, not generated from schema)
+    prog_path = os.path.join(ROOT, "docs", "modules", "reference", "pages", "programming.adoc")
+    if os.path.exists(prog_path):
+        with open(prog_path, encoding="utf-8") as f:
+            out["programming.adoc"] = f.read()
+        nav.append("** xref:programming.adoc[Programming]")
+    # Headless CLI page (manually maintained)
+    headless_path = os.path.join(ROOT, "docs", "modules", "reference", "pages", "headless.adoc")
+    if os.path.exists(headless_path):
+        with open(headless_path, encoding="utf-8") as f:
+            out["headless.adoc"] = f.read()
+        nav.append("** xref:headless.adoc[Headless CLI and Python API]")
     os.makedirs(os.path.join(outdir, "pages"), exist_ok=True)
     for f in os.listdir(os.path.join(outdir, "pages")):
         if f not in out and f != "index.adoc" and f.endswith(".adoc"):

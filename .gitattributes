@@ -2,3 +2,5 @@
 *.sh text eol=lf
 *.bat text eol=crlf
 *.png binary
+*.adoc text eol=lf
+*.md text eol=lf

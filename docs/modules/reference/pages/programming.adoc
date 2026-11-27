@@ -1,0 +1,342 @@
+:page-toclevels: 2
+:description: Build models, run studies and read results from Python scripts
+
+= Programming ElmerStudio
+
+ElmerStudio's entire GUI is built on a public Python API. The same functions the
+GUI calls are available for scripts, batch runs, CI pipelines and other tools.
+This page documents the stable subset you can rely on.
+
+== Core modules
+
+* `elmerstudio.core.builder` — high-level model construction (physics, materials, BCs)
+* `elmerstudio.core.geometry` — geometry creation and selection
+* `elmerstudio.core.meshing` — mesh generation
+* `elmerstudio.core.sif` — SIF (Elmer input) generation
+* `elmerstudio.core.study_runner` — running a study with ElmerSolver
+* `elmerstudio.core.results` — reading fields, integrals, extrema, point values
+* `elmerstudio.core.headless` — headless CLI entry point and Python API
+* `elmerstudio.core.elmer` — locating the Elmer installation
+* `elmerstudio.core.examples` — built-in example models
+
+== Building a model from code
+
+The `builder` module mirrors the Model Builder ribbon. A minimal electrostatics
+model:
+
+[source,python]
+----
+from elmerstudio.core import builder as B
+from elmerstudio.core.geometry import build_geometry
+
+m = B.new_model("2D", ["es"], "stationary")
+m.root.label = "my_capacitor"
+
+# Global parameters (name, expression, description)
+m.global_defs.child("params").props["table"] = [
+    {"name": "V0", "expr": "1[kV]", "descr": "Plate voltage"},
+    {"name": "gap", "expr": "2[mm]", "descr": "Plate gap"},
+    {"name": "tp", "expr": "0.5[mm]", "descr": "Plate thickness"},
+    {"name": "wp", "expr": "10[mm]", "descr": "Plate width"},
+]
+
+# Geometry
+g = m.component.child("geometry")
+g.props["unit"] = "mm"
+box = m.create("geom.rectangle", g, index=0, w="40", h="30", base="center")
+p1 = m.create("geom.rectangle", g, index=1, w="wp", h="tp", base="center", y="(gap+tp)/2")
+p2 = m.create("geom.rectangle", g, index=2, w="wp", h="tp", base="center", y="-(gap+tp)/2")
+m.create("geom.difference", g, index=3, input=[box.tag], tools=[p1.tag, p2.tag])
+
+# Material
+B.add_material(m, "Air", all_domains=True)
+
+# Physics
+geo = build_geometry(m, display=False)
+es = m.component.child("physics.es")
+B.add_feature(m, es, "es.pot",
+              geo.select("boundary", xmin=-5, xmax=5, ymin=1, ymax=1.5),
+              V0="V0")
+B.add_feature(m, es, "es.ground",
+              geo.select("boundary", xmin=-5, xmax=5, ymin=-1.5, ymax=-1))
+
+model = m
+study = m.studies()[0]
+# The model `m` can now be saved (.esm), exported to SIF+mesh, or run headless
+----
+
+Key builder functions (see `builder.py` for the full list):
+
+| Function | Purpose |
+|----------|---------|
+| `new_model(dim, physics, study)` | Empty model with global definitions, one component and a study |
+| `add_component(m, sdim)` | Another component (geometry, mesh, materials) |
+| `add_physics(m, pid)` | A physics interface (es, ht, spf, ...) on the component |
+| `add_feature(m, ph, kind, selection, **props)` | Physics feature / BC / source on an interface |
+| `add_material(m, name, domains, all_domains)` | Material from the library, on domains or everywhere |
+| `add_study(m, step_kind, label)` / `add_step(m, st, step_kind)` | A study and its enabled steps |
+| `study_steps(st)` / `ensure_solver_configs(m, st)` | Study steps; solver configurations per physics |
+| `m.create("geom.rectangle", g, ...)` | Geometry primitives and booleans (geom.rectangle, geom.difference, geom.union, geom.array ...) |
+| `m.global_defs.child("params").props["table"]` | Global parameters: rows of {name, expr, descr} |
+
+== Running a study
+
+The `StudyRunner` class handles mesh generation, SIF writing, and calling
+ElmerSolver. It returns a list of solution folder paths (one per study step).
+
+[source,python]
+----
+from elmerstudio.core.study_runner import StudyRunner
+from elmerstudio.core.elmer import find_elmer
+from elmerstudio.core.project import new_workdir
+
+inst = find_elmer()          # raises if Elmer not found
+workdir = new_workdir()
+folders = StudyRunner(model, study, workdir, inst).run()
+# folders = [".../std1/sol_0_0", ...]
+----
+
+`StudyRunner` arguments:
+
+* `model` — a `Model` instance (from `builder.new_model` or loaded from `.esm`)
+* `study` — a `Study` node from `model.studies()`
+* `workdir` — temporary directory from `new_workdir()`
+* `inst` — `ElmerInstall` from `find_elmer()` (has `.solver`, `.grid`, etc.)
+
+The returned folders each contain `meta.json`, `mesh.npz`, and `results/*.vtu`.
+
+== Reading results
+
+The `Solution` class reads a solved case folder and provides:
+
+* Field evaluation at nodes: `sol.evaluate("V", frame)`
+* Derived values (integrals, averages, extrema): `sol.integrate()`, `sol.maxmin()`
+* Point/line probes: `sol.point_eval()`, `sol.line_eval()`
+* PyVista grids for plotting: `sol.bulk_grid()`, `sol.boundary_grid()`
+* Available variables: `sol.available(frame)`
+
+[source,python]
+----
+from elmerstudio.core.results import Solution
+
+sol = Solution(folders[0])
+
+# List available result variables for the last frame
+for alias, label, unit, kind in sol.available("last"):
+    print(f"{alias:20s} {label} [{unit}]")
+
+# Evaluate potential at all nodes of the last frame
+V = sol.evaluate("V", "last")          # numpy array, length = number of nodes
+
+# Integrate electric energy density over the domain
+energy = sol.integrate("es.We", "last", level="domain")
+
+# Max/min potential on the upper plate boundary
+vmax, vmin = sol.maxmin("V", "last", level="domain")
+
+# Probe at specific coordinates (SI units)
+val = sol.point_eval("V", "last", [(0.0, 0.001, 0.0)])  # returns array
+
+# Line cut
+s, pts, vals = sol.line_eval("V", "last", (0, 0, 0), (0, 0.002, 0), n=100)
+----
+
+Common result aliases (from `results.CATALOG` and `results.SHORT`):
+
+| Alias | Quantity | Unit | Physics |
+|-------|----------|------|---------|
+| `V` / `potential` | Electric potential | V | es, ec |
+| `T` / `temperature` | Temperature | K | ht |
+| `solid.disp` | Displacement magnitude | m | solid |
+| `solid.mises` | von Mises stress | Pa | solid |
+| `spf.U` | Velocity magnitude | m/s | spf |
+| `p` | Pressure | Pa | spf, acpr |
+| `mf.normB` | Magnetic flux density | T | mf |
+
+Use `sol.describe("V")` to get the label and SI unit for any alias.
+
+== Derived-value tables
+
+The same integrals, averages and extrema the GUI shows in *Results > Evaluation*
+are available via `Solution` methods and the headless CLI's `--export table:`.
+
+The headless `_derived_table(sol)` function (used by the CLI) produces a
+COMSOL-style table for the last frame:
+
+| frame | time | <quantity> mean | <quantity> max | <quantity> min | <quantity> volint (m^3) |
+|-------|------|-----------------|----------------|----------------|-------------------------|
+| 1     | 0.0  | 1.0             | 2.0            | 0.0            | 1.19e-3                 |
+
+The quantity is the first scalar field in `sol.available()` (for electrostatics,
+the electric potential). You can replicate or extend this in your own scripts:
+
+[source,python]
+----
+from elmerstudio.core.results import Solution
+from elmerstudio.core.headless import _derived_table
+from elmerstudio.core.project import discard_workdir
+
+sol = Solution(folders[0])
+cols, rows = _derived_table(sol)
+# cols = ["frame", "time", "Electric potential mean", "Electric potential max", ...]
+# rows = [[1, 0.0, 500.0, 1000.0, 0.0, 0.595]]
+
+import csv
+with open("derived.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(cols)
+    w.writerows(rows)
+
+discard_workdir(workdir)
+----
+
+== Headless CLI and Python API
+
+The headless entry point runs a study without opening the Qt window.
+
+Command line:
+
+[source,bash]
+----
+python -m elmerstudio run model.esm [--study TAG] [--param K=V] \
+    [--export table:out.csv] [--export plot:out.png] [--json summary.json]
+----
+
+Python API:
+
+[source,python]
+----
+from elmerstudio.core.headless import run_headless
+
+rc = run_headless([
+    "--example", "capacitor",
+    "--study", "std1",
+    "--param", "V0=2[V]",
+    "--export", "table:results.csv",
+    "--export", "plot:results.png",
+    "--json", "summary.json",
+])
+assert rc == 0
+----
+
+Exit codes:
+
+| Code | Meaning |
+|------|---------|
+| 0 | Solve converged |
+| 1 | Solver did not converge (or failed) |
+| 2 | Usage error: bad arguments, unknown parameter, missing file, bad example |
+| 3 | Internal error (unexpected exception) |
+
+The `--json` output (stdout or file) has this structure:
+
+[source,json]
+----
+{
+  "ok": true,
+  "model": {
+    "label": "capacitor_fringe",
+    "file": null,
+    "example": "capacitor",
+    "studies": [{"tag": "std1", "label": "Study 1"}],
+    "params": {"V0": 1000.0, "gap": 0.002, "tp": 0.0005, "wp": 0.01}
+  },
+  "study": {"tag": "std1", "label": "Study 1"},
+  "solve": {
+    "status": "converged",
+    "folders": [".../std1/sol_0_0"],
+    "frames": 1,
+    "diagnostics": []
+  },
+  "derived": {
+    "columns": ["frame", "time", "Electric potential mean", "Electric potential max", ...],
+    "rows": [[1, 0.0, 500.0, 1000.0, 0.0, 0.595]]
+  },
+  "exports": {"table": "results.csv", "plot": "results.png"}
+}
+----
+
+== Loading and saving models
+
+[source,python]
+----
+from elmerstudio.core.project import discard_workdir, load, save
+
+# Save the model built above, then load it back
+save(model, str(tmp_path / "capacitor.esm"), None)
+model, workdir = load(str(tmp_path / "capacitor.esm"))
+model.file_path = str(tmp_path / "capacitor.esm")
+
+# Modify parameters
+model.global_defs.child("params").props["table"][0]["expr"] = "2[kV]"
+
+# Save (writes .esm with embedded geometry/mesh)
+save(model, str(tmp_path / "capacitor_modified.esm"), workdir)
+discard_workdir(workdir)
+----
+
+== Known limitations (Programming API)
+
+* The `builder` API covers the most common workflows; some advanced GUI features
+  (e.g., custom mesh sequences, complex multiphysics couplings) may require
+  manipulating the model tree directly.
+* `StudyRunner` runs ElmerSolver sequentially (no MPI). For parallel runs, export
+  the SIF+mesh and call `ElmerSolver_mpi` externally.
+* Result expressions use the same syntax as the GUI (see xref:expressions.adoc[Expressions and units]).
+* The API is stable within a minor version; breaking changes are noted in the
+  release notes.
+
+== Complete example: parameter sweep
+
+[source,python]
+----
+from elmerstudio.core import builder as B
+from elmerstudio.core.geometry import build_geometry
+from elmerstudio.core.study_runner import StudyRunner
+from elmerstudio.core.results import Solution
+from elmerstudio.core.elmer import find_elmer
+from elmerstudio.core.project import new_workdir, discard_workdir
+import csv
+
+def make_capacitor(V0):
+    m = B.new_model("2D", ["es"], "stationary")
+    m.global_defs.child("params").props["table"] = [
+        {"name": "V0", "expr": V0, "descr": "Plate voltage"},
+        {"name": "gap", "expr": "2[mm]", "descr": "Plate gap"},
+        {"name": "tp", "expr": "0.5[mm]", "descr": "Plate thickness"},
+        {"name": "wp", "expr": "10[mm]", "descr": "Plate width"},
+    ]
+    g = m.component.child("geometry")
+    g.props["unit"] = "mm"
+    box = m.create("geom.rectangle", g, index=0, w="40", h="30", base="center")
+    p1 = m.create("geom.rectangle", g, index=1, w="wp", h="tp", base="center", y="(gap+tp)/2")
+    p2 = m.create("geom.rectangle", g, index=2, w="wp", h="tp", base="center", y="-(gap+tp)/2")
+    m.create("geom.difference", g, index=3, input=[box.tag], tools=[p1.tag, p2.tag])
+    B.add_material(m, "Air", all_domains=True)
+    geo = build_geometry(m, display=False)
+    es = m.component.child("physics.es")
+    B.add_feature(m, es, "es.pot",
+                  geo.select("boundary", xmin=-5, xmax=5, ymin=1, ymax=1.5),
+                  V0="V0")
+    B.add_feature(m, es, "es.ground",
+                  geo.select("boundary", xmin=-5, xmax=5, ymin=-1.5, ymax=-1))
+    return m
+
+inst = find_elmer()
+with open("sweep.csv", "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["V0_V", "max_V", "energy_J"])
+    for V0 in ["500[V]", "1[kV]", "2[kV]", "5[kV]"]:
+        m = make_capacitor(V0)
+        workdir = new_workdir()
+        try:
+            folders = StudyRunner(m, m.studies()[0], workdir, inst).run()
+            sol = Solution(folders[0])
+            maxV = sol.maxmin("V", "last", "domain")[0]
+            energy = sol.integrate("es.We", "last", "domain")
+            w.writerow([V0, maxV, energy])
+        finally:
+            discard_workdir(workdir)
+
+print("sweep.csv written")
+----

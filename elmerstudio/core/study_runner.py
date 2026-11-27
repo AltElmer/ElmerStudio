@@ -276,6 +276,18 @@ class StudyNotConverged(RuntimeError):
     says status 'not converged' with the diagnostics)."""
 
 
+class StudyRunError(StudyNotConverged):
+    """A solver run ended with status "failed" or "not converged". Carries the case folder, the status and the
+    diagnostics so the headless CLI can report them as JSON with exit code 1 instead of an internal error (3).
+    The folder is kept: its meta.json holds status and diagnostics."""
+
+    def __init__(self, message: str, status: str, folder: str, diagnostics: list[str] | None = None):
+        super().__init__(message)
+        self.status = status
+        self.folder = folder
+        self.diagnostics = list(diagnostics or [])
+
+
 def judge_run(rs, sif_meta, folder, label) -> tuple[str, list[str]]:
     """The status of one ElmerSolver run: ('failed', [message]) when Elmer stopped or wrote no result,
     ('not converged', [problems]) when nonlinear or coupling iterations ran out, else ('converged', [])."""
@@ -483,12 +495,14 @@ class StudyRunner:
                             with open(os.path.join(folder, "solver.log"), "w", errors="replace") as f:
                                 f.write("\n".join(rs.lines))
                             if status == "failed":
-                                raise RuntimeError(diagnostics[0])
+                                raise StudyRunError(diagnostics[0] or f"{label}: solver run failed",
+                                                    "failed", folder, diagnostics)
                             if status == "not converged":
                                 if self.study.get("nonconv", "stop") != "keep":
-                                    raise StudyNotConverged("; ".join(diagnostics) + ". Raise the maximum number of iterations "
-                                                            "or the damping in the study's Solver Configurations, or choose to "
-                                                            "keep unconverged solutions in the study settings.")
+                                    raise StudyRunError("; ".join(diagnostics) + ". Raise the maximum number of iterations "
+                                                        "or the damping in the study's Solver Configurations, or choose to "
+                                                        "keep unconverged solutions in the study settings.",
+                                                        "not converged", folder, diagnostics)
                                 for d in diagnostics:
                                     self.emit("warning", f"NOT CONVERGED: {d}")
                             if ctrl.node is None:
