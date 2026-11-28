@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  NASTRAN_RELEASE: v1.0.0
+
 jobs:
   test:
     name: Tests (${{ matrix.os }})
@@ -41,6 +44,72 @@ jobs:
           sudo apt-get install -y elmerfem-csc
           (command -v ElmerSolver || command -v ElmerSolver_mpi) && ElmerGrid 2>&1 | head -n 3 || true
 
+      - name: Install NASTRAN-95 (Linux)
+        if: runner.os == 'Linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ASSET="nastran95-v1.0.0-linux-x86_64.tar.gz"
+          EXPECTED="6a97cd11975041367c0ababa560dddbd556a50b0bff1b9f6eb2ecaedf1c0d73b"
+          DEST="${RUNNER_TEMP}/nastran95-linux"
+          mkdir -p "$DEST"
+          gh release download "${NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p "$ASSET" -D "$DEST"
+          echo "$EXPECTED  $DEST/$ASSET" | sha256sum -c -
+          tar -xzf "$DEST/$ASSET" -C "$DEST"
+          # Archive extracts to a subfolder like nastran95-v1.0.0-linux-x86_64
+          EXTRACTED=$(find "$DEST" -mindepth 1 -maxdepth 1 -type d -name 'nastran95-v*' | head -1)
+          if [ -f "$EXTRACTED/dist/bin/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
+          elif [ -f "$EXTRACTED/nastran" ]; then
+            NAS_HOME="$EXTRACTED"
+          else
+            echo "Could not find nastran executable in $EXTRACTED"
+            ls -la "$EXTRACTED"
+            exit 1
+          fi
+          echo "NASTRAN_HOME=$NAS_HOME" >> "$GITHUB_ENV"
+          # Verify the binary runs
+          "$NAS_HOME/nastran" --version 2>&1 | head -5 || "$NAS_HOME/nastran" -v 2>&1 | head -5 || true
+
+      - name: Install NASTRAN-95 (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $asset = "nastran95-v1.0.0-windows-x86_64.zip"
+          $expected = "35399cefb508db4745725f3c61bf3df134b302ff94b251bfa663b7f2ef60f726"
+          $dest = "$env:RUNNER_TEMP\nastran95-windows"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          gh release download "${env:NASTRAN_RELEASE}" -R Foadsf/NASTRAN-95 -p $asset -D $dest
+          $actual = (Get-FileHash "$dest\$asset" -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) {
+            Write-Error "SHA256 mismatch: expected $expected, got $actual"
+            exit 1
+          }
+          Expand-Archive -Path "$dest\$asset" -DestinationPath $dest -Force
+          # Archive may extract to a subfolder or directly; find nastran.exe
+          $nastranExe = Get-ChildItem $dest -Recurse -File -Filter "nastran.exe" | Select-Object -First 1
+          if (-not $nastranExe) {
+            Write-Error "Could not find nastran.exe in $dest"
+            Get-ChildItem $dest -Recurse | Format-Table FullName
+            exit 1
+          }
+          $nasHome = $nastranExe.DirectoryName
+          # Go up to the root that contains rf/ and dist/
+          while ($nasHome -and -not (Test-Path "$nasHome\rf")) {
+            $parent = Split-Path $nasHome
+            if ($parent -eq $nasHome) { break }
+            $nasHome = $parent
+          }
+          "NASTRAN_HOME=$nasHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Verify the binary runs
+          & "$nasHome\nastran.exe" --version 2>&1 | Select-Object -First 5
+          if ($LASTEXITCODE -ne 0) { & "$nasHome\nastran.exe" -v 2>&1 | Select-Object -First 5 }
+
+      # No NASTRAN-95 on macOS: the arm64 build of v1.0.0 stops with a signal on this runner (SIGBUS and SIGTRAP,
+      # "NASTRAN exited with code -10" in run 41137877598), so its solver tests skip there as "not installed".
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
@@ -50,6 +119,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           ELMERSTUDIO_TEST_MPI_HOME: /usr      # the PPA's Elmer is an MPI build: one study also runs on 2 processes
+          ELMERSTUDIO_TEST_REQUIRE: elmer,nastran   # installed above: a test that cannot find them fails, it does not skip
         run: |
           ElmerSolver -v 2>&1 | head -n 8 || true
           command -v mpiexec || echo "no mpiexec: the MPI test will fail with the reason"
@@ -66,10 +136,11 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Engine tests (no Elmer on this runner; solver tests skip)
+      - name: "Engine tests (no Elmer on this runner: its solver tests skip; NASTRAN-95 runs on Windows)"
         if: runner.os != 'Linux'
         env:
           QT_QPA_PLATFORM: offscreen
+          ELMERSTUDIO_TEST_REQUIRE: ${{ runner.os == 'Windows' && 'nastran' || '' }}
         run: pytest tests -v -rs
 
       - name: GUI smoke test (drives the main window; Linux, software OpenGL)
