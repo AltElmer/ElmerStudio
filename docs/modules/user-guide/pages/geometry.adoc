@@ -68,7 +68,13 @@ Extrude and Revolve pick the last work plane as input by themselves.
 
 == Importing CAD
 
-menu:Geometry[Import] reads STEP (`.step`, `.stp`), IGES (`.iges`, `.igs`) and BREP (`.brep`) files, with optional repair. Imported parts take part in Booleans and selections like any other object.
+menu:Geometry[Import] reads STEP (`.step`, `.stp`), IGES (`.iges`, `.igs`) and BREP (`.brep`) files, with optional repair. Imported parts take part in Booleans and selections like any other object. Each solid of the file becomes a domain; solids that touch share their interface after *Form Union*.
+
+A STEP file carries its length unit and is scaled to the unit of the geometry. A BREP file has no unit: its numbers are taken in the unit of the geometry.
+
+_Repair imported geometry_ is kept only when it leaves the solids of the file, their volume and surfaces that can still be meshed. Otherwise the file is used as it is, and the *Messages* pane says what the repair did. This happens with a solid that has internal cavities, which the repair would turn into loose faces.
+
+An IGES file usually holds faces only. With the repair on, the regions that these faces enclose become solids, one for each body. Such a file does not say which side of a face is material, so a void inside a body becomes a solid of its own: leave it without physics, or import the void and the body as two files and subtract one from the other with *Difference*. Faces that enclose nothing give no domain, and a message says so. With the repair off, the faces are imported as they are.
 
 [#assembly]
 == Form Union or Form an Assembly
