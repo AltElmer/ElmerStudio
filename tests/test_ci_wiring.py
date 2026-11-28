@@ -86,20 +86,18 @@ def test_missing_required_detects_absent_variable():
     When the variable is not set at all (popped), the test session should not exit.
     When it is set to empty string, it means 'require no solvers' - which is valid for macOS.
     """
-    import sys
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-    # Import the conftest module
     import importlib.util
+    import os
     spec = importlib.util.spec_from_file_location("conftest", os.path.join(os.path.dirname(__file__), "conftest.py"))
     conftest = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(conftest)
+    missing_required = conftest.missing_required
 
     # Test: absent env var (not in os.environ) -> no requirements -> no error
     # We simulate by temporarily removing it
     old = os.environ.pop("ELMERSTUDIO_TEST_REQUIRE", None)
     try:
-        wrong = conftest.missing_required(os.environ.get("ELMERSTUDIO_TEST_REQUIRE", ""))
+        wrong = missing_required(os.environ.get("ELMERSTUDIO_TEST_REQUIRE", ""))
         assert wrong == [], f"Absent variable should not produce errors: {wrong}"
     finally:
         if old is not None:
@@ -108,7 +106,7 @@ def test_missing_required_detects_absent_variable():
     # Test: empty string -> no requirements -> no error (valid for macOS)
     os.environ["ELMERSTUDIO_TEST_REQUIRE"] = ""
     try:
-        wrong = conftest.missing_required(os.environ.get("ELMERSTUDIO_TEST_REQUIRE", ""))
+        wrong = missing_required(os.environ.get("ELMERSTUDIO_TEST_REQUIRE", ""))
         assert wrong == [], f"Empty string should not produce errors: {wrong}"
     finally:
         if old is not None:
@@ -120,7 +118,7 @@ def test_missing_required_detects_absent_variable():
     os.environ["ELMERSTUDIO_TEST_REQUIRE"] = "nastran"
     try:
         # This will fail if nastran is not installed, which is expected
-        wrong = conftest.missing_required(os.environ.get("ELMERSTUDIO_TEST_REQUIRE", ""))
+        wrong = missing_required(os.environ.get("ELMERSTUDIO_TEST_REQUIRE", ""))
         # We can't assert on the exact result without knowing if nastran is installed
         # but we can verify the function doesn't crash
         assert isinstance(wrong, list)
