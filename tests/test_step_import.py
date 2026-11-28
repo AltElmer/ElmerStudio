@@ -123,12 +123,18 @@ def test_solid_with_a_void_keeps_its_repair(cad, heal):
 
 
 @pytest.mark.parametrize("ext", ["step", "brep", "iges"])
-def test_formats(cad, ext):
-    """STEP, BREP (no unit: taken in the unit of the geometry) and IGES, which holds faces only: there the solid
-    is made of the faces, and a message says so."""
-    geo = build_geometry(_model(cad("cube", ext)), display=False)
+@pytest.mark.parametrize("unit", ["mm", "m"])
+def test_formats(cad, ext, unit):
+    """STEP/IGES (unit in file: mm), BREP (no unit: taken in the unit of the geometry)."""
+    geo = build_geometry(_model(cad("cube", ext), unit=unit), display=False)
     assert geo.count("domain") == 1 and geo.count("boundary") == 6
-    assert _volumes(geo) == pytest.approx([1e-6], rel=1e-9)
+    # STEP/IGES carry unit (mm): 10mm cube = 1e-6 m^3 regardless of geometry unit
+    # BREP has no unit: 10 in file becomes 10 in geometry unit
+    if ext == "brep":
+        expected_vol = 1e-6 if unit == "mm" else 1000.0
+    else:
+        expected_vol = 1e-6
+    assert _volumes(geo) == pytest.approx([expected_vol], rel=1e-9)
     assert [("surfaces only" in s, "1 region" in s) for s in geo.messages] == ([(True, True)] if ext == "iges" else [])
 
 
@@ -155,7 +161,7 @@ def test_bodies_become_domains(cad, heal):
     ("touching", [64e-9, 64e-9], 11),       # two bodies with a common face: sewn into one shell they were one
     #                                         solid with a crack through it
     ("void", [8e-9, 992e-9], 12),           # faces do not say which side is material: the void is a region too
-    ("cylinder", [math.pi * 4 * 10 * 1e-9], 3),     # curved faces do not cut the box: the sewn shell
+    ("cylinder", [math.pi * 4 * 10 * 1e-9], 3),     # curved faces do not cut the box: solid formed from faces
 ])
 def test_iges_surfaces_become_solids(cad, name, volumes, boundaries):
     geo = build_geometry(_model(cad(name, "iges")), display=False)
