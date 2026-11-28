@@ -136,7 +136,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Engine tests (no Elmer on this runner: its solver tests skip; NASTRAN-95 runs on Windows)
+      - name: "Engine tests (no Elmer on this runner: its solver tests skip; NASTRAN-95 runs on Windows)"
         if: runner.os != 'Linux'
         env:
           QT_QPA_PLATFORM: offscreen
